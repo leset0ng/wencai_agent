@@ -5,6 +5,7 @@ import type { Components, ExtraProps } from 'streamdown'
 import type { ComponentProps } from 'react'
 import type { WencaiUIMessage } from '#/server/agent/messages'
 import type { ToolPresentation } from './presentation'
+import { AgentChoiceContext } from './AgentInteraction'
 
 export interface PresentedTable {
   headers: string[]
@@ -18,9 +19,15 @@ const object = (value: unknown): Record<string, unknown> =>
 /** 只比较实际挂载的生成式表格；隐藏/失败视图及其他轮次不能吞掉文字结果。 */
 export function presentedTables(parts: WencaiUIMessage['parts'], modes: ToolPresentation[]): PresentedTable[] {
   const tables: PresentedTable[] = []
+  const products = (rows: unknown[]) => ({ headers: ['产品', '风险', '预期年化/%', '起购/元', '期限/天'], rows: rows.map((row) => ['name', 'riskRating', 'expectedYieldPct', 'minAmount', 'termDays'].map((key) => String(object(row)[key] ?? ''))) })
   parts.forEach((part, index) => {
-    if (part.type !== 'tool-show_view' || modes[index] !== 'result' || !('output' in part)) return
+    if (modes[index] !== 'result' || !('output' in part)) return
     const out = object(part.output)
+    if (['tool-list_products', 'tool-get_recommendations'].includes(part.type) && out.status === 'done') {
+      const rows = Array.isArray(out.data) ? out.data : object(out.data).products
+      if (Array.isArray(rows)) tables.push(products(rows))
+    }
+    if (part.type !== 'tool-show_view') return
     if (out.status !== 'view') return
     const spec = object(out.spec)
     const elements = object(spec.elements)
@@ -64,13 +71,16 @@ function markdownTable(node: Node): PresentedTable {
 }
 
 function header(value: string) {
-  const key = value.replace(/\s|[（(].*?[）)]/g, '')
+  const key = value.replace(/\s|[（(].*?[）)]/g, '').replace(/[\/／](?:元|%|天)$/, '')
   const groups = [['日期', '交易日期', '时间', '交易时间'], ['对方', '商户', '交易对方', '交易对象', '商户/对方', '商户／对方'],
-    ['分类', '类别', '消费类别'], ['金额', '支出', '支出金额', '消费金额']]
+    ['分类', '类别', '消费类别'], ['金额', '支出', '支出金额', '消费金额'], ['产品', '产品名称', '名称'], ['风险', '风险等级'], ['预期年化', '预期年化收益率', '年化收益率'], ['起购', '起购金额'], ['期限', '期限天数']]
   return groups.find((group) => group.includes(key))?.[0] ?? key
 }
 function cell(value: string, label: string) {
   const compact = value.trim().replace(/\s/g, '')
+  if (header(label) === '期限') return /^(随时可取|随时申赎|活期|0天?)$/.test(compact) ? '0' : compact.replace(/天$/, '')
+  if (header(label) === '预期年化') return compact.replace(/%$/, '')
+  if (header(label) === '起购') return compact.replace(/^[¥￥]/, '').replace(/元$/, '').replace(/,/g, '')
   if (!/金额|余额|支出|收入|费用|价格|总额|应还|合计/.test(label)) return compact
   const money = compact.replace(/^[¥￥]/, '').replace(/元$/, '').replace(/,/g, '').replace(/−/g, '-')
   return /^[+-]?\d+(\.\d+)?$/.test(money) && Math.abs(Number(money)) <= Number.MAX_SAFE_INTEGER / 100
@@ -105,6 +115,9 @@ const COMPONENTS: Components = { table: MarkdownTable }
 export default function AssistantText({ text, tables = [], processing = false }: {
   text: string; tables?: PresentedTable[]; processing?: boolean
 }) {
+  const interaction = useContext(AgentChoiceContext)
+  // The guarded prose stays blocked; authoritative choice/operation components already provide the result.
+  if ((interaction?.hasChoices || interaction?.securityConfirmation) && text.trim() === '部分内容未通过银行数据核对，已停止展示。请以已显示的账户数据和操作卡片为准。') return null
   return (
     <TableContext.Provider value={{ tables, processing }}>
       <div className="bank-assistant-text">

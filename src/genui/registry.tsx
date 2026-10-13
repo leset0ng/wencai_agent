@@ -1,14 +1,11 @@
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '#/components/ui/table'
-import { Button } from '#/components/ui/button'
 import { defineRegistry } from '@json-render/react'
-import { createContext, useContext } from 'react'
+import { AgentActionButton, AgentCardPicker, AgentChoiceList, AgentSelectableTable } from '#/components/chat/AgentInteraction'
+import { choiceFromRow } from '#/components/chat/interaction-message'
 import { AnimatedBarChart, AnimatedDonutChart, normalizeChartData } from '#/components/ui/charts'
 import { AnimatedAmount, Reveal } from '#/components/ui/motion'
 import { catalog } from './catalog'
 import { Card } from '#/components/ui/card'
 
-/** FollowUp 点击后以用户身份发送消息。数值仍只能由已验证的 state 引用传入。 */
-export const FollowUpContext = createContext<(prompt: string) => void>(() => {})
 type Row = Record<string, unknown>
 const asRows = (value: unknown): Row[] =>
   Array.isArray(value) ? value.filter((row) => row !== null && typeof row === 'object') : []
@@ -51,38 +48,11 @@ export const { registry } = defineRegistry(catalog, {
         data={normalizeChartData(props.data, props.labelKey, props.valueKey)}
       />
     ),
-    Table: ({ props }) => (
-      <div className="bank-gen-table">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {props.columns.map((column) => (
-                <TableHead key={column.key}>{column.label}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {asRows(props.rows).map((row, index) => (
-              <TableRow key={index} animated delay={Math.min(index, 10) * .05}>
-                {props.columns.map((column) => (
-                  <TableCell key={column.key}>{String(row[column.key] ?? '')}</TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    ),
+    Table: ({ props }) => <AgentSelectableTable rows={asRows(props.rows)} columns={props.columns} />,
+    ChoiceList: ({ props }) => <AgentChoiceList title={props.title} choices={asRows(props.data).flatMap((row) => { const choice = choiceFromRow(row, props.kind ?? undefined); return choice ? [choice] : [] })} />,
+    CardPicker: ({ props }) => <AgentCardPicker title={props.title} role={props.role} choices={asRows(props.data).flatMap((row) => { const choice = choiceFromRow(row, 'card'); return choice ? [choice] : [] })} />,
     Note: ({ props }) => <p className="bank-gen-note">{props.text}</p>,
-    FollowUp: ({ props }) => <FollowUpButton label={props.label} prompt={props.prompt} />,
+    FollowUp: ({ props }) => <AgentActionButton label={props.label} prompt={props.prompt} className="bank-follow-up bank-lift" />,
+    Confirm: ({ props }) => <AgentActionButton label="确认" prompt={props.prompt} />,
   },
 })
-
-function FollowUpButton({ label, prompt }: { label: string; prompt: string }) {
-  const send = useContext(FollowUpContext)
-  return (
-    <Button onClick={() => send(prompt)} className="bank-follow-up bank-lift" type="button">
-      {label}
-    </Button>
-  )
-}

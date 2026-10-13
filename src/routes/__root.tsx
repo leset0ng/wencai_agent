@@ -48,6 +48,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: "if(window.location.pathname==='/secure-operation'){document.documentElement.dataset.secureDocument='true';document.documentElement.style.background='#fff'}" }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>

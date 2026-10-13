@@ -1,244 +1,41 @@
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
 import { authClient, useSession } from '#/lib/auth-client'
-import { UnauthorizedError, usePasskeyDelete, useSecurityAction, useSettings } from '#/lib/queries'
+import { usePasskeyDelete, useSecurityAction, useSettings } from '#/lib/queries'
 import ThemeToggle from '#/components/ThemeToggle'
-import { useStrongVerification } from '#/components/ui/StrongVerification'
+import { ShieldCheck, ArrowLeft } from 'lucide-react'
+import { Reveal } from '#/components/ui/motion'
+import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
+import '#/components/banking/banking.css'
+import '#/components/ui/bank-security.css'
 
-export const Route = createFileRoute('/settings')({
-  component: SettingsPage,
-  /**
-   * `pwTicket` 由 Agent 的 `request_password_change` 确认后签发：
-   * 它证明该用户刚为这次修改完成过红色强验证，用户在此页只需输入新密码，
-   * 不必重复一次 Passkey / 短信。密码本身从不经过模型，也不进入本页 URL。
-   */
-  validateSearch: (s: Record<string, unknown>) => ({
-    pwTicket: typeof s.pwTicket === 'string' ? s.pwTicket : '',
-  }),
-})
-
+export const Route = createFileRoute('/settings')({ component: SettingsPage, validateSearch: (s: Record<string, unknown>) => ({ pwTicket: typeof s.pwTicket === 'string' ? s.pwTicket : '' }) })
 function SettingsPage() {
-  const { data: session, isPending: sessionPending } = useSession()
-  const navigate = useNavigate()
-  const settings = useSettings()
-  const securityAction = useSecurityAction()
-  const deletePasskey = usePasskeyDelete()
-  const { pwTicket } = useSearch({ from: '/settings' })
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-
-  const body = (() => {
-    if (sessionPending) return <Muted>加载中…</Muted>
-    if (!session) return <Muted>请先登录后再查看安全设置。</Muted>
-    if (settings.isPending) return <Muted>加载中…</Muted>
-    if (settings.error) {
-      if (settings.error instanceof UnauthorizedError) return <Muted>登录已过期，请重新登录。</Muted>
-      return <Muted>加载失败：{settings.error.message}</Muted>
-    }
-    return <SettingsBody
-      data={settings.data}
-      currentSessionId={session.session.id}
-      password={password}
-      setPassword={setPassword}
-      pwTicket={pwTicket}
-      error={error}
-      setError={setError}
-      busy={securityAction.isPending || deletePasskey.isPending}
-      onAction={(body) => {
-        setError('')
-        securityAction.mutate(body, { onError: (e) => setError(e.message) })
-      }}
-      onDeletePasskey={(id) => {
-        setError('')
-        deletePasskey.mutate(id, { onError: (e) => setError(e.message) })
-      }}
-      onSignOut={async () => {
-        await authClient.signOut()
-        navigate({ to: '/login' })
-      }}
-    />
-  })()
-
-  return (
-    <Shell>
-      {body}
-      {error && <p className="m-0 text-sm text-red-600">{error}</p>}
-    </Shell>
-  )
-}
-
-interface BodyProps {
-  data: ReturnType<typeof useSettings>['data']
-  currentSessionId: string
-  password: string
-  setPassword: (v: string) => void
-  /** 来自 Agent 确认单的一次性凭证；有值时无需再次强验证 */
-  pwTicket: string
-  error: string
-  setError: (v: string) => void
-  busy: boolean
-  onAction: (body: unknown) => void
-  onDeletePasskey: (id: string) => void
-  onSignOut: () => Promise<void>
-}
-
-function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket, setError, busy, onAction, onDeletePasskey, onSignOut }: BodyProps) {
-  const verification = useStrongVerification({ purpose: 'set_tx_password', password }, busy)
-  if (!data) return null
-  const { stepUp } = data
-  const methods = [stepUp.passkey ? 'Passkey' : null, '绑定手机号短信（需短信通道）'].filter(Boolean)
-
-  return (
-    <>
-      <section className="space-y-2">
-        <h2 className="m-0 text-sm font-semibold text-[var(--sea-ink)]">账号</h2>
-        <p className="m-0 text-sm demo-muted">{data.user.name}</p>
-        <Button className="text-xs underline demo-muted" type="button" onClick={() => void onSignOut()}>
-          退出登录
-        </Button>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="m-0 text-sm font-semibold text-[var(--sea-ink)]">登录设备</h2>
-        <p className="m-0 text-xs demo-muted">踢掉其他设备后，那些设备上的会话立即失效。</p>
-        {data.sessions.map((s) => (
-          <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-xs">
-            <div className="min-w-0">
-              <p className="m-0 truncate text-[var(--sea-ink)]">{s.id === currentSessionId ? '当前设备' : (s.userAgent ?? '未知设备')}</p>
-              <p className="m-0 demo-muted">
-                {s.ipAddress ?? '未知 IP'} · 到期 {new Date(s.expiresAt).toLocaleString('zh-CN')}
-              </p>
-            </div>
-            {s.id !== currentSessionId && (
-              <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_session', sessionId: s.id })}>
-                踢掉
-              </Button>
-            )}
-          </div>
-        ))}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="m-0 text-sm font-semibold text-[var(--sea-ink)]">渠道绑定</h2>
-        <p className="m-0 text-xs demo-muted">绑定后可在该渠道代办业务；红色操作仍需回到 App 强验证。</p>
-        {data.bindings.length === 0 && <p className="m-0 text-xs demo-muted">未绑定任何渠道。</p>}
-        {data.bindings.map((b) => (
-          <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-xs">
-            <span className="text-[var(--sea-ink)]">{b.channel === 'lark' ? '飞书' : b.channel}</span>
-            <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_binding', bindingId: b.id })}>
-              解绑
-            </Button>
-          </div>
-        ))}
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="m-0 text-sm font-semibold text-[var(--sea-ink)]">强验证方式</h2>
-        {pwTicket ? (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs">
-            <p className="m-0 font-semibold text-[var(--sea-ink)]">已在对话中完成强验证</p>
-            <p className="m-0 mt-1 demo-muted">
-              凭证 5 分钟内有效、仅可使用一次。在此输入新密码即可，不会再要求一次 Passkey / 短信。
-              新密码只提交给服务端，不会进入对话记录。
-            </p>
-          </div>
-        ) : (
-          <p className="m-0 text-xs demo-muted">当前可用：{methods.length ? methods.join(' + ') : '无（请联系客服）'}</p>
-        )}
-        <form
-          className="grid gap-2"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            try {
-              if (pwTicket) {
-                // 凭证路径：确认单里已经做过红色强验证，这里不再重复
-                onAction({ action: 'set_tx_password', password, ticket: pwTicket })
-              } else {
-                const stepUp = await verification.getProof()
-                onAction({ action: 'set_tx_password', password, stepUp })
-              }
-              setPassword('')
-            } catch (error) { setError(error instanceof Error ? error.message : '验证失败') }
-          }}
-        >
-          <Input
-            className="demo-input"
-            inputMode="numeric"
-            maxLength={6}
-            placeholder="设置 6 位交易密码"
-            value={password}
-            disabled={busy || verification.verifying}
-            onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          />
-          {!pwTicket && verification.controls}
-          <Button
-            className="demo-button shrink-0"
-            type="submit"
-            disabled={busy || password.length !== 6 || (!pwTicket && !verification.ready)}
-          >
-            保存
-          </Button>
-        </form>
-        {data.passkeys.map((p) => (
-          <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-xs">
-            <span className="text-[var(--sea-ink)]">Passkey{p.backedUp ? '（已同步）' : ''}</span>
-            <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onDeletePasskey(p.id)}>
-              删除
-            </Button>
-          </div>
-        ))}
-        <RegisterPasskeyButton />
-      </section>
-    </>
-  )
-}
-
-/** Passkey 注册需要浏览器 API，用 mutation 而非缓存查询 */
-function RegisterPasskeyButton() {
-  const register = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/passkey/register')
-      if (res.status === 401) throw new UnauthorizedError()
-      const options = await res.json()
-      if (!res.ok) throw new Error(options.message ?? '获取注册选项失败')
-      const { startRegistration } = await import('@simplewebauthn/browser')
-      const credential = await startRegistration({ optionsJSON: options })
-      const done = await fetch('/api/passkey/register', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ credential }),
-      })
-      const body = await done.json()
-      if (!done.ok || !body.ok) throw new Error(body.message ?? '注册失败')
-    },
-  })
-  return (
-    <>
-      <Button className="demo-button" type="button" disabled={register.isPending} onClick={() => register.mutate()}>
-        {register.isPending ? '注册中…' : '注册 Passkey'}
-      </Button>
-      {register.error && <p className="m-0 text-xs text-red-600">{register.error.message}</p>}
-    </>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mx-auto flex h-dvh max-w-md flex-col bg-[var(--bg-base)]">
-      <header className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
-        <a className="text-sm font-semibold text-[var(--sea-ink)]" href="/">
-          ← 文财
-        </a>
-        <ThemeToggle />
-      </header>
-      <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">{children}</div>
+  const { data: session } = useSession(), navigate = useNavigate(), settings = useSettings()
+  const action = useSecurityAction(), deletePasskey = usePasskeyDelete(), [error, setError] = useState('')
+  const busy = action.isPending || deletePasskey.isPending
+  const perform = (body: unknown) => { setError(''); action.mutate(body, { onError: (error) => setError(error.message) }) }
+  const [demoResult, setDemoResult] = useState('')
+  const data = settings.data
+  return <main className="bank-stage"><div className="bank-shell bank-auth-shell bank-settings-shell">
+    <header className="bank-auth-top"><a href="/" aria-label="返回银行首页"><ArrowLeft size={20} /></a><span>安全中心</span><ThemeToggle /></header>
+    <Reveal className="bank-settings-heading"><span className="bank-security-symbol"><ShieldCheck size={27} /></span><div><h1>守护每一笔安心</h1><p>每卡独立密码 · 安全验证与设备管理</p></div></Reveal>
+    <div className="bank-settings-body">
+      {!session && <p className="demo-muted">请先登录后查看安全设置。</p>}
+      {settings.isPending && <p className="demo-muted">加载中…</p>}
+      {settings.error && <p className="bank-auth-error" role="alert">{settings.error.message}</p>}
+      {data && session && <>
+        <section className="space-y-2"><h2>账号</h2><p className="demo-muted text-sm">{data.user.name}</p><Button className="bank-text-button" onClick={async () => { await authClient.signOut(); await navigate({ to: '/login' }) }}>退出登录</Button></section>
+        <section className="space-y-3"><h2>银行卡交易密码</h2><p className="demo-muted text-xs">每张卡单独设置密码，申请新卡时完成设置。密码仅在独立安全页面输入。</p>
+          {(data.cards ?? []).map((card) => <div className="bank-card-security-row" key={card.id}><span>{card.name}<small>尾号 {card.last4} · {card.hasPassword ? '已设置密码' : '待设置密码'}</small></span><CardPasswordAction cardId={card.id} last4={card.last4} hasPassword={card.hasPassword} /></div>)}
+          {!data.cards?.length && <p className="demo-muted text-xs">你还没有银行卡，申请第一张卡时再设置密码即可。</p>}
+        </section>
+        <section className="space-y-2"><h2>登录设备</h2><p className="demo-muted text-xs">移除其他设备后，那些设备上的会话立即失效。</p>{data.sessions.map((s) => <div className="bank-card-security-row" key={s.id}><span>{s.id === session.session.id ? '当前设备' : s.userAgent ?? '未知设备'}<small>{s.ipAddress ?? '未知 IP'} · 到期 {new Date(s.expiresAt).toLocaleString('zh-CN')}</small></span>{s.id !== session.session.id && <Button className="bank-text-button" disabled={busy} onClick={() => perform({ action: 'revoke_session', sessionId: s.id })}>移除</Button>}</div>)}</section>
+        <section className="space-y-2"><h2>渠道绑定</h2><p className="demo-muted text-xs">绑定后可在该渠道办理业务，密码输入与强验证在独立安全页面完成。</p>{!data.bindings.length && <p className="demo-muted text-xs">未绑定任何渠道。</p>}{data.bindings.map((b) => <div className="bank-card-security-row" key={b.id}><span>{b.channel === 'lark' ? '飞书' : b.channel}</span><Button className="bank-text-button" disabled={busy} onClick={() => perform({ action: 'revoke_binding', bindingId: b.id })}>解绑</Button></div>)}</section>
+        <section className="space-y-3"><h2>验证方式</h2><p className="demo-muted text-xs">常规交易可选交易密码、短信、指纹或人脸之一。单笔超过 3000 元或收款账户状态异常时，须交易密码加指纹或人脸验证。</p><div className="bank-verification-methods"><Button className="bank-verification-method" onClick={() => setDemoResult('指纹演示验证通过')}>指纹验证（演示）</Button><Button className="bank-verification-method" onClick={() => setDemoResult('人脸演示验证通过')}>人脸验证（演示）</Button></div><p className="demo-muted text-xs">点击模拟通过，不进行真实生物识别。</p>{demoResult && <p role="status" className="bank-verification-success">{demoResult}</p>}{data.passkeys.map((p) => <div className="bank-card-security-row" key={p.id}><span>设备验证凭据{p.backedUp ? '（已同步）' : ''}</span><Button className="bank-text-button" disabled={busy} onClick={() => deletePasskey.mutate(p.id, { onError: (error) => setError(error.message) })}>删除</Button></div>)}</section>
+      </>}
+      {error && <p role="alert" className="bank-auth-error">{error}</p>}
     </div>
-  )
-}
-
-function Muted({ children }: { children: React.ReactNode }) {
-  return <p className="m-0 text-sm demo-muted">{children}</p>
+  </div></main>
 }

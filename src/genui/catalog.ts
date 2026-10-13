@@ -38,12 +38,24 @@ export const catalog = defineCatalog(schema, {
       props: z.object({ text: z.string().max(120) }),
       description: '一句说明文字。不得包含金额数字，金额请用 Metric 引用数据',
     },
+    ChoiceList: {
+      props: z.object({ title: z.string().max(30), data: DataRef, kind: z.enum(['card', 'account', 'product', 'recipient', 'subscription', 'option']).nullable() }),
+      description: '项目选择列表，data引用工具数据。选择仅暂存，不发送消息；唯一对象自动确定并灰显，已选对象灰显。交互区统一确认后才发送全部条件。',
+    },
+    CardPicker: {
+      props: z.object({ title: z.string().max(30), data: DataRef, role: z.enum(['source', 'target', 'general']).optional() }),
+      description: '银行卡轮播；单卡、滑动、方向按钮、页码。当前显示的卡即待确认卡，只保留取消和确认，不提供选择按钮；统一确认后才收集本套所有条件发完整消息。不要再生成按尾号付款的FollowUp。',
+    },
+    Confirm: {
+      props: z.object({ prompt: z.string().max(300) }),
+      description: '无选择项时的确认组件。按下才发送完整需求。已有CardPicker/ChoiceList/Table时由交互区自动提供统一确认，不再重复添加。',
+    },
     FollowUp: {
-      props: z.object({ label: z.string().max(16), prompt: z.string().max(60) }),
-      description: '追问按钮：点击后以用户身份发送 prompt。只能用于查询/分析类追问',
+      props: z.object({ label: z.string().max(24), prompt: z.string().max(300) }),
+      description: '兼容旧确认入口；新视图使用Confirm。已有选择组件时此入口会被合并，不要用它重复展示按卡尾号付款的选择。',
     },
   },
-  // 不声明任何 action：唯一的交互 FollowUp 只会以用户身份发一条新消息，重新走完整的意图 → 策略 → 确认流程
+  // 不声明执行 action：选择与追问都只发完整用户消息，重新走意图 → 策略 → 独立验证流程。
   actions: {},
 })
 
@@ -58,7 +70,7 @@ export function catalogPrompt(): string {
     'show_view 的 spec 格式：{ root: string, elements: { [key]: { type, props, children?: string[] } } }',
     '可用组件：',
     ...lines,
-    '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}]}；Note {text}；FollowUp {label,prompt}。',
+    '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}]}；CardPicker {title,data: 数组引用,role?: "source"|"target"|"general"}；ChoiceList {title,data: 数组引用,kind: "card"|"account"|"product"|"recipient"|"subscription"|"option"|null}；Note {text}；Confirm {prompt}；旧FollowUp {label,prompt}。选择仅暂存，整套交互的确认才发送。',
     '月度分类图示例（先查询 get_spending_report）：{"root":"p","elements":{"p":{"type":"Panel","props":{"title":"本月支出","subtitle":null},"children":["m","c"]},"m":{"type":"Metric","props":{"label":"总支出","value":{"$state":"/get_spending_report/expense"},"unit":"元"}},"c":{"type":"PieChart","props":{"title":"支出分类","data":{"$state":"/get_spending_report/byCategory"},"labelKey":"category","valueKey":"total"}}}}',
     '数据型 props 必须写成 {"$state": "/工具名/字段路径"}，例如 {"$state": "/analyze_spending/result/byCategory"}；',
     '路径只能指向本会话已调用工具的返回结果。禁止在 spec 中写入任何金额数字，禁止提供 state 字段。',

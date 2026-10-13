@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './button'
 import { bankEase } from './motion'
+import { SensitiveVisibility } from './sensitive-visibility'
 
 /** Base UI manages focus/Escape; Motion owns the persistent panel and grip gesture. */
 export function Sheet({ open, onClose, title, children, className = '', header }: {
@@ -40,7 +41,7 @@ export function Sheet({ open, onClose, title, children, className = '', header }
             <Dialog.Title render={<div />}>{header ?? <h2>{title}</h2>}</Dialog.Title>
             <Dialog.Close render={<Button className="bank-icon-button bank-lift" aria-label={`关闭${title}`} />}><X size={21} /></Dialog.Close>
           </header>
-          {children}
+          <SensitiveVisibility.Provider value={open}>{children}</SensitiveVisibility.Provider>
         </Dialog.Popup>
       </Dialog.Portal>}
     </Dialog.Root>

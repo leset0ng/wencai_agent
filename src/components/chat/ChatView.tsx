@@ -13,6 +13,8 @@ import AssistantText, { presentedTables } from './AssistantText'
 import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import ConfirmCard from './ConfirmCard'
 import { MotionMessage, ThinkingDots } from '#/components/ui/motion'
+import { AgentInteractionContext, AgentInteractionGroup } from './AgentInteraction'
+import { interactionSnapshot, InteractionMemory, type AgentMessageOptions } from './interaction-message'
 
 const SUGGESTIONS = [
   { label: '查一下本月支出', prompt: '帮我分析本月支出并用图表展示分类', icon: ReceiptText },
@@ -33,9 +35,13 @@ export default function ChatView({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
     onFinish: () => {
       void client.invalidateQueries({ queryKey: ['dashboard'] })
+      void client.invalidateQueries({ queryKey: ['confirm'] })
+      void client.invalidateQueries({ queryKey: ['plans'] })
     },
   })
   const [input, setInput] = useState('')
+  const interactionMemory = useRef(new InteractionMemory())
+  useEffect(() => { if (messages.length) interactionMemory.current.remember(interactionSnapshot(messages, messages.length - 1)) }, [messages])
   const [sendError, setSendError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const followScroll = useRef(true)
@@ -90,15 +96,16 @@ export default function ChatView({
           : 'smooth',
       })
   }, [messages, active, busy])
-  const send = (text: string) => {
-    if (!text.trim() || busy || dispatching.current) return
+  const send = (text: string, options?: AgentMessageOptions) => {
+    if (!text.trim() || busy || dispatching.current) return false
     dispatching.current = true
     setSending(true)
     activeConfirmation.current = undefined
     followScroll.current = true
     setSendError('')
-    void sendMessage({ text }).catch(() => setSendError('消息发送失败，请稍后重试')).finally(() => { dispatching.current = false; setSending(false) })
+    void sendMessage({ text }, options ? { body: options } : undefined).catch(() => setSendError('消息发送失败，请稍后重试')).finally(() => { dispatching.current = false; setSending(false) })
     setInput('')
+    return true
   }
   useEffect(() => {
     if (busy || dispatching.current) return
@@ -112,10 +119,16 @@ export default function ChatView({
     followScroll.current = true
     setSendError('')
     setFailedConfirmation(undefined)
-    void sendMessage(
-      { text: actionId ? '我已核对并确认，请帮我核对执行结果。' : request!.text },
-      actionId ? { body: { confirmedActionId: actionId } } : undefined,
-    ).catch(() => {
+    void (async () => {
+      let text = request?.text ?? ''
+      if (actionId) {
+        const response = await fetch(`/api/confirm?actionId=${encodeURIComponent(actionId)}`, { credentials: 'same-origin' })
+        if (!response.ok) throw new Error('无法读取本次确认摘要')
+        const receipt = await response.json() as { summary: { title: string; fields: { label: string; value: string }[] } }
+        text = `我已核对并确认${receipt.summary.title}（${receipt.summary.fields.map((field) => `${field.label}：${field.value}`).join('；')}）。请仅按服务端回执核对执行结果，不要再次执行。`
+      }
+      await sendMessage({ text }, actionId ? { body: { confirmedActionId: actionId } } : undefined)
+    })().catch(() => {
       setSendError(actionId ? '自动核对暂未完成，操作已确认成功，可重试核对。' : '消息发送失败，请稍后重试')
       if (actionId) setFailedConfirmation(actionId)
     }).finally(() => { dispatching.current = false; setSending(false) })
@@ -175,7 +188,7 @@ export default function ChatView({
                 className={`bank-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}
               >
                 {message.role !== 'user' && <AgentAvatar small />}
-                <div className="bank-message-content">
+                <AgentInteractionContext.Provider value={{ send, enabled: true, busy: busy || sending, snapshot: interactionSnapshot(messages, messageIndex), memory: interactionMemory.current }}><div className="bank-message-content"><AgentInteractionGroup active={message.role === 'assistant' && !processing} securityConfirmation={message.parts.some((part) => 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && ['needs_confirmation', 'needs_handoff', 'plan'].includes(String(part.output.status)))}>
                   {message.parts.map((part, index) => {
                     const key = `${message.id}-${index}`
                     if (part.type === 'text')
@@ -216,14 +229,13 @@ export default function ChatView({
                         <div className="bank-tool-result" key={key}>
                           <ToolPart
                             part={part as never}
-                            onFollowUp={send}
                             summarized={presentation[index] === 'status'}
                           />
                         </div>
                       )
                     return null
                   })}
-                </div>
+                </AgentInteractionGroup></div></AgentInteractionContext.Provider>
               </MotionMessage>
             )
           })}

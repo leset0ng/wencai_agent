@@ -5,10 +5,13 @@ import { auth, db, schema } from '#/server/db/client'
 import { env } from '#/server/env'
 import { verifyPasskeyAssertion } from './passkey'
 import { audit } from '#/server/audit/log'
+import { verifyDemoBiometric } from './demo-biometric'
 
 export const StepUpSchema = z.discriminatedUnion('method', [
   z.object({ method: z.literal('sms'), challengeId: z.string().max(100), code: z.string().regex(/^\d{6}$/) }),
   z.object({ method: z.literal('passkey'), response: z.unknown() }),
+  z.object({ method: z.literal('fingerprint'), challengeId: z.string().max(100) }),
+  z.object({ method: z.literal('face'), challengeId: z.string().max(100) }),
   // 兼容旧客户端的错误反馈；普通密码不再满足红色验证。
   z.object({ method: z.literal('password'), password: z.string().max(32) }),
 ])
@@ -19,7 +22,7 @@ const ensure = () => ready ??= db.$client.execute(`CREATE TABLE IF NOT EXISTS ba
 const hash = (id: string, code: string) => createHmac('sha256', env.CONFIRM_SECRET).update(`${id}:${code}`).digest('hex')
 
 export async function sendVerificationSMS(phone: string, code: string) {
-  if (!env.SMS_DELIVERY_URL) throw new Error('短信通道尚未配置，请使用已注册的 Passkey 验证')
+  if (!env.SMS_DELIVERY_URL) throw new Error('短信通道尚未配置，请选择其他可用验证方式')
   const response = await fetch(env.SMS_DELIVERY_URL, {
     method: 'POST', headers: { 'content-type': 'application/json', ...(env.SMS_DELIVERY_TOKEN ? { authorization: `Bearer ${env.SMS_DELIVERY_TOKEN}` } : {}) },
     body: JSON.stringify({ phoneNumber: phone, code, expiresInSeconds: 300, purpose: 'wencai-verification' }), signal: AbortSignal.timeout(10_000),
@@ -60,6 +63,7 @@ export async function verifyStrongStepUp(userId: string, scope: string, proof: S
 }
 
 async function verifyProof(userId: string, scope: string, proof: StrongStepUp) {
+  if (proof.method === 'fingerprint' || proof.method === 'face') return verifyDemoBiometric(userId, scope, proof.method, proof.challengeId)
   if (proof.method === 'passkey') return verifyPasskeyAssertion(userId, proof.response, scope).catch(() => false)
   if (proof.method !== 'sms') return false
   await ensure()

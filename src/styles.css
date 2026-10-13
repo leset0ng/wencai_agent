@@ -102,6 +102,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Critical first-paint skin: the independent security document never inherits the legacy green theme. */
+html[data-secure-document], html[data-secure-document] body { background:#fff; color:#10214c; color-scheme:light !important; }
+html[data-secure-document] body::before, html[data-secure-document] body::after { display:none; }
+
 body::before {
   content: "";
   position: fixed;

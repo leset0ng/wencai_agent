@@ -65,6 +65,8 @@
 .ui-phone-input:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px #2675ff17; }
 .bank-payment-form .ui-select-trigger { width: 100%; min-width: 0; border: 1px solid #dce7fa; border-radius: 12px; padding: 13px 12px; background: #f8fbff; color: #10234e; font-family: inherit; font-size: 16px; outline: none; }
 .bank-payment-form .ui-select-trigger:focus-visible { border-color: #2675ff; background: white; box-shadow: 0 0 0 3px #2675ff17; }
+.dialog-overlay { position:fixed; inset:0; background:#0b172650; backdrop-filter:blur(3px); z-index:70; }
+.dialog-content { position:fixed; top:50%; left:50%; width:min(520px,calc(100vw - 32px)); max-height:90dvh; overflow:auto; z-index:71; background:white; border:1px solid #dfe6f1; border-radius:14px; box-shadow:0 20px 90px #101f4230; outline:none; }
 .app-shell .ui-select-trigger, .dialog-content .ui-select-trigger { border: 1px solid #dfe5ef; border-radius: 7px; background: white; color: #34435c; padding: 10px 12px; }
 .field .ui-select-trigger { font-size: 12px; width: 100%; color: #5e7394; padding: 11px 12px; border-color: #dde5f1; }
 .table-toolbar > .ui-select-trigger { font-size: 11px; padding: 9px 10px; }

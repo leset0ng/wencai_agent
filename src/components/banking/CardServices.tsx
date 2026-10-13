@@ -10,6 +10,7 @@ import { parsePaymentAmount } from '#/lib/payment-amount'
 import type { ToolOutcome } from '#/server/tools/define'
 import { PaymentApproval } from './PaymentCenter'
 import { Reveal } from '#/components/ui/motion'
+import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
 
 export type CardServiceMode = 'remark' | 'repay' | 'manage' | 'apply'
 export function CardServices({ data, cardId, mode, userId }: { data: DashboardData; cardId: string; mode: CardServiceMode; userId: string }) {
@@ -60,6 +61,7 @@ export function CardServices({ data, cardId, mode, userId }: { data: DashboardDa
       </form>}
       {mode === 'manage' && <div className="bank-payment-form">
         <h2>卡片管理</h2>
+        <CardPasswordAction cardId={card.id} last4={card.last4} />
         <p className="bank-page-note">{card.kind === 'credit' ? '信用卡用于消费和还款，信用额度不计入账户余额。' : '储蓄卡独立记账，可转账、收款和设置每日转出限额。'}已挂失的卡片不能解锁。</p>
         {card.status === 'active' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('lock_card', { cardId })} type="button">临时冻结</Button>}
         {card.status === 'locked' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('unlock_card', { cardId })} type="button">解锁卡片</Button>}

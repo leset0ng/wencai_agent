@@ -1,3 +1,4 @@
+import { setTxPassword } from '#/server/auth/tx-password'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { auth, db, schema } from '#/server/db/client'
@@ -7,7 +8,7 @@ import { createSplitRequests, ensureSplitSchema, mySplitRequests } from '#/serve
 import { getDashboard } from '#/server/dashboard'
 import { paySplit } from '#/server/tools/splits'
 import { runBankTool } from '#/server/tools/runner'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmPending } from './helpers/card-confirmation'
 import { requestStepUpCode } from '#/server/auth/step-up'
 import { resolveTool } from '#/server/tools/bank'
 import { controlPlan, startPlan } from '#/server/executor/service'
@@ -25,6 +26,8 @@ beforeAll(async () => {
   await db.insert(schema.cards).values([A, B].map((id, i) => ({ id: `card_${id}`, userId: id, accountId: i ? bId : aId, kind: 'debit' as const, last4: i ? '8888' : '7777', status: 'active' as const, dailyLimitCents: 5_000_000 })))
   await db.insert(schema.contacts).values({ id: 'workflow_contact', userId: A, name: '流程乙', phone: '13900009801' })
   await db.insert(schema.payees).values({ id: 'workflow_payee', userId: A, name: '旧收款人', accountNo: '6217000000001234', bank: '外部演示银行', createdAt: new Date(0) })
+  // These scenarios start with an enrolled banking account.
+  for (const id of [A, B]) await setTxPassword(id, '983701')
 })
 beforeEach(async () => {
   await db.delete(schema.bankTaskPermissions).where(inArray(schema.bankTaskPermissions.taskId, ['wf_auto', 'wf_legacy']))

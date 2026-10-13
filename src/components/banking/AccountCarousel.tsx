@@ -1,5 +1,5 @@
 import { Button } from '#/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CreditCard } from 'lucide-react'
 import { BankCard } from '#/components/ui/BankCard'
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from '#/components/ui/carousel'
 import type { DashboardData } from '#/lib/dashboard'
@@ -8,19 +8,19 @@ export function accountSlides(data: Pick<DashboardData, 'cards' | 'accounts'>) {
   return data.cards.filter((card) => data.accounts.some((account) => account.id === card.accountId))
 }
 
-export function AccountCarousel({ data, selectedId, onSelect, hidden }: {
-  data: DashboardData; selectedId?: string; onSelect: (id: string) => void; hidden: boolean
+export function AccountCarousel({ data, selectedId, onSelect, hidden, active = true }: {
+  data: DashboardData; selectedId?: string; onSelect: (id: string) => void; hidden: boolean; active?: boolean
 }) {
   const slides = accountSlides(data)
   const index = Math.max(0, slides.findIndex((card) => card.id === selectedId))
-  if (!slides.length) return <p className="bank-empty">你还没有银行账户</p>
+  if (!slides.length) return <div className="bank-empty-card"><span><CreditCard size={32} /></span><strong>还没有银行卡</strong><p>申请第一张卡时，设置这张卡专属的交易密码</p></div>
   return <Carousel key={slides.map((card) => card.id).join('|')} value={index}
     onValueChange={(next) => { if (slides[next]) onSelect(slides[next].id) }}
     className="bank-account-carousel" aria-label="我的银行卡">
     <CarouselContent className="bank-card-viewport" tabIndex={0} aria-label="左右滑动切换银行卡，也可使用左右方向键">
       {slides.map((card, i) => <CarouselItem key={card.id} className="bank-card-slide"
         aria-label={`${i + 1} / ${slides.length} ${card.accountName}`} inert={i !== index}>
-        <BankCard name={card.accountName} last4={card.last4} kind={card.kind} status={card.status}
+        <BankCard cardId={card.id} active={active && i === index} name={card.accountName} last4={card.last4} kind={card.kind} status={card.status}
           balance={card.kind === 'credit' ? card.availableCredit : data.accounts.find((account) => account.id === card.accountId)?.balance} hidden={hidden} />
       </CarouselItem>)}
     </CarouselContent>

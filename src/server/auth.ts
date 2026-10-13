@@ -5,6 +5,11 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { db, auth as authSchema } from '#/server/db/client'
 import { env } from '#/server/env'
 import { sendVerificationSMS } from '#/server/auth/step-up'
+import { createAuthMiddleware, APIError } from 'better-auth/api'
+import { eq } from 'drizzle-orm'
+import { resolvePhoneNumber } from '#/lib/phone-number'
+import { schema } from '#/server/db/client'
+import { recordPhoneLogin } from '#/server/auth/onboarding'
 
 /**
  * 认证实例。仅负责「你是谁」，不涉及任何银行业务授权。
@@ -33,6 +38,32 @@ export const auth = betterAuth({
     modelName: 'user',
     additionalFields: {},
   },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (!['/phone-number/send-otp', '/phone-number/verify'].includes(ctx.path)) return
+      const phone = ctx.body?.phoneNumber
+      if (typeof phone !== 'string' || !resolvePhoneNumber(phone).isValid || resolvePhoneNumber(phone).submissionNumber !== phone) throw new APIError('BAD_REQUEST', { message: '请输入有效的手机号' })
+      if (ctx.path !== '/phone-number/verify' || ctx.body?.updatePhoneNumber) return
+      const [existing] = await db.select({ id: authSchema.baUser.id }).from(authSchema.baUser).where(eq(authSchema.baUser.phoneNumber, phone))
+      if (!existing && (ctx.body?.registration !== true || typeof ctx.body?.registrationName !== 'string' || !ctx.body.registrationName.trim() || ctx.body.registrationName.trim().length > 60)) throw new APIError('BAD_REQUEST', { message: '此手机号尚未注册，请先填写户名注册' })
+      if (existing && ctx.body?.registration === true) throw new APIError('BAD_REQUEST', { message: '此手机号已注册，请直接登录' })
+    }),
+  },
+  databaseHooks: {
+    session: { create: { after: async (session, ctx) => {
+      if (ctx?.path === '/phone-number/verify') await recordPhoneLogin(session.id, session.userId)
+    } } },
+    user: {
+      create: {
+        before: async (user, ctx) => {
+          if (ctx?.path === '/phone-number/verify') return { data: { ...user, name: String(ctx.body?.registrationName ?? '').trim() } }
+        },
+        after: async (user) => {
+          await db.insert(schema.users).values({ id: user.id, name: user.name }).onConflictDoNothing()
+        },
+      },
+    },
+  },
   session: {
     modelName: 'session',
     // 空闲 15 分钟未活动即过期（银行惯例）
@@ -55,7 +86,7 @@ export const auth = betterAuth({
         else if (env.AUTH_DEMO_MODE && process.env.NODE_ENV !== 'production') console.log(`[auth] 演示登录验证码 ${phone}: ${code}`)
         else throw new Error('登录短信通道尚未配置')
       },
-      // 演示环境允许任意未注册手机号直接注册登录（自动生成占位邮箱）
+      // 注册页提供户名，服务端 hook 校验；只有手机号 OTP 通过后才能开户。
       signUpOnVerification: {
         getTempEmail: (phone: string) => `${phone}@wencai.local`,
       },

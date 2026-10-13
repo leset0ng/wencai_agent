@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { and, eq } from 'drizzle-orm'
-import { db, schema } from '#/server/db/client'
+import { and, eq, gt, isNull } from 'drizzle-orm'
+import { validateCardProof } from '#/server/security/card-requirement'
+import { auth, db, schema } from '#/server/db/client'
 import { env } from '#/server/env'
 import { audit } from '#/server/audit/log'
 import type { AgentContext } from '#/server/agent/context'
@@ -13,6 +14,7 @@ import { decide } from '#/server/policy/engine'
 import { maxRisk } from '#/server/policy/types'
 import { withUserExecutionLock } from './lock'
 import { pendingRiskSnapshot, savePendingRiskSnapshot } from '#/server/risk/pending'
+import { transferVerification } from '#/server/security/verification-policy'
 
 export async function createPending(params: {
   ctx: AgentContext
@@ -76,6 +78,7 @@ export type ConfirmErrorCode =
   | 'locked'
   | 'execution_failed'
   | 'plan_paused'
+  | 'card_password_required'
 
 /**
  * 用户确认入口。只能由已认证的客户端会话调用；系统中不存在可被模型调用的确认工具。
@@ -84,6 +87,7 @@ export async function confirmPending(params: {
   ctx: AgentContext
   actionId: string
   stepUp?: StepUp
+  secureRequestId?: string
   resolveTool: (name: string) => BankToolDef | undefined
 }): Promise<ConfirmResult> {
   return withUserExecutionLock(params.ctx.userId, () => confirmUnderLock(params))
@@ -91,6 +95,7 @@ export async function confirmPending(params: {
 
 async function confirmUnderLock(params: {
   ctx: AgentContext; actionId: string; stepUp?: StepUp;
+  secureRequestId?: string;
   resolveTool: (name: string) => BankToolDef | undefined
 }): Promise<ConfirmResult> {
   const { ctx, actionId, stepUp } = params
@@ -148,30 +153,66 @@ async function confirmUnderLock(params: {
     }
   }
 
-  if (effectiveLevel === 'red') {
+  const cardProof = await validateCardProof(row, params.secureRequestId)
+  if (cardProof.required && !cardProof.valid) return fail('card_password_required', cardProof.requirement.newCard ? '请在独立安全页面设置新卡的交易密码后申请' : '请在独立安全页面验证本次操作对应银行卡的交易密码')
+  const verification = transferVerification(row.tool, args, facts)
+  let verificationProof = cardProof.required ? cardProof.proof : undefined
+  let proofRequired = cardProof.required
+  if (verification.transfer && !cardProof.required) {
+    const [registered] = await db.select({ id: auth.baUser.id }).from(auth.baUser).where(eq(auth.baUser.id, ctx.userId))
+    if (registered) {
+      proofRequired = true
+      const [proof] = await db.select().from(schema.bankSecureRequests).where(and(
+        eq(schema.bankSecureRequests.id, params.secureRequestId ?? ''), eq(schema.bankSecureRequests.userId, ctx.userId),
+        eq(schema.bankSecureRequests.actionId, actionId), eq(schema.bankSecureRequests.purpose, 'confirm_action'),
+        eq(schema.bankSecureRequests.status, 'verified'), isNull(schema.bankSecureRequests.consumedAt), gt(schema.bankSecureRequests.expiresAt, new Date()),
+      ))
+      if (!proof || !['sms', 'fingerprint', 'face'].includes(proof.verificationMethod ?? '')) return fail('card_password_required', '请在独立安全页面选择短信、指纹或人脸验证此资金账户')
+      verificationProof = proof
+    }
+  }
+  const method = verificationProof?.verificationMethod ?? 'password'
+  if (verification.dualRequired && method !== 'password') return fail('card_password_required', '异常交易须验证付款卡交易密码，再进行指纹或人脸验证')
+  const alternative = verification.transfer && !verification.dualRequired && method !== 'password'
+  const additional = verification.transfer ? verification.dualRequired : effectiveLevel === 'red'
+  if (additional || alternative) {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
     if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
       return fail('locked', '账户已临时锁定，请联系人工客服')
     }
-    if (!stepUp) return fail('step_up_required', '该操作需要强验证', decision.reasons)
+    if (!stepUp) return fail('step_up_required', verification.dualRequired ? '异常交易须完成交易密码加指纹或人脸验证' : '请完成所选验证方式', decision.reasons)
+    if (verification.dualRequired && !['fingerprint', 'face'].includes(stepUp.method)) return fail('step_up_required', '异常交易第二种方式必须为指纹或人脸，不能使用短信替代', decision.reasons)
+    if (alternative && (stepUp.method !== method || !['sms', 'fingerprint', 'face'].includes(method))) return fail('step_up_failed', '验证结果与所选方式不匹配')
     if (!(await verifyStrongStepUp(ctx.userId, `action:${actionId}`, stepUp))) {
       const [current] = await db.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
       if (current?.lockedUntil && current.lockedUntil > new Date()) return fail('locked', '验证连续失败，账户已锁定30分钟')
       return fail('step_up_failed', `验证失败，还可尝试 ${5 - (current?.failedAuthCount ?? 0)} 次`)
     }
   }
+  await audit(ctx, 'confirm_attempt', { actionId, stage: 'verification', primary: method, secondary: additional ? stepUp?.method : undefined, demoBiometric: stepUp?.method === 'fingerprint' || stepUp?.method === 'face' })
 
   // 原子消费：并发重复提交只有一个能成功
-  const consumed = await db
+  const consumed = await db.transaction(async (tx) => {
+    if (proofRequired) {
+      const proof = await tx.update(schema.bankSecureRequests).set({ consumedAt: new Date() }).where(and(
+        eq(schema.bankSecureRequests.id, params.secureRequestId!), eq(schema.bankSecureRequests.userId, ctx.userId),
+        eq(schema.bankSecureRequests.actionId, actionId), eq(schema.bankSecureRequests.status, 'verified'),
+        isNull(schema.bankSecureRequests.consumedAt), gt(schema.bankSecureRequests.expiresAt, new Date()),
+      )).returning()
+      if (!proof.length) throw new Error('银行卡验证已过期或已使用，请重新验证')
+    }
+    return tx
     .update(schema.pendingActions)
     .set({ status: 'consumed' })
     .where(and(eq(schema.pendingActions.id, actionId), eq(schema.pendingActions.status, 'pending')))
     .returning({ id: schema.pendingActions.id })
+  })
   if (consumed.length === 0) return fail('already_used', '该操作已处理')
 
   try {
     const output = await def.execute(JSON.parse(row.argsJson), { ...ctx, authorization: {
       level: effectiveLevel === 'red' ? 'red' : 'yellow', actionId,
+      ...(proofRequired ? { secureRequestId: params.secureRequestId } : {}),
       ...(facts.payeeRiskFlag === 'suspected' && facts.payeeRiskAccountId && facts.payeeRiskRevision !== undefined
         ? { payeeRisk: { accountId: facts.payeeRiskAccountId, revision: facts.payeeRiskRevision } } : {}),
     } })

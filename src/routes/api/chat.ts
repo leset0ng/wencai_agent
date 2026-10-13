@@ -5,10 +5,14 @@ import { BLOCKED_REPLY, runAgent, screenInput } from '#/server/agent/run'
 import { historyEvidence, lastUserText } from '#/server/agent/messages'
 import type { WencaiUIMessage } from '#/server/agent/messages'
 import type { AgentContext } from '#/server/agent/context'
+import { interactionReceiptText, resolveInteractionCommand } from '#/server/agent/interaction-command'
+import { getConfirmationResult } from '#/server/confirm/result'
+import { audit } from '#/server/audit/log'
 import { requireSession } from '#/server/session'
 
 // 会话标识由认证会话决定，客户端传来的 id 仅用于兼容 ChatSDK 的传输协议
-const BodySchema = z.looseObject({ messages: z.array(z.any()), confirmedActionId: z.string().min(1).max(100).optional() })
+const BodySchema = z.looseObject({ messages: z.array(z.any()), confirmedActionId: z.string().min(1).max(100).optional(), verificationActionId: z.string().min(1).max(100).optional(), cancelActionId: z.string().min(1).max(100).optional() })
+  .refine((body) => [body.confirmedActionId, body.verificationActionId, body.cancelActionId].filter(Boolean).length <= 1, '一次只能处理一个消息操作')
 
 export const Route = createFileRoute('/api/chat')({
   server: {
@@ -39,12 +43,24 @@ export const Route = createFileRoute('/api/chat')({
               return
             }
 
+            const actionId = await resolveInteractionCommand(ctx, body.data)
+            if (actionId && (body.data.verificationActionId || body.data.cancelActionId)) {
+              const receipt = await getConfirmationResult(ctx.userId, actionId)
+              await audit(ctx, 'agent_interaction', { actionId, intent: body.data.cancelActionId ? 'cancel' : 'verify', status: receipt.status })
+              writer.write({ type: 'start' })
+              writer.write({ type: 'data-confirmation', data: receipt })
+              writer.write({ type: 'text-start', id: 'interaction' })
+              writer.write({ type: 'text-delta', id: 'interaction', delta: interactionReceiptText(receipt) })
+              writer.write({ type: 'text-end', id: 'interaction' })
+              writer.write({ type: 'finish' })
+              return
+            }
             const { result, tools, confirmation } = await runAgent({
               ctx,
               messages,
               priorEvidence: historyEvidence(messages),
               abortSignal: request.signal,
-              confirmedActionId: body.data.confirmedActionId,
+              confirmedActionId: actionId,
               onVerified: (violations) => {
                 if (violations.length) writer.write({ type: 'data-verify', data: { violations } })
               },

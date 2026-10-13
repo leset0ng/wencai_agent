@@ -1,7 +1,8 @@
+import { setTxPassword } from '#/server/auth/tx-password'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { and, eq, inArray } from 'drizzle-orm'
 import { auth, db, schema } from '#/server/db/client'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmPending } from './helpers/card-confirmation'
 import { runBankTool } from '#/server/tools/runner'
 import { BANK_TOOLS, resolveTool } from '#/server/tools/bank'
 import { buildAgentTools } from '#/server/agent/tools'
@@ -76,6 +77,8 @@ beforeAll(async () => {
     id: payeeId, userId: uid, name: '小明', alias: '孩子', accountNo: '6222000011112222', bank: '外部银行', phone: '13900001111', createdAt: new Date('2026-01-01'),
   })
   await paymentAccounts(uid) // 为账户生成收款账号，settleTransfer 依赖它
+  // These scenarios start with an enrolled banking account.
+  for (const id of [uid, otherId]) await setTxPassword(id, '983701')
 })
 
 beforeEach(async () => {

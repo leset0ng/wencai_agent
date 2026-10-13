@@ -2,6 +2,8 @@ import { randomInt, randomUUID } from 'node:crypto'
 import { and, eq, gte, lt, sql } from 'drizzle-orm'
 import { auth, db, schema, type DB } from '#/server/db/client'
 import type { AgentContext } from '#/server/agent/context'
+import { ensureCardNumber, ensureCardNumberSchema } from './numbers'
+import { ensureCardPasswordSchema, migrateLegacyCardPassword } from './password'
 
 let ready: Promise<void> | undefined
 export function ensureCardSchema() {
@@ -19,6 +21,8 @@ export const cardLabel = (card: { kind: string; remark: string; last4: string })
 /** 原余额与所有历史流水留在第一张储蓄卡；其余卡创建零余额账户。可并发、可重复运行。 */
 export async function ensureUserCardAccounts(userId: string) {
   await ensureCardSchema()
+  await ensureCardNumberSchema()
+  await ensureCardPasswordSchema()
   await db.transaction(async (tx) => {
     const cards = await tx.select().from(schema.cards).where(eq(schema.cards.userId, userId)).orderBy(sql`rowid`)
     const accounts = await tx.select().from(schema.accounts).where(eq(schema.accounts.userId, userId))
@@ -53,6 +57,10 @@ export async function ensureUserCardAccounts(userId: string) {
         const remark = card.kind === 'debit' && !['储蓄卡', '借记卡', '信用卡', '银行卡'].includes(account.name) ? account.name : ''
         await tx.insert(schema.bankCardProfiles).values({ cardId: card.id, remark, creditLimitCents: card.kind === 'credit' ? 2_000_000 : 0 }).onConflictDoNothing()
       }
+    }
+    for (const card of cards) {
+      await ensureCardNumber(tx, card.id, card.last4)
+      await migrateLegacyCardPassword(tx, userId, card.id)
     }
   })
 }
@@ -100,11 +108,13 @@ export async function resolveCard(userId: string, query: string, kind?: 'debit' 
   return matches[0]
 }
 
-export async function createUserCard(userId: string, kind: 'debit' | 'credit', remark = '') {
+export async function createUserCard(userId: string, kind: 'debit' | 'credit', remark = '', secureRequestId?: string) {
   const [registered] = await db.select().from(auth.baUser).where(eq(auth.baUser.id, userId))
   if (registered) await db.insert(schema.users).values({ id: userId, name: registered.name }).onConflictDoNothing()
   await ensureUserCardAccounts(userId)
   return db.transaction(async (tx) => {
+    const [credential] = secureRequestId ? await tx.select().from(schema.bankSecureRequests).where(and(eq(schema.bankSecureRequests.id, secureRequestId), eq(schema.bankSecureRequests.userId, userId), eq(schema.bankSecureRequests.status, 'verified'))) : []
+    if (secureRequestId && (!credential?.passwordHash || !credential.consumedAt || credential.expiresAt <= new Date())) throw new Error('新卡密码凭据无效，请重新申请')
     const existing = await tx.select().from(schema.cards).where(eq(schema.cards.userId, userId))
     let last4: string
     do { last4 = String(randomInt(0, 10_000)).padStart(4, '0') } while (existing.some((c) => c.last4 === last4))
@@ -112,6 +122,11 @@ export async function createUserCard(userId: string, kind: 'debit' | 'credit', r
     await tx.insert(schema.accounts).values({ id: accountId, userId, name: cardKindName(kind), balanceCents: 0 })
     await tx.insert(schema.cards).values({ id, userId, accountId, kind, last4, status: 'active', dailyLimitCents: 5_000_000 })
     await tx.insert(schema.bankCardProfiles).values({ cardId: id, remark, creditLimitCents: kind === 'credit' ? 2_000_000 : 0 })
+    await ensureCardNumber(tx, id, last4)
+    if (credential) {
+      await tx.insert(schema.bankCardPasswords).values({ cardId: id, userId, passwordHash: credential.passwordHash! })
+      await tx.update(schema.bankSecureRequests).set({ passwordHash: null, status: 'issued' }).where(eq(schema.bankSecureRequests.id, credential.id))
+    }
     return { cardId: id, accountId, last4, kind }
   })
 }

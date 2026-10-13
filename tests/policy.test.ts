@@ -22,7 +22,7 @@ describe('权限分级', () => {
   it.each(['transfer_between_cards', 'repay_credit_card'])('%s 复用金额与频率风控，本人操作不误判新收款人', (tool) => {
     const input = { tool, baseRisk: 'yellow' as const, args: { amountCents: 50_000 }, facts: facts({ payeeAgeDays: undefined }) }
     expect(decide(input)).toMatchObject({ allowed: true, level: 'yellow' })
-    expect(decide({ ...input, args: { amountCents: 100_001 } }).level).toBe('red')
+    expect(decide({ ...input, args: { amountCents: 300_001 } }).level).toBe('red')
     expect(decide({ ...input, facts: facts({ recentTransferCount: 5 }) }).allowed).toBe(false)
   })
   it('只读操作为绿色', () => {
@@ -34,19 +34,19 @@ describe('权限分级', () => {
     expect(d).toMatchObject({ level: 'yellow', allowed: true })
   })
 
-  it('日累计超过 1000 元升级为红色', () => {
-    expect(decide(transfer(1001)).level).toBe('red')
-    expect(decide(transfer(300, { dailyOutgoingCents: 80_000 })).level).toBe('red')
-    expect(decide(transfer(1000)).level).toBe('yellow')
+  it('单笔超过 3000 元升级为红色，累计不影响单笔边界', () => {
+    expect(decide(transfer(3000.01)).level).toBe('red')
+    expect(decide(transfer(300, { dailyOutgoingCents: 800_000 })).level).toBe('yellow')
+    expect(decide(transfer(3000)).level).toBe('yellow')
   })
 
-  it('新收款人升级为红色', () => {
-    expect(decide(transfer(10, { payeeAgeDays: 2 })).level).toBe('red')
-    expect(decide(transfer(10, { payeeAgeDays: undefined })).level).toBe('red')
+  it('未标记异常的新收款人不强制双重验证', () => {
+    expect(decide(transfer(10, { payeeAgeDays: 2 })).level).toBe('yellow')
+    expect(decide(transfer(10, { payeeAgeDays: undefined })).level).toBe('yellow')
   })
 
-  it('夜间大额升级为红色', () => {
-    expect(decide(transfer(600, { now: new Date('2026-10-10T03:00:00') })).level).toBe('red')
+  it('夜间普通交易仍可单方式验证', () => {
+    expect(decide(transfer(600, { now: new Date('2026-10-10T03:00:00') })).level).toBe('yellow')
   })
 
   it('规则只升不降：模型无法通过参数降低等级', () => {
@@ -70,7 +70,7 @@ describe('权限分级', () => {
   })
 
   it('命中规则写入 reasons', () => {
-    const d = decide(transfer(2000, { payeeAgeDays: 1 }))
+    const d = decide(transfer(3001, { payeeRiskFlag: 'suspected' }))
     expect(d.reasons).toHaveLength(2)
   })
 })

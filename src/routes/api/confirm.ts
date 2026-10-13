@@ -8,11 +8,13 @@ import { resolveTool } from '#/server/tools/bank'
 import { requireSession } from '#/server/session'
 import type { AgentContext } from '#/server/agent/context'
 import { StepUpSchema } from '#/server/auth/step-up'
+import { ownedSecureRequest } from '#/server/security/operation'
 
 const BodySchema = z.object({
   actionId: z.string(),
   decision: z.enum(['confirm', 'cancel']),
   stepUp: StepUpSchema.optional(),
+  secureRequestId: z.string().max(100).optional(),
 })
 
 /**
@@ -37,7 +39,7 @@ export const Route = createFileRoute('/api/confirm')({
       POST: async ({ request }) => {
         const body = BodySchema.safeParse(await request.json())
         if (!body.success) return Response.json({ error: 'bad request' }, { status: 400 })
-        const { actionId, decision, stepUp } = body.data
+        const { actionId, decision, stepUp, secureRequestId } = body.data
         let ctx
         try {
           ctx = await contextFor(request, actionId)
@@ -51,7 +53,11 @@ export const Route = createFileRoute('/api/confirm')({
           return Response.json({ ok: true, cancelled: true, plan })
         }
 
-        const result = await confirmPending({ ctx, actionId, stepUp, resolveTool })
+        if (secureRequestId) {
+          try { await ownedSecureRequest({ ...await requireSession(request), channel: 'web' }, secureRequestId) }
+          catch { return Response.json({ ok: false, code: 'card_password_required', message: '请在当前登录会话重新验证银行卡密码' }, { status: 400 }) }
+        }
+        const result = await confirmPending({ ctx, actionId, stepUp, secureRequestId, resolveTool })
         if (!result.ok) return Response.json(result, { status: 400 })
         return Response.json({ ...result, actionId, userId: ctx.userId })
       },

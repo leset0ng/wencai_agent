@@ -1,0 +1,53 @@
+.bank-gen-children { grid-template-columns:minmax(0,1fr); min-width:0; }
+.bank-gen-children > *, .bank-gen-panel, .bank-tool-result { min-width:0; max-width:100%; }
+.bank-agent-choice { box-sizing:border-box; width:100%; min-width:0; max-width:100%; border:1px solid #dfE9fc; border-radius:20px; background:linear-gradient(150deg,#fff,#f9fcff); padding:16px 12px; color:#10214c; box-shadow:0 5px 20px #b5cdf41a; }
+.bank-agent-choice>header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:0 3px; margin-bottom:8px; }
+.bank-agent-choice h3 { margin:0; font-size:17px; font-weight:750; }
+.bank-agent-choice>header>span { color:#8da0c0; font-size:13px; white-space:nowrap; }
+.bank-agent-card-picker { position:relative; min-width:0; max-width:100%; padding:0 18px; container-type:inline-size; }
+.bank-agent-card-picker .bank-card-viewport, .bank-agent-card-picker .ui-carousel-track { width:100%; min-width:0; }
+.bank-agent-card-picker .bank-card-slide { padding:10px 3px 15px; }
+.bank-agent-card-picker .bank-physical-card { width:100%; min-width:0; padding:clamp(10px,4cqw,16px); min-height:154px; aspect-ratio:1.58; display:flex; flex-direction:column; justify-content:space-between; }
+.bank-agent-card-picker .bank-physical-card > * { flex-shrink:0; }
+.bank-agent-card-picker .bank-card-top strong { font-size:15px; }
+.bank-agent-card-picker .bank-card-number { font-size:clamp(9px,4.6cqw,13px); letter-spacing:.3px; gap:3px; margin:clamp(3px,1.5cqw,6px) 0; }
+.bank-agent-card-picker .bank-physical-card > .bank-chip { width:20px; height:15px; flex-shrink:0; margin:clamp(6px,2.4cqw,10px) 0; }
+.bank-agent-card-picker .bank-card-eye { width:24px; height:26px; }
+.bank-agent-card-picker .bank-card-top strong { font-size:clamp(12px,5cqw,15px); }
+.bank-agent-card-picker .bank-card-value strong { font-size:clamp(12px,5cqw,15px); }
+.bank-agent-card-picker .bank-card-bottom { font-size:clamp(9px,3.8cqw,11px); gap:4px; flex-wrap:nowrap; }
+.bank-agent-card-prev,.bank-agent-card-next { position:absolute; top:46%; transform:translateY(-50%); display:grid; place-items:center; width:29px; height:32px; border-radius:50%; border:1px solid #dce8ff; color:#5576a9; background:#f7faff; padding:0; cursor:pointer; }
+.bank-agent-card-prev { left:-5px; }.bank-agent-card-next { right:-5px; }
+.bank-agent-card-prev:disabled,.bank-agent-card-next:disabled { opacity:.35; cursor:default; }
+.bank-agent-choice-dots { display:flex; justify-content:center; gap:5px; }
+.bank-agent-choice-dots button { display:grid; place-items:center; width:18px; height:18px; }
+.bank-agent-choice-dots span { width:7px; height:7px; border-radius:50%; background:#d0ddf2; }
+.bank-agent-choice-dots [aria-current=true] span { background:#1262ff; }
+.bank-agent-choice-hint { font-size:11px; color:#8b9ebd; margin:5px 0 16px; text-align:center; }
+.bank-agent-choice-actions { display:flex; gap:10px; }
+.bank-choice-button { display:inline-flex; justify-content:center; align-items:center; border:1px solid #1262ff; border-radius:13px; padding:10px 14px; min-height:40px; color:#fff; background:linear-gradient(120deg,#0560ff,#1681ff); font-size:13px; font-weight:650; cursor:pointer; white-space:nowrap; }
+.bank-choice-button.is-secondary { color:#1262ff; background:#fff; }
+.bank-agent-choice-actions .bank-choice-button { flex:1 1 0; min-width:0; padding-inline:6px; }
+.bank-choice-button.is-selected:disabled { opacity:1; border-color:#d9e1ed; color:#7b899d; background:#e9eef5; cursor:default; }
+.bank-agent-choice.is-selected .bank-card-slide:not([inert]) .bank-physical-card { filter:saturate(.18); opacity:.8; }
+.bank-agent-choice-list.is-fixed { background:#f3f5f8; border-color:#e1e6ed; }
+.bank-agent-choice-row.is-selected { color:#7b899d; background:#f1f4f8; border-radius:10px; }
+.bank-agent-choice-row > div { min-width:0; }
+.bank-agent-options-table tr.is-selected td { color:#7b899d; background:#f1f4f8; }
+.bank-selection-confirm { min-width:0; width:100%; margin-top:14px; padding-top:12px; border-top:1px solid #e1eafb; }
+.bank-selection-confirm > p { color:#7b8fae; font-size:11px; line-height:1.7; overflow-wrap:anywhere; margin:0 0 9px; }
+.bank-selection-confirm .bank-agent-choice-actions { width:100%; min-width:0; }
+.bank-choice-button:disabled { opacity:.5; cursor:wait; }
+.bank-agent-choice-row { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:13px 2px; border-bottom:1px solid #e7eefb; }
+.bank-agent-choice-row:last-child { border-bottom:0; padding-bottom:0; }
+.bank-agent-choice-row strong { font-size:13px; }
+.bank-agent-choice-row p { color:#8193b1; font-size:10px; line-height:1.8; margin:5px 0 0; overflow-wrap:anywhere; }
+.bank-agent-choice-row .bank-choice-button { padding:7px 10px; min-height:34px; font-size:12px; }
+.bank-choice-empty { color:#8b9ebd; font-size:12px; }
+.bank-choice-table-action { position:sticky; right:0; background:#fff; }
+.bank-agent-options-table { border:1px solid #dfe9fc; border-radius:18px; padding:12px 9px; background:linear-gradient(150deg,#fff,#f9fcff); }
+.bank-agent-options-table thead { background:#f0f6ff; }
+.bank-agent-options-table tbody tr:last-child td { border-bottom:0; }
+.bank-agent-options-table h3 { margin:0 0 12px; font-size:15px; }
+.bank-agent-options-table table { font-size:11px; }
+.bank-agent-options-table .bank-choice-button { padding:5px 9px; min-height:29px; border-radius:9px; font-size:11px; }

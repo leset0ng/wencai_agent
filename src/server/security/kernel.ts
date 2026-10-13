@@ -276,11 +276,11 @@ export const POLICY_PROBES: PolicyProbe[] = [
   },
   {
     id: 'pp-daily-large',
-    label: '今日累计超过 1000 元',
+    label: '累计金额不改变常规单笔验证',
     tool: 'transfer',
     amount: 300,
     facts: { payeeAgeDays: 400, dailyOutgoingCents: 80_000 },
-    note: '单笔只有 300 元，但日累计 800+300 超过阈值 → 升级为强验证',
+    note: '单笔300元、收款账户未标记异常 → 任选一种验证方式',
   },
   {
     id: 'pp-new-payee',
@@ -288,15 +288,15 @@ export const POLICY_PROBES: PolicyProbe[] = [
     tool: 'transfer',
     amount: 10,
     facts: { payeeAgeDays: undefined, dailyOutgoingCents: 0 },
-    note: '金额只 10 元，但收款人未登记 → 仍升级为强验证',
+    note: '新收款人未标记异常、单笔10元 → 任选一种验证方式',
   },
   {
     id: 'pp-night',
-    label: '夜间大额',
+    label: '夜间常规交易',
     tool: 'transfer',
     amount: 600,
     facts: { payeeAgeDays: 400, dailyOutgoingCents: 0 },
-    note: '凌晨 3 点、单笔 600 元 → 升级',
+    note: '凌晨3点、单笔600元且账户未标记异常 → 任选一种验证方式',
   },
   {
     id: 'pp-burst',

@@ -14,7 +14,8 @@ import { modelToolSchema } from './tool-schema'
 
 /** 按渠道裁剪工具白名单：MCP 只暴露只读工具 */
 export function availableBankTools(ctx: AgentContext): BankToolDef[] {
-  return ctx.channel === 'mcp' ? BANK_TOOLS.filter((t) => t.kind === 'read') : BANK_TOOLS
+  const current = BANK_TOOLS.filter((tool) => tool.name !== 'request_password_change')
+  return ctx.channel === 'mcp' ? current.filter((t) => t.kind === 'read') : current
 }
 
 /** 构建本次请求的 AI SDK 工具集。ctx 通过闭包注入，模型无法篡改身份。 */

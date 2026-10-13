@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAgentTools } from '#/server/agent/tools'
+import { availableBankTools, buildAgentTools } from '#/server/agent/tools'
 import { BANK_TOOLS } from '#/server/tools/bank'
 import { StepUpSchema } from '#/server/auth/step-up'
 
@@ -14,7 +14,8 @@ describe('确认链路与模型隔离', () => {
 
   it('模型可调用的写工具基础等级都不是绿色，必须经过确认单', () => {
     const tools = buildAgentTools(ctx('web'))
-    for (const def of BANK_TOOLS.filter((tool) => tool.kind === 'write')) {
+    expect(tools).not.toHaveProperty('request_password_change')
+    for (const def of availableBankTools(ctx('web')).filter((tool) => tool.kind === 'write')) {
       expect(tools).toHaveProperty(def.name)
       expect(def.baseRisk, def.name).not.toBe('green')
       expect(def.summarize, def.name).toBeTypeOf('function')

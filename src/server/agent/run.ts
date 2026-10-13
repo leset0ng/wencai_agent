@@ -40,7 +40,7 @@ export async function runAgent(params: {
   const confirmation = params.confirmedActionId
     ? await getConfirmationResult(ctx.userId, params.confirmedActionId)
     : undefined
-  // 确认回报这一轮只允许读取实际结果，不能再次发起写操作或计划。
+  // 确认回报、按钮核对/取消这一轮只读，消息本身不能再次发起写操作或计划。
   const tools = buildAgentTools(ctx, { readOnly: !!params.confirmedActionId })
   const messages = isUIMessages(params.messages)
     ? await convertToModelMessages(params.messages, { tools, ignoreIncompleteToolCalls: true })

@@ -3,6 +3,8 @@ import { motion, useReducedMotion } from 'motion/react'
 import { bankEase, useReveal } from './motion'
 import { formatAmount } from '#/lib/dashboard'
 import './bank-card.css'
+import { CardNumber } from './CardNumber'
+import './bank-security.css'
 
 export function BankCardStack({ count = 3 }: { count?: number }) {
   const reveal = useReveal<HTMLSpanElement>()
@@ -30,6 +32,8 @@ export function BankCardStack({ count = 3 }: { count?: number }) {
 }
 
 export function BankCard({
+  cardId,
+  active = true,
   name,
   last4,
   kind = 'debit',
@@ -38,6 +42,8 @@ export function BankCard({
   hidden = false,
   index = 0,
 }: {
+  cardId?: string
+  active?: boolean
   name: string
   last4?: string
   kind?: string
@@ -70,7 +76,7 @@ export function BankCard({
         {kind === 'account' ? (
           '人民币 · 资金账户'
         ) : (
-          <>•••• &nbsp; •••• &nbsp; •••• &nbsp; {last4 ?? '••••'}</>
+          <CardNumber cardId={cardId} last4={last4} active={active} />
         )}
       </p>
       <div className="bank-card-bottom">

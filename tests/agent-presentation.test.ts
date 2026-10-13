@@ -27,6 +27,21 @@ function html(items: ToolUIPart[], processing = false) {
 }
 
 describe('Agent 只展示最终数据视图', () => {
+  it('重复收款候选只展示一次，不同对象的查询保留各自选择', () => {
+    const a = done('find_payee', { candidates: [{ id: 'mom', name: '妈妈' }] })
+    const b = done('find_payee', { candidates: [{ id: 'dad', name: '爸爸' }] })
+    expect(toolPresentations(parts([a, a]))).toEqual(['status', 'result'])
+    expect(toolPresentations(parts([a, b]))).toEqual(['result', 'result'])
+    expect(toolPresentations(parts([a]), true)).toEqual(['status'])
+  })
+  it('全部银行卡与关联储蓄账户的重叠查询只保留一个完整选卡区，独立账户不受影响', () => {
+    const card = { id: 'c', last4: '8823', balance: 100 }, account = { id: 'a', cardId: 'c', last4: '8823', balance: 100 }
+    const all = done('list_cards', [card, { id: 'credit', last4: '1047', availableCredit: 5000 }]), linked = done('get_accounts', [account])
+    expect(toolPresentations(parts([all, linked]))).toEqual(['result', 'status'])
+    expect(toolPresentations(parts([linked, all]))).toEqual(['status', 'result'])
+    expect(toolPresentations(parts([all, done('get_accounts', [{ id: 'independent', balance: 100 }])]))).toEqual(['result', 'result'])
+    expect(toolPresentations(parts([all, done('get_accounts', [{ ...account, balance: 90 }])]))).toEqual(['result', 'result'])
+  })
   it('处理期间不挂载固定报表、账户卡片或已完成的生成式图表', () => {
     const items = [done('get_accounts', [{ id: 'a', name: '账户', balance: 100 }]), done('get_spending_report', report()), view()]
     expect(toolPresentations(parts(items), true)).toEqual(['status', 'status', 'status'])

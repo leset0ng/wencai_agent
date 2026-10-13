@@ -78,10 +78,10 @@ export const repayCreditCard = defineBankTool({
 
 export const applyCard = defineBankTool({
   name: 'apply_card', kind: 'write', baseRisk: 'yellow',
-  description: '申请一张文财模拟银行卡，kind=debit 储蓄卡/credit 信用卡，可添加备注。须用户确认，新卡独立账户零余额，模拟信用卡初始额度20000元。',
+  description: '申请一张文财模拟银行卡，kind=debit 储蓄卡/credit 信用卡，可添加备注。须用户确认并在独立安全页面为这张新卡设置专属交易密码后才发卡，新卡独立账户零余额，模拟信用卡初始额度20000元。',
   inputSchema: z.object({ kind: z.enum(['debit', 'credit']), remark: z.string().trim().max(30).default('') }),
   summarize: async (a) => ({ title: '确认申请模拟银行卡', fields: [{ label: '类型', value: a.kind === 'credit' ? '信用卡' : '储蓄卡' }, { label: '备注', value: a.remark || '无备注' }, ...(a.kind === 'credit' ? [{ label: '初始模拟额度', value: '¥20,000.00' }] : []), { label: '说明', value: '文财模拟卡，创建独立零余额账户' }] }),
-  execute: (a, ctx) => createUserCard(ctx.userId, a.kind, a.remark),
+  execute: (a, ctx) => createUserCard(ctx.userId, a.kind, a.remark, ctx.authorization?.secureRequestId),
 })
 export const adjustCreditLimit = defineBankTool({
   name: 'adjust_credit_limit', kind: 'write', baseRisk: 'red',
@@ -91,4 +91,25 @@ export const adjustCreditLimit = defineBankTool({
   execute: (a, ctx) => changeCreditLimit(ctx.userId, a.cardId, Math.round(a.creditLimit * 100)),
   compensate: async (a, out, ctx) => { await changeCreditLimit(ctx.userId, a.cardId, Math.round(out.previousLimit * 100)) },
 })
-export const CARD_TOOLS = [resolveMyCards, transferBetweenCards, setCardRemark, repayCreditCard, applyCard, adjustCreditLimit]
+export const showBankCard = defineBankTool({
+  name: 'show_bank_card', kind: 'read', baseRisk: 'green',
+  description: '用户要查看卡号时，只调出本人的银行卡组件。按备注或尾号查询，重名必须询问尾号。输出没有完整卡号；用户点击眼睛打开独立安全页面，输入这张卡的交易密码验证，关闭页面后卡片获取结果。不要询问密码，不要再用 show_view 或文字显示卡号。',
+  inputSchema: z.object({ query: z.string().trim().min(1).max(100) }),
+  execute: async (a, ctx) => {
+    const matches = await findCards(ctx.userId, a.query)
+    if (matches.length !== 1) throw new Error(matches.length ? `请先询问具体尾号：${matches.map(cardLabel).join('；')}` : '没有找到这张银行卡')
+    const card = matches[0]
+    return { cardId: card.id, name: card.remark || (card.kind === 'credit' ? '信用卡' : '储蓄卡'), last4: card.last4, kind: card.kind, status: card.status }
+  },
+})
+export const cardPasswordSettings = defineBankTool({
+  name: 'card_password_settings', kind: 'read', baseRisk: 'green',
+  description: '为用户打开某一张银行卡的密码设置入口，每张卡独立密码。按备注或尾号查找，重名必须询问具体尾号。用户在独立安全页面亲自设置并通过短信/Passkey验证，绝不能询问或记录密码。',
+  inputSchema: z.object({ query: z.string().trim().min(1).max(100) }),
+  execute: async (a, ctx) => {
+    const cards = await findCards(ctx.userId, a.query)
+    if (cards.length !== 1) throw new Error(cards.length ? `请询问具体尾号：${cards.map(cardLabel).join('；')}` : '还没有这张银行卡，请先申请新卡')
+    return { cardId: cards[0].id, last4: cards[0].last4, remark: cards[0].remark }
+  },
+})
+export const CARD_TOOLS = [resolveMyCards, showBankCard, cardPasswordSettings, transferBetweenCards, setCardRemark, repayCreditCard, applyCard, adjustCreditLimit]

@@ -2,16 +2,14 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createFileRoute } from '@tanstack/react-router'
 import '../components/admin/admin.css'
-import { AdminWorkspace } from '../components/admin/Workspace'
+import { AdminWorkspace, navigation } from '../components/admin/Workspace'
 import { AdminHome } from '../components/admin/Home'
 import type { Section } from '../components/admin/shared'
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
-const sections: Section[] = [
-  'overview', 'transactions', 'transfers', 'investments',
-  'cards', 'subscriptions', 'plans', 'audit', 'security', 'risk-review',
-]
+// 从导航配置推导：新增后台页面只改一处，不会出现"导航里有、地址栏打不开"的情况
+const sections: Section[] = navigation.map((item) => item.id)
 
 export const Route = createFileRoute('/admin')({
   validateSearch: (search: Record<string, unknown>): { section: Section; userId?: string } => ({

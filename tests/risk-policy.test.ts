@@ -1,9 +1,11 @@
+import { setTxPassword } from '#/server/auth/tx-password'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { auth, db, schema } from '#/server/db/client'
 import type { AgentContext } from '#/server/agent/context'
+import { beginDemoBiometric } from '#/server/auth/demo-biometric'
 import { requestStepUpCode } from '#/server/auth/step-up'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmPending } from './helpers/card-confirmation'
 import { collectFacts } from '#/server/policy/facts'
 import { ensurePaymentsSchema } from '#/server/payments/migrate'
 import { paymentAccounts, settleTransfer } from '#/server/payments/service'
@@ -77,6 +79,8 @@ beforeAll(async () => {
     { id: legacyPayeeId, userId: payer, name: '风控收款人', accountNo: recipientAccountNo, bank: '旧银行记录', createdAt: new Date('2026-01-01') },
   ])
   await db.insert(schema.bankPayeeLinks).values({ payeeId, userId: payer, targetAccountId: destination })
+  // These scenarios start with an enrolled banking account.
+  for (const id of userIds) await setTxPassword(id, '983701')
 })
 
 beforeEach(async () => {
@@ -140,13 +144,13 @@ describe('收款账户风险标记贯穿策略与结算', () => {
     expect(await confirm(proposal.actionId)).toMatchObject({ ok: false, code: 'step_up_required', requiredLevel: 'red' })
     expect(await pending(proposal.actionId)).toMatchObject({ status: 'pending', level: 'red' })
     expect(await balance()).toBe(1_000_000)
-    expect((await confirm(proposal.actionId, await sms(proposal.actionId))).ok).toBe(true)
+    expect((await confirm(proposal.actionId, { method: 'face', ...await beginDemoBiometric(payer, `action:${proposal.actionId}`, 'face') })).ok).toBe(true)
     expect(await balance()).toBe(999_500)
     expect(await balance(destination)).toBe(500)
   })
 
   it('原本已是红色且已取得验证码的确认单，也不能越过后来人工确认的高危账户', async () => {
-    const proposal = await propose(1001)
+    const proposal = await propose(3001)
     expect(proposal.level).toBe('red')
     const proof = await sms(proposal.actionId)
     await flag()
@@ -158,7 +162,7 @@ describe('收款账户风险标记贯穿策略与结算', () => {
   })
 
   it('旧红色确认单遇到新增风险时先展示新原因，不消费预先取得的验证码', async () => {
-    const proposal = await propose(1001)
+    const proposal = await propose(3001)
     const proof = await sms(proposal.actionId)
     await flag()
     const warning = await confirm(proposal.actionId, proof)
@@ -169,8 +173,9 @@ describe('收款账户风险标记贯穿策略与结算', () => {
     expect((await db.select().from(schema.bankStepUpCodes).where(eq(schema.bankStepUpCodes.id, proof.challengeId)))[0].consumedAt).toBeNull()
     expect((await pending(proposal.actionId)).status).toBe('pending')
     expect(await balance(destination)).toBe(0)
-    expect((await confirm(proposal.actionId, proof)).ok).toBe(true)
-    expect(await balance(destination)).toBe(100_100)
+    expect(await confirm(proposal.actionId, proof)).toMatchObject({ code: 'step_up_required' })
+    expect((await confirm(proposal.actionId, { method: 'face', ...await beginDemoBiometric(payer, `action:${proposal.actionId}`, 'face') })).ok).toBe(true)
+    expect(await balance(destination)).toBe(300_100)
   })
 
   it('结算事务校验具体标记版本；泛用红色授权、错账户和旧版本均不能扣款', async () => {
@@ -225,7 +230,7 @@ describe('收款账户风险标记贯穿策略与结算', () => {
     expect(await balance()).toBe(1_000_000)
     expect(await balance(destination)).toBe(0)
     expect(await confirm(actionId)).toMatchObject({ code: 'step_up_required' })
-    expect((await confirm(actionId, await sms(actionId))).ok).toBe(true)
+    expect((await confirm(actionId, { method: 'fingerprint', ...await beginDemoBiometric(payer, `action:${actionId}`, 'fingerprint') })).ok).toBe(true)
     expect(await balance(destination)).toBe(500)
     expect((await db.select().from(schema.scheduledTasks).where(eq(schema.scheduledTasks.id, taskId)))[0].status).toBe('succeeded')
   })

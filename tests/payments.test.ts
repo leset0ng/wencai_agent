@@ -1,3 +1,4 @@
+import { setTxPassword } from '#/server/auth/tx-password'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { auth, db, schema } from '#/server/db/client'
@@ -17,10 +18,9 @@ import { addPayee, transferBetweenAccounts } from '#/server/tools/payments'
 import { findPayee, resolveTool, transfer } from '#/server/tools/bank'
 import { commitTransfer, previewTransfer } from '#/server/tools/bank-extended'
 import { runBankTool } from '#/server/tools/runner'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmPending } from './helpers/card-confirmation'
 import { runDueJobs } from '#/server/tools/jobs'
 import { parsePaymentAmount } from '#/lib/payment-amount'
-import { requestStepUpCode } from '#/server/auth/step-up'
 import { ensureAutomationSchema } from '#/server/automation/service'
 
 const A = 'u_payment_a',
@@ -77,8 +77,12 @@ beforeAll(async () => {
     })),
   )
   receiverNo = (await paymentAccounts(B))[0].accountNo
+  await db.insert(schema.cards).values(ids.map((id, i) => ({ id: `${id}_card`, userId: i < 2 ? A : B, accountId: id, kind: 'debit' as const, last4: `88${String(i).padStart(2, '0')}`, status: 'active' as const, dailyLimitCents: 5_000_000 })))
+  // These scenarios start with an enrolled banking account.
+  for (const id of [A, B]) await setTxPassword(id, '983701')
 })
 afterAll(async () => {
+  await db.delete(schema.cards).where(inArray(schema.cards.userId, [A, B]))
   await db.delete(schema.pendingActions).where(inArray(schema.pendingActions.userId, [A, B]))
   await db
     .delete(schema.confirmationTokens)
@@ -155,33 +159,14 @@ describe('收款账户查找与确认添加', () => {
 })
 
 describe('双边转账', () => {
-  it('新收款人强验证，通过确认后 A 扣 B 加，重复确认不再扣', async () => {
+  it('新收款人普通交易单方式确认后 A 扣 B 加，重复确认不再扣', async () => {
     await reset()
     const out = await runBankTool(transfer, { fromAccountId: ids[0], payeeId, amount: 12.34 }, a)
     expect(out.status).toBe('needs_confirmation')
     if (out.status !== 'needs_confirmation') throw new Error('missing confirmation')
-    expect(out.level).toBe('red')
+    expect(out.level).toBe('yellow')
     expect((await balances())[ids[0]]).toBe(100_000)
-    expect(await confirmPending({ ctx: a, actionId: out.actionId, resolveTool })).toMatchObject({
-      ok: false,
-      code: 'step_up_required',
-    })
-    expect(
-      await confirmPending({
-        ctx: a,
-        actionId: out.actionId,
-        resolveTool,
-        stepUp: { method: 'password', password: 'wrong' },
-      }),
-    ).toMatchObject({ ok: false, code: 'step_up_failed' })
-    let verificationCode = ''
-    const verification = await requestStepUpCode(A, `action:${out.actionId}`, async (_phone, code) => { verificationCode = code })
-    const result = await confirmPending({
-      ctx: a,
-      actionId: out.actionId,
-      resolveTool,
-      stepUp: { method: 'sms', challengeId: verification.challengeId, code: verificationCode },
-    })
+    const result = await confirmPending({ ctx: a, actionId: out.actionId, resolveTool })
     expect(result.ok).toBe(true)
     const output = result.ok ? (result.output as { transactionId: string }) : { transactionId: '' }
     const bs = await balances()
@@ -222,7 +207,7 @@ describe('双边转账', () => {
       .where(eq(schema.accounts.id, ids[0]))
     const confirmedLarge = await runBankTool(
       transferBetweenAccounts,
-      { ...input, amountCents: 100_001 },
+      { ...input, amountCents: 300_001 },
       a,
     )
     expect(confirmedLarge).toMatchObject({
@@ -290,7 +275,7 @@ describe('双边转账', () => {
     )
     expect(pending).toMatchObject({
       status: 'needs_confirmation',
-      level: 'red',
+      level: 'yellow',
     })
   })
   it('双边冲正不重复退款；收款方余额不足时双方都不变', async () => {

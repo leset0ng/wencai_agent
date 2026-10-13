@@ -3,7 +3,7 @@ import { phoneNumberClient } from 'better-auth/client/plugins'
 
 /**
  * 浏览器端认证客户端。basePath 指向 our catch-all 路由。
- * 手机号 + 验证码登录，未注册号码验证通过后自动创建账户（signUpOnVerification）。
+ * 手机号 + 验证码登录；新用户须在注册页提供户名，再完成首次交易密码设置。
  */
 export const authClient = createAuthClient({
   basePath: '/api/auth',

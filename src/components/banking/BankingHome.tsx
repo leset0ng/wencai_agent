@@ -325,7 +325,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                       <Button className="bank-text-button bank-lift" onClick={() => setCardService({ id: 'new', mode: 'apply' })} type="button">申请新卡</Button>
                     </div>
                     <p className="bank-page-note">每张卡独立记账，左右滑动查看对应账单。</p>
-                    <AccountCarousel data={data} selectedId={selectedCard?.id} onSelect={setSelectedCardId} hidden={hidden} />
+                    <AccountCarousel data={data} selectedId={selectedCard?.id} onSelect={setSelectedCardId} hidden={hidden} active={!agentOpen && !detail && !paymentView && !cardService} />
                     {selectedCard && <>
                       <div className="bank-card-actions">
                         {selectedCard.kind === 'debit' ? <>
@@ -357,6 +357,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         </Reveal>
                       </div>
                     )}
+                    {data.accounts.some((account) => !data.cards.some((card) => card.accountId === account.id)) && <>
                     <div className="bank-section-heading">
                       <h2>其他资金账户</h2>
                       <Button
@@ -383,7 +384,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         </div>
                       </Reveal>
                     ))}
-                    {!data.accounts.length && <p className="bank-empty">你还没有银行账户</p>}
+                    </>}
                     <div className="bank-payment-entry"><Button className="bank-payment-secondary bank-lift" onClick={() => openPayment('payees')} type="button"><UsersRound size={16} />收款人</Button><Button className="bank-payment-secondary bank-lift" onClick={() => openPayment('transfer', selectedCard?.kind === 'debit' ? selectedCard.accountId : undefined)} type="button">账户互转</Button></div>
                   </>
                 )}
@@ -443,7 +444,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                       <a className="bank-lift" href="/settings">
                         <Settings size={21} />
                         <span>
-                          安全与设备管理<small>交易密码、Passkey 与登录设备</small>
+                          安全与设备管理<small>交易密码、指纹、人脸与登录设备</small>
                         </span>
                         <ChevronRight size={17} />
                       </a>

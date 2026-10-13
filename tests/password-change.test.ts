@@ -7,7 +7,7 @@ import { resolveTool, BANK_TOOLS } from '#/server/tools/bank'
 import { requestPasswordChange } from '#/server/tools/security'
 import { requestStepUpCode } from '#/server/auth/step-up'
 import { consumePasswordChangeGrant, ensurePasswordChangeSchema, issuePasswordChangeGrant, GRANT_TTL_MS } from '#/server/auth/password-change'
-import { verifyTxPassword } from '#/server/auth/tx-password'
+import { setTxPassword, verifyTxPassword } from '#/server/auth/tx-password'
 import { Route as securityRoute } from '#/routes/api/security'
 
 const { session } = vi.hoisted(() => ({ session: vi.fn() }))
@@ -64,6 +64,7 @@ beforeEach(async () => {
   await db.delete(schema.bankPasswordChangeGrants).where(eq(schema.bankPasswordChangeGrants.userId, uid))
   await db.delete(schema.pendingActions).where(eq(schema.pendingActions.userId, uid))
   await db.delete(auth.baAccount).where(eq(auth.baAccount.userId, uid))
+  await setTxPassword(uid, '983701')
   await db.$client.execute({ sql: 'DELETE FROM bank_step_up_codes WHERE user_id = ?', args: [uid] }).catch(() => {})
   await db.update(schema.users).set({ failedAuthCount: 0, lockedUntil: null }).where(eq(schema.users.id, uid))
 })

@@ -1,7 +1,8 @@
+import { setTxPassword } from '#/server/auth/tx-password'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq, inArray } from 'drizzle-orm'
 import { auth, db, schema } from '#/server/db/client'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmPending } from './helpers/card-confirmation'
 import { runBankTool } from '#/server/tools/runner'
 import { transferBetweenAccounts } from '#/server/tools/payments'
 import { commitCardChange, commitPurchase, commitRedemption, issueToken, previewCardChange } from '#/server/tools/bank-extended'
@@ -32,6 +33,8 @@ beforeAll(async () => {
   await db.insert(schema.cards).values({ id: cardId, userId: uid, accountId: source, last4: '7744', kind: 'debit', status: 'active', dailyLimitCents: 5_000_000 })
   await db.insert(schema.products).values({ id: product, name: '回归产品', riskRating: 'R1', minAmountCents: 100, expectedYield: .02, termDays: 0 })
   session.mockResolvedValue({ userId: uid, userName: '修复回归', sessionId: ctx.sessionId })
+  // These scenarios start with an enrolled banking account.
+  for (const id of [uid]) await setTxPassword(id, '983701')
 })
 beforeEach(async () => {
   await db.delete(schema.holdings).where(eq(schema.holdings.userId, uid))
@@ -95,27 +98,13 @@ describe('安全要求修复回归', () => {
     expect(await balance()).toBe(200_000)
     expect((await db.select().from(schema.holdings).where(eq(schema.holdings.id, holdingId)))[0].principalCents).toBe(100_000)
   })
-  it('两笔预先创建的 600 元确认单在执行时重新升级，强验证前不消费第二张', async () => {
-    // 夜间（北京时间 0–6 点）单笔超过 500 元本身就是红色，会让第一张也被拦下。
-    // 这条用例要验证的是"日累计"升级，所以把时间固定在白天，避免结果随运行时刻变化。
-    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-13T06:00:00.000Z') })
-    try {
+  it('两笔600元常规交易不会因累计超过旧阈值误要求双重验证', async () => {
     const input = { fromAccountId: source, toAccountId: target, amountCents: 60_000 }
     const proposals = await Promise.all([runBankTool(transferBetweenAccounts, input, ctx), runBankTool(transferBetweenAccounts, input, ctx)])
     if (proposals.some((p) => p.status !== 'needs_confirmation')) throw new Error(JSON.stringify(proposals))
-    const [a, b] = proposals as Extract<typeof proposals[number], { status: 'needs_confirmation' }>[]
-    const result = await Promise.all([confirm(a.actionId), confirm(b.actionId)])
-    expect(result.filter((r) => r.ok)).toHaveLength(1)
-    const blocked = result.findIndex((r) => !r.ok)
-    expect(result[blocked]).toMatchObject({ code: 'step_up_required', requiredLevel: 'red' })
-    expect(await balance(target)).toBe(60_000)
-    const pending = (await db.select().from(schema.pendingActions).where(eq(schema.pendingActions.id, [a, b][blocked].actionId)))[0]
-    expect(pending).toMatchObject({ status: 'pending', level: 'red' })
-    expect((await confirm(pending.id, await sms(`action:${pending.id}`))).ok).toBe(true)
+    const result = await Promise.all(proposals.map((p) => confirm((p as { actionId: string }).actionId)))
+    expect(result.every((r) => r.ok)).toBe(true)
     expect(await balance(target)).toBe(120_000)
-    } finally {
-      vi.useRealTimers()
-    }
   })
   it('扩展挂失也是红色，密码不能代替强验证，已挂失卡不可解锁', async () => {
     const preview = await previewCardChange.execute({ cardId, action: 'lost' }, ctx)

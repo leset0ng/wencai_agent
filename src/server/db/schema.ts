@@ -1,4 +1,7 @@
 import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+export { bankCardNumbers } from './card-schema'
+export { bankInitialEnrollments } from './enrollment-schema'
+export { bankCardPasswords, bankSecureRequests } from './security-operation-schema'
 
 // 金额统一以「分」为单位存储，避免浮点误差
 
@@ -438,4 +441,20 @@ export const bankRiskAnalysisState = sqliteTable('bank_risk_analysis_state', {
   lastStatus: text('last_status').notNull().default('idle'),
   lastErrorCode: text('last_error_code'),
   analyzedAt: integer('analyzed_at', { mode: 'timestamp_ms' }),
+})
+
+/**
+ * 后台用户画像的文字缓存。只存文字与来源，不存任何指标：指标每次由代码重新计算，
+ * `fingerprint` 是指标的哈希，数据变了指纹就变，旧文字不会冒充新数据。
+ * 这张表**不被策略引擎、Agent 或数字核验读取**，画像文字永远不是证据。
+ */
+export const bankProfileNarratives = sqliteTable('bank_profile_narratives', {
+  userId: text('user_id').primaryKey(),
+  fingerprint: text('fingerprint').notNull(),
+  text: text('text').notNull(),
+  /** ai | rule：文字由模型还是确定性模板生成 */
+  source: text('source').notNull(),
+  /** 模型输出被拒绝的原因：numbers | invalid | unavailable */
+  rejected: text('rejected'),
+  generatedAt: integer('generated_at', { mode: 'timestamp_ms' }).notNull(),
 })

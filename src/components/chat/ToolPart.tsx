@@ -1,5 +1,5 @@
 import { JSONUIProvider, Renderer } from '@json-render/react'
-import { FollowUpContext, registry } from '#/genui/registry'
+import { registry } from '#/genui/registry'
 import { isRetryableConfirmError, useCancelAction, useConfirmAction } from '#/lib/queries'
 import type { StepUpPayload } from '#/lib/queries'
 import type { ToolOutcome } from '#/server/tools/define'
@@ -10,6 +10,11 @@ import { Reveal } from '#/components/ui/motion'
 import { normalizeChartData } from '#/components/ui/charts'
 import { FinancialReport } from '#/components/banking/FinancialReport'
 import { useQuery } from '@tanstack/react-query'
+import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
+import { AgentCardPicker, AgentChoiceList, AgentSelectableTable, AgentInteractionContext, AgentChoiceContext } from './AgentInteraction'
+import { selectionView } from './interaction-layout'
+import { choiceFromRow, operationMessage, type ChoiceKind } from './interaction-message'
+import { useContext } from 'react'
 
 export interface ToolUIPart {
   type: `tool-${string}`
@@ -24,6 +29,8 @@ const TOOL_LABEL: Record<string, string> = {
   list_transactions: '查询交易',
   find_payee: '查找收款人',
   list_cards: '查询卡片',
+  show_bank_card: '查看银行卡',
+  card_password_settings: '银行卡密码设置',
   list_subscriptions: '识别订阅',
   list_products: '查询理财产品',
   analyze_spending: '账单分析',
@@ -66,13 +73,13 @@ const TOOL_LABEL: Record<string, string> = {
  */
 export default function ToolPart({
   part,
-  onFollowUp,
   summarized = false,
 }: {
   part: ToolUIPart
-  onFollowUp: (text: string) => void
+  onFollowUp?: (text: string) => void
   summarized?: boolean
 }) {
+  const choices = useContext(AgentChoiceContext)
   const tool = part.type.slice('tool-'.length)
   const label = TOOL_LABEL[tool] ?? tool
 
@@ -93,15 +100,15 @@ export default function ToolPart({
       | { status: 'invalid_view'; errors: string[] }
     if (out.status !== 'view') return <Chip>⚠️ 视图未通过校验</Chip>
     if (summarized) return <Chip>✓ 结果已整理</Chip>
+    const spec = selectionView(out.spec, choices?.hasChoices || choices?.securityConfirmation, choices?.securityConfirmation)
+    if (!spec) return null
     return (
-      <FollowUpContext.Provider value={onFollowUp}>
         <JSONUIProvider
           registry={registry}
-          initialState={(out.spec as { state?: Record<string, unknown> }).state}
+          initialState={spec.state}
         >
-          <Renderer spec={out.spec} registry={registry} />
+          <Renderer spec={spec as never} registry={registry} />
         </JSONUIProvider>
-      </FollowUpContext.Provider>
     )
   }
 
@@ -128,26 +135,45 @@ function PendingControl({
 }) {
   const confirm = useConfirmAction(outcome.actionId)
   const cancel = useCancelAction(outcome.actionId)
+  const interaction = useContext(AgentInteractionContext)
+  const pending = useQuery({ queryKey: ['confirm', outcome.actionId], queryFn: async () => {
+    const response = await fetch(`/api/confirm?actionId=${encodeURIComponent(outcome.actionId)}`)
+    if (!response.ok) throw new Error('无法读取确认状态')
+    return response.json() as Promise<{ status: string }>
+  }, enabled: interaction.enabled, staleTime: 30_000, retry: false })
 
   // 强验证输错（step_up_failed）允许重试；not_found / tampered / expired 等是终态，
-  // 该操作已无法执行，卡片直接收起到结束态，不再给出按钮
+  // 该操作已无法执行；Agent 卡片保留“重新办理”入口，重新生成受保护的确认单。
   const failedForGood = confirm.error !== null && !isRetryableConfirmError(confirm.error)
+  const succeeded = confirm.isSuccess || pending.data?.status === 'completed'
+  const cancelled = cancel.isSuccess || pending.data?.status === 'cancelled'
+  const expired = pending.data?.status === 'expired'
 
   return (
     <ConfirmCard
       {...outcome}
-      submitting={confirm.isPending || cancel.isPending}
+      submitting={confirm.isPending || cancel.isPending || pending.data?.status === 'processing'}
       error={failedForGood ? undefined : (confirm.error ?? cancel.error)?.message}
       done={
-        confirm.isSuccess
+        succeeded
           ? '操作已完成'
-          : cancel.isSuccess
+          : cancelled
             ? '已取消操作'
+            : expired
+              ? '确认已超时，可重新办理'
+            : pending.data?.status === 'failed'
+              ? '执行未完成，可重新办理'
             : failedForGood
               ? confirm.error?.message
               : undefined
       }
-      doneState={confirm.isSuccess ? 'success' : cancel.isSuccess ? 'cancelled' : 'failed'}
+      doneState={succeeded ? 'success' : cancelled ? 'cancelled' : 'failed'}
+      onAgentAction={interaction.enabled ? (action) => {
+        if (interaction.busy) return false
+        // A bank confirmation is immutable: a draft on another picker cannot change its payload.
+        return interaction.send(operationMessage(outcome.summary, interaction.snapshot, action), action === 'verify' ? { verificationActionId: outcome.actionId } : action === 'cancel' ? { cancelActionId: outcome.actionId } : action === 'receipt' ? { confirmedActionId: outcome.actionId } : undefined) !== false
+      } : undefined}
+      agentBusy={interaction.enabled && interaction.busy}
       onConfirm={async (stepUp?: StepUpPayload) => {
         await confirm.mutateAsync(stepUp)
       }}
@@ -194,24 +220,25 @@ function Outcome({ label, tool, outcome }: { label: string; tool: string; outcom
   }
 }
 
-function Accounts({ data }: { data: { id: string; name: string; remark?: string; balance: number }[] }) {
-  return (
-    <div className="grid gap-3">
-      {data.map((account, index) => (
-        <BankCard
-          key={account.id}
-          name={account.remark ? `${account.remark} · ${account.name}` : account.name}
-          kind="account"
-          balance={account.balance}
-          index={index}
-        />
-      ))}
-      {!data.length && <Chip>暂无账户</Chip>}
-    </div>
-  )
+function choicesOf(data: unknown, kind?: ChoiceKind) {
+  return (Array.isArray(data) ? data : []).flatMap((row) => {
+    if (!row || typeof row !== 'object') return []
+    const choice = choiceFromRow(row, kind)
+    return choice ? [choice] : []
+  })
+}
+function Accounts({ data }: { data: Record<string, unknown>[] }) {
+  const cards = choicesOf(data.filter((row) => row.cardId && row.last4), 'card')
+  const accounts = choicesOf(data.filter((row) => !row.cardId || !row.last4), 'account')
+  return <>{!!cards.length && <AgentCardPicker choices={cards} />}{!!accounts.length && <AgentChoiceList choices={accounts} title="选择资金账户" />}{!data.length && <Chip>暂无账户</Chip>}</>
 }
 
 function CompletedResult({ label, tool, data }: { label: string; tool: string; data: unknown }) {
+  if (tool === 'card_password_settings' && data && typeof data === 'object') return <CardPasswordAction {...data as { cardId: string; last4: string }} />
+  if (tool === 'show_bank_card' && data && typeof data === 'object') {
+    const card = data as { cardId: string; name: string; last4: string; kind: string; status: string }
+    return <BankCard {...card} />
+  }
   if (tool === 'request_password_change' && data && typeof data === 'object') {
     const out = data as { status?: string; url?: string; message?: string; expiresAt?: number }
     if (out.status !== 'password_change_authorized' || !out.url) return <Chip>✓ {label}</Chip>
@@ -231,22 +258,25 @@ function CompletedResult({ label, tool, data }: { label: string; tool: string; d
   }
   if (tool === 'get_accounts' && Array.isArray(data)) return <Accounts data={data} />
   if (tool === 'list_cards' && Array.isArray(data))
-    return (
-      <div className="grid gap-3">
-        {data.map((card, index) => (
-          <BankCard
-            key={card.id}
-            name={card.remark || (card.kind === 'credit' ? '信用卡' : '储蓄卡')}
-            last4={card.last4}
-            kind={card.kind}
-            status={card.status}
-            balance={card.kind === 'credit' ? card.availableCredit : card.balance}
-            index={index}
-          />
-        ))}
-        {!data.length && <Chip>暂无银行卡</Chip>}
-      </div>
-    )
+    return <AgentCardPicker choices={choicesOf(data, 'card')} />
+  if (['list_payees', 'list_subscriptions'].includes(tool) && Array.isArray(data))
+    return <AgentChoiceList choices={choicesOf(data, tool === 'list_payees' ? 'recipient' : 'subscription')} title={tool === 'list_payees' ? '选择收款人' : '选择订阅'} />
+  if (['resolve_my_cards', 'resolve_card'].includes(tool) && data && typeof data === 'object') {
+    const out = data as { candidates?: unknown[]; found?: boolean }
+    if (Array.isArray(out.candidates)) return <AgentCardPicker choices={choicesOf(out.candidates, 'card')} />
+  }
+  if ((tool === 'list_products' && Array.isArray(data)) || (tool === 'get_recommendations' && data && typeof data === 'object')) {
+    const rows = Array.isArray(data) ? data : (data as { products?: Record<string, unknown>[] }).products ?? []
+    return <AgentSelectableTable title="理财可选方案" rows={rows} columns={[{ key: 'name', label: '产品' }, { key: 'riskRating', label: '风险' }, { key: 'expectedYieldPct', label: '预期年化/%' }, { key: 'minAmount', label: '起购/元' }, { key: 'termDays', label: '期限/天' }]} />
+  }
+  if (['find_payee', 'resolve_recipient', 'resolve_product', 'resolve_subscription', 'search_bank_accounts'].includes(tool) && data && typeof data === 'object') {
+    const out = data as { candidates?: unknown[] }
+    if (out.candidates?.length) {
+      const kind: ChoiceKind = tool === 'resolve_product' ? 'product' : tool === 'resolve_subscription' ? 'subscription' : 'recipient'
+      const choices = choicesOf(out.candidates, kind)
+      if (choices.length) return <AgentChoiceList choices={choices} title={kind === 'product' ? '选择理财产品' : kind === 'subscription' ? '选择订阅' : '选择收款人'} />
+    }
+  }
   if (tool === 'get_spending_report' && data && typeof data === 'object') {
     const report = data as { period: string; expense: number; categories: Record<string, number> }
     if (

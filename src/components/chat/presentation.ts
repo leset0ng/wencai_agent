@@ -2,7 +2,7 @@ import type { WencaiUIMessage } from '#/server/agent/messages'
 import type { ToolUIPart } from './ToolPart'
 
 export type ToolPresentation = 'result' | 'status' | 'hidden'
-type Source = { tool: string; period?: string; days?: number; field?: string; fingerprint: string }
+type Source = { tool: string; period?: string; days?: number; field?: string; fingerprint: string; cardRows?: string[] }
 type View = { index: number; sources: Source[] }
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
@@ -20,6 +20,14 @@ function stable(value: unknown): string {
 
 function source(tool: string, data: unknown): Source {
   const out = record(data)
+  if (['get_accounts', 'list_cards'].includes(tool) && Array.isArray(data) && data.length && data.every((row) => record(row).last4 && (tool === 'list_cards' || record(row).cardId))) {
+    const cardRows = data.map((raw) => { const row = record(raw); return stable({ id: row.cardId ?? row.id, last4: row.last4, balance: row.balance ?? row.availableCredit }) }).sort()
+    return { tool: 'cards', fingerprint: stable(cardRows), cardRows }
+  }
+  if (['list_products', 'get_recommendations'].includes(tool)) {
+    const rows = (Array.isArray(data) ? data : Array.isArray(out.products) ? out.products : []).map(record)
+    return { tool: 'products', fingerprint: stable(rows.map((row) => ({ id: row.id, name: row.name, riskRating: row.riskRating, expectedYieldPct: row.expectedYieldPct, minAmount: row.minAmount, termDays: row.termDays })).sort((a, b) => String(a.id).localeCompare(String(b.id)))) }
+  }
   const analysis = record(out.result)
   const categories = tool === 'get_spending_report'
     ? record(out.categories)
@@ -87,7 +95,18 @@ function richResult(part: ToolUIPart) {
   if (out.status !== 'done') return false
   switch (part.type) {
     case 'tool-get_accounts':
-    case 'tool-list_cards': return Array.isArray(out.data)
+    case 'tool-list_cards':
+    case 'tool-list_payees':
+    case 'tool-list_subscriptions': return Array.isArray(out.data)
+    case 'tool-list_products': return Array.isArray(out.data)
+    case 'tool-get_recommendations': return Array.isArray(data.products)
+    case 'tool-resolve_my_cards':
+    case 'tool-resolve_card':
+    case 'tool-find_payee':
+    case 'tool-resolve_recipient':
+    case 'tool-resolve_product':
+    case 'tool-resolve_subscription':
+    case 'tool-search_bank_accounts': return Array.isArray(data.candidates)
     case 'tool-get_spending_report':
       return Number.isFinite(data.expense) && !!data.categories && typeof data.categories === 'object'
     case 'tool-analyze_spending': {
@@ -126,10 +145,13 @@ export function toolPresentations(parts: WencaiUIMessage['parts'], processing = 
   for (const view of views) if (!finalViews.includes(view)) modes[view.index] = 'hidden'
   const finalFixed = fixed.filter((item, i) => {
     const covered = finalViews.some((view) => item.sources.every((s) => view.sources.some((t) => same(s, t))))
+    // 全卡查询包含同一批储蓄账户时保留完整选卡区；余额变化或独立资金账户不合并。
+    const cardsCovered = fixed.some((other) => other !== item && item.sources.every((s) => s.cardRows && other.sources.some((t) => t.cardRows &&
+      (t.cardRows.length > s.cardRows!.length || t.cardRows.length === s.cardRows!.length && other.index > item.index) && s.cardRows!.every((row) => t.cardRows!.includes(row)))))
     const replaced = fixed.slice(i + 1).some((later) => item.sources.every((s) => later.sources.some((t) =>
-      same(s, t) || (parts[item.index].type === parts[later.index].type && s.period === t.period && s.days === t.days))))
-    if (covered || replaced) modes[item.index] = 'status'
-    return !covered && !replaced
+      same(s, t) || (parts[item.index].type === parts[later.index].type && !/tool-(?:resolve_|find_payee|search_bank_accounts)/.test(parts[item.index].type) && s.period === t.period && s.days === t.days))))
+    if (covered || replaced || cardsCovered) modes[item.index] = 'status'
+    return !covered && !replaced && !cardsCovered
   })
   // 展示层失败由可用的最终视图/固定报表兜底，银行业务错误及确认卡从不隐藏。
   if (finalViews.length || finalFixed.length) {
