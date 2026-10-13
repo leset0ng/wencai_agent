@@ -26,6 +26,10 @@ export interface PolicyFacts {
   payeeAgeDays?: number
   /** 最近 10 分钟内的转账笔数 */
   recentTransferCount: number
+  /** Recipient account flags are server facts; AI never supplies a policy level. */
+  payeeRiskFlag?: 'suspected' | 'confirmed'
+  payeeRiskAccountId?: string
+  payeeRiskRevision?: number
 }
 
 export interface PolicyInput {

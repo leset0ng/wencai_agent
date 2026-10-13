@@ -7,6 +7,7 @@ import { decide } from '#/server/policy/engine'
 import { RISK_ORDER } from '#/server/policy/types'
 import { withUserExecutionLock } from '#/server/confirm/lock'
 import { settleTransfer } from '#/server/payments/service'
+import { parseRiskAcknowledgement, riskAcknowledged } from '#/server/risk/recipient'
 
 let ready: Promise<void> | undefined
 export function ensureAutomationSchema() {
@@ -16,6 +17,11 @@ export function ensureAutomationSchema() {
       'CREATE TABLE IF NOT EXISTS bank_task_permissions (task_id TEXT PRIMARY KEY, level TEXT NOT NULL)',
       'CREATE TABLE IF NOT EXISTS bank_task_approvals (task_id TEXT PRIMARY KEY, action_id TEXT NOT NULL UNIQUE)',
     ]) await db.$client.execute(sql)
+    const columns = await db.$client.execute('PRAGMA table_info(bank_task_permissions)')
+    if (!columns.rows.some((row) => row.name === 'payee_risk_json')) {
+      try { await db.$client.execute('ALTER TABLE bank_task_permissions ADD COLUMN payee_risk_json TEXT') }
+      catch (error) { if (!String(error).includes('duplicate column name')) throw error }
+    }
   })().catch((e) => { ready = undefined; throw e })
 }
 export async function notify(userId: string, type: string, title: string, body: string, dedupeKey: string, actionId?: string) {
@@ -124,20 +130,24 @@ export async function runAutomaticTransfers(userId: string, now: Date) {
       await audit(ctx, 'policy_decision', { taskId: task.id, stage: 'scheduled_execution', decision, facts })
       if (!decision.allowed) throw new Error(decision.reasons.join('；'))
       const [permission] = await db.select().from(schema.bankTaskPermissions).where(eq(schema.bankTaskPermissions.taskId, task.id))
-      if (!permission || RISK_ORDER[decision.level] > RISK_ORDER[permission.level]) {
+      const payeeRisk = parseRiskAcknowledgement(permission?.payeeRiskJson)
+      if (!permission || RISK_ORDER[decision.level] > RISK_ORDER[permission.level] || !riskAcknowledged(facts, payeeRisk)) {
         const { createPending } = await import('#/server/confirm/pending')
         const { transfer } = await import('#/server/tools/bank')
         const { birthdayOrder } = await import('#/server/tools/birthdays')
         const def = birthday ? birthdayOrder : transfer
         const input = birthday ? args : { ...args, amount: args.amountCents / 100 }
         await audit(ctx, 'tool_call', { taskId: task.id, tool: def.name, args: input })
-        const outcome = await createPending({ ctx, def, args: input, decision })
+        const outcome = await createPending({ ctx, def, args: input, decision,
+          ...(facts.payeeRiskFlag === 'suspected' && facts.payeeRiskAccountId && facts.payeeRiskRevision !== undefined
+            ? { riskSnapshot: { accountId: facts.payeeRiskAccountId, revision: facts.payeeRiskRevision } } : {}),
+        })
         await db.insert(schema.bankTaskApprovals).values({ taskId: task.id, actionId: outcome.actionId })
         await db.update(schema.scheduledTasks).set({ status: 'awaiting_confirmation', resultJson: JSON.stringify({ actionId: outcome.actionId }) }).where(eq(schema.scheduledTasks.id, task.id))
         await notify(userId, 'confirmation', '预约任务需要核对', '执行时风险发生变化或缺少有效授权，请核对并完成验证后执行。', `task:${task.id}:approval`, outcome.actionId)
         return
       }
-      const result = birthday ? await (await import('./birthdays')).executeBirthdayOrder(userId, args.planId, now, { id: task.id, marker }) : await settleTransfer(args, ctx, now, { onSettled: async (tx, transactionId) => {
+      const result = birthday ? await (await import('./birthdays')).executeBirthdayOrder(userId, args.planId, now, { id: task.id, marker }) : await settleTransfer(args, { ...ctx, authorization: { level: permission.level, actionId: `scheduled:${task.id}`, payeeRisk } }, now, { onSettled: async (tx, transactionId) => {
         const [saved] = await tx.update(schema.scheduledTasks).set({ status: 'succeeded', resultJson: JSON.stringify({ transactionId, amount: args.amountCents / 100 }) }).where(and(eq(schema.scheduledTasks.id, task.id), eq(schema.scheduledTasks.status, 'processing'), eq(schema.scheduledTasks.resultJson, marker))).returning()
         if (!saved) throw new Error('任务执行权已变化，未扣款')
       } })

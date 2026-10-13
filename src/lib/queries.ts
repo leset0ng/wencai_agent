@@ -115,6 +115,7 @@ export interface ConfirmResponse {
   actionId?: string
   userId?: string
   requiredLevel?: 'red'
+  reasons?: string[]
 }
 
 /** 服务端的确认失败。code 让 UI 判断能否重试（step_up_failed 可重试）。 */

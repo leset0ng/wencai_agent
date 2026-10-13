@@ -3124,6 +3124,44 @@
 .security-stat strong { font-size: 19px; color: #18243c; line-height: 1.15; }
 .security-stat em { font-size: 10.5px; color: #98a5bc; font-style: normal; }
 
+/* 收款风险复核：共用后台面板与对话框，只补充本页排版。 */
+.risk-review-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.risk-review-notice { display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin-bottom: 18px; border: 1px solid #cfe3ff; border-radius: 10px; color: #2454b3; background: #f4f8ff; font-size: 13px; }
+.risk-review-notice svg { flex-shrink: 0; }
+.risk-review-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin-bottom: 18px; }
+.risk-review-filters label { display: grid; gap: 7px; font-size: 12px; color: #4d5b72; min-width: 160px; }
+.risk-review-search { flex: 1; }
+.risk-review-filters input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: white; font-size: 13px; color: #18243c; }
+.risk-review-filters input:focus-visible { outline: 2px solid #3869e9; outline-offset: 2px; }
+.risk-review-table { min-width: 760px; }
+.risk-review-account { display: grid; gap: 5px; }
+.risk-review-account strong { font-size: 13px; color: #18243c; }
+.risk-review-account small { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.risk-review-account .badge { justify-self: start; }
+.risk-review-reasons { margin: 0; padding-left: 17px; font-size: 12px; line-height: 1.7; color: #4d5b72; max-width: 340px; overflow-wrap: anywhere; }
+.risk-review-updated { margin: 14px 0 0; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.risk-review-detail { display: grid; gap: 14px; padding: 0 24px 22px; }
+.risk-review-dialog .dialog-head { display: block; }
+.risk-review-dialog .dialog-head h2 { margin: 0 0 8px; }
+.risk-review-detail > .badge { justify-self: start; }
+.risk-review-detail h3 { margin: 0; color: #18243c; font-size: 13px; }
+.risk-review-detail .risk-review-reasons { max-width: none; }
+.risk-review-effect { margin: 0; padding: 12px 14px; border: 1px solid #dce7fa; border-radius: 9px; color: #425778; background: #f4f8ff; font-size: 12px; line-height: 1.7; }
+.risk-review-effect p { margin: 4px 0 0; }
+.risk-review-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.risk-review-features div { padding: 10px 12px; border-radius: 8px; background: #f7f9fc; }
+.risk-review-features dt { color: var(--muted); font-size: 11px; }
+.risk-review-features dd { margin: 5px 0 0; color: #18243c; font-size: 14px; font-weight: 600; }
+.risk-review-dialog-foot { flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .risk-review-metrics { grid-template-columns: 1fr; gap: 10px; }
+  .risk-review-filters label { min-width: 0; width: 100%; }
+  .risk-review-detail { padding-right: 18px; padding-left: 18px; }
+  .risk-review-features { gap: 8px; }
+  .risk-review-dialog-foot { gap: 10px; }
+}
+
 @media (max-width: 1100px) {
   .security-stats { grid-template-columns: repeat(3, 1fr); }
   .chain-row { grid-template-columns: 56px 1fr 120px; }

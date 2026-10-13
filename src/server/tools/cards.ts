@@ -19,6 +19,7 @@ export const transferBetweenCards = defineBankTool({
   name: 'transfer_between_cards', kind: 'write', baseRisk: 'yellow',
   description: '按备注或尾号在本人的储蓄卡间转账，例如工资卡转到储蓄卡A。金额单位分。重名会拒绝创建确认单并要求询问具体尾号。信用卡不能普通转账。',
   inputSchema: transferSchema,
+  factsHint: (a) => ({ toAccountId: (a as CardTransfer).toAccountId }),
   prepare: async (a, ctx) => {
     const source = await resolveCard(ctx.userId, a.fromCardQuery, 'debit')
     const target = await resolveCard(ctx.userId, a.toCardQuery, 'debit')

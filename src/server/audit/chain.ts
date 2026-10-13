@@ -45,6 +45,9 @@ export type AuditType =
   | 'mandate_failed'
   | 'mandate_ended'
   | 'mandate_revoked'
+  | 'risk_flag_added'
+  | 'risk_flag_reviewed'
+  | 'risk_analysis_failed'
 
 export function hashEntry(prevHash: string, entry: AuditEntry): string {
   return createHash('sha256').update(prevHash).update(stableStringify(entry)).digest('hex')

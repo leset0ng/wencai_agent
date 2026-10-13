@@ -66,6 +66,7 @@ export const transferBetweenAccounts = defineBankTool({
     memo: z.string().max(50).optional(),
   }),
   summarize: transferSummary,
+  factsHint: (a) => ({ toAccountId: a.toAccountId }),
   execute: settleTransfer,
   compensate: (_a, output, ctx) => reverseTransfer(output.transactionId, ctx),
 })

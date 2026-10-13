@@ -14,6 +14,7 @@ import {
   Gift,
   ScrollText,
   ShieldCheck,
+  ShieldAlert,
   Clock3,
   ArrowUpRight,
   RefreshCw,
@@ -42,6 +43,7 @@ import { AdminSubscriptions } from './views/Subscriptions'
 import { AdminPlans } from './views/Plans'
 import { AdminAudit } from './views/Audit'
 import { AdminSecurity } from './views/Security'
+import { AdminRiskReview } from './views/RiskReview'
 import type { Section } from './shared'
 
 export const navigation = [
@@ -53,6 +55,7 @@ export const navigation = [
   { id: 'subscriptions', name: '订阅与代扣', icon: Repeat2 },
   { id: 'plans', name: '生日计划', icon: Gift },
   { id: 'security', name: '安全内核', icon: ShieldCheck },
+  { id: 'risk-review', name: '收款风险复核', icon: ShieldAlert },
   { id: 'audit', name: '操作审计', icon: ScrollText },
 ] as const
 
@@ -65,6 +68,7 @@ const descriptions: Record<Section, string> = {
   subscriptions: '看清周期支出，让每次续费都有准备。',
   plans: '把预算、时间与礼物，安排在同一条计划里。',
   security: '风险等级由代码判定，确认只能来自用户，每一步都留痕。',
+  'risk-review': '核对收款账户风险线索，人工确认高危或解除标记。',
   audit: '每次业务操作，都有迹可循。',
 }
 
@@ -364,6 +368,8 @@ export function AdminWorkspace({
                   <AdminPlans {...view} />
                 ) : section === 'security' ? (
                   <AdminSecurity {...view} />
+                ) : section === 'risk-review' ? (
+                  <AdminRiskReview />
                 ) : (
                   <AdminAudit {...view} />
                 )}

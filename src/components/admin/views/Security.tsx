@@ -231,6 +231,9 @@ export function AdminSecurity({ s }: ViewProps) {
                               <dd>{String(trace.facts.recentTransferCount ?? '—')} 笔</dd>
                               <dt>账户状态</dt>
                               <dd>{trace.facts.accountLocked === true ? '已锁定' : '正常'}</dd>
+                              <dt>收款账户风险</dt>
+                              <dd>{trace.facts.payeeRiskFlag === 'confirmed' ? '人工确认高危' : trace.facts.payeeRiskFlag === 'suspected' ? '待核实，需强验证' : '无活动标记'}</dd>
+                              {typeof trace.facts.payeeRiskRevision === 'number' && <><dt>标记版本</dt><dd>{trace.facts.payeeRiskRevision}</dd></>}
                             </dl>
                           )}
                         </div>

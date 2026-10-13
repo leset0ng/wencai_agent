@@ -459,7 +459,7 @@ export const commitScheduledTransfer = defineBankTool({
     })
     if (ctx.authorization) {
       await ensureAutomationSchema()
-      await db.insert(schema.bankTaskPermissions).values({ taskId, level: ctx.authorization.level })
+      await db.insert(schema.bankTaskPermissions).values({ taskId, level: ctx.authorization.level, payeeRiskJson: ctx.authorization.payeeRisk ? JSON.stringify(ctx.authorization.payeeRisk) : null })
     }
     return { taskId, status: 'pending', dueAt: iso, amount: yuan(amountCents) }
   },

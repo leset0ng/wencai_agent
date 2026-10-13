@@ -58,6 +58,7 @@ export const bankNotifications = sqliteTable('bank_notifications', {
 })
 export const bankTaskPermissions = sqliteTable('bank_task_permissions', {
   taskId: text('task_id').primaryKey(), level: text('level', { enum: ['yellow', 'red'] }).notNull(),
+  payeeRiskJson: text('payee_risk_json'),
 })
 export const bankTaskApprovals = sqliteTable('bank_task_approvals', {
   taskId: text('task_id').primaryKey(), actionId: text('action_id').notNull().unique(),
@@ -188,6 +189,13 @@ export const plans = sqliteTable('plans', {
     enum: ['running', 'suspended', 'paused', 'completed', 'failed', 'compensated', 'handoff'],
   }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+/** Which recipient warning was actually presented with this confirmation, independent of its base level. */
+export const bankPendingRiskSnapshots = sqliteTable('bank_pending_risk_snapshots', {
+  actionId: text('action_id').primaryKey().references(() => pendingActions.id, { onDelete: 'cascade' }),
+  accountId: text('account_id').notNull(),
+  revision: integer('revision').notNull(),
 })
 
 /**
@@ -384,6 +392,7 @@ export const bankStandingMandates = sqliteTable('bank_standing_mandates', {
   status: text('status').notNull(),
   /** 授权它的那一笔红色待确认动作；唯一，一笔确认只能产生一份授权 */
   authorizedActionId: text('authorized_action_id').notNull(),
+    payeeRiskJson: text('payee_risk_json'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
   nextDueAt: integer('next_due_at', { mode: 'timestamp_ms' }).notNull(),
@@ -401,3 +410,32 @@ export const bankMandateExecutions = sqliteTable('bank_mandate_executions', {
   amountCents: integer('amount_cents').notNull(),
   executedAt: integer('executed_at', { mode: 'timestamp_ms' }).notNull(),
 }, (t) => [uniqueIndex('bank_mandate_seq').on(t.mandateId, t.seq)])
+
+/** 后台 AI 只能追加 suspected，人工复核通过 revision CAS，不能由对话工具摘除。 */
+export const bankRiskFlags = sqliteTable('bank_risk_flags', {
+  accountId: text('account_id').primaryKey().references(() => accounts.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['suspected', 'confirmed', 'cleared'] }).notNull(),
+  featuresJson: text('features_json').notNull(),
+  reasonCodesJson: text('reason_codes_json').notNull(),
+  snapshotHash: text('snapshot_hash').notNull(),
+  source: text('source', { enum: ['ai', 'manual'] }).notNull(),
+  revision: integer('revision').notNull().default(1),
+  /** 只在人工复核时递增；用于拒绝复核前启动、复核后才返回的 AI 结果。 */
+  reviewRevision: integer('review_revision').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
+})
+
+/** worker 跨进程租约与冷却；模型不可用时只记失败，不阻断银行服务。 */
+export const bankRiskAnalysisState = sqliteTable('bank_risk_analysis_state', {
+  accountId: text('account_id').primaryKey().references(() => accounts.id, { onDelete: 'cascade' }),
+  leaseToken: text('lease_token'),
+  leaseUntil: integer('lease_until', { mode: 'timestamp_ms' }),
+  nextRunAt: integer('next_run_at', { mode: 'timestamp_ms' }).notNull(),
+  lastSnapshotHash: text('last_snapshot_hash'),
+  lastStatus: text('last_status').notNull().default('idle'),
+  lastErrorCode: text('last_error_code'),
+  analyzedAt: integer('analyzed_at', { mode: 'timestamp_ms' }),
+})

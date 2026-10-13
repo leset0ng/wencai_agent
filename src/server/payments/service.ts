@@ -6,6 +6,8 @@ import { auth, db, schema, type DB } from '#/server/db/client'
 import { env } from '#/server/env'
 import { ensurePaymentsSchema } from './migrate'
 import { assertDebitAccount, cardLabel, ensureUserCardAccounts, userCards } from '#/server/cards/service'
+import { ensureRiskSchema } from '#/server/risk/accounts'
+import { assertRecipientRisk } from '#/server/risk/recipient'
 
 export const maskAccount = (no: string) => `${no.slice(0, 4)} **** ${no.slice(-4)}`
 export const lookupSchema = z.discriminatedUnion('method', [
@@ -300,6 +302,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
   onSettled?: (tx: Parameters<Parameters<DB['transaction']>[0]>[0], transactionId: string) => Promise<void>
 }) {
   await ensurePaymentsSchema()
+  await ensureRiskSchema()
   await ensureUserCardAccounts(ctx.userId)
   if (ctx.authorization) await (await import('#/server/automation/service')).ensureAutomationSchema()
   if (
@@ -321,6 +324,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
     let targetId = a.toAccountId,
       payeeName = '',
       payeeAccount = ''
+    let riskTargetId = targetId
     if (a.payeeId) {
       const [payee] = await tx
         .select()
@@ -338,6 +342,8 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
         )
       if (payee.bank === '文财银行' && !link) throw new Error('收款账户已失效，请重新添加收款人')
       targetId = link?.targetAccountId
+      const [riskAddress] = await tx.select().from(schema.bankAccountAddresses).where(eq(schema.bankAccountAddresses.accountNo, payee.accountNo))
+      riskTargetId = riskAddress?.accountId ?? targetId
       payeeName = payee.name
       payeeAccount = maskAccount(payee.accountNo)
       if (targetId) {
@@ -372,6 +378,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
       if (!Number.isSafeInteger(target.balanceCents + a.amountCents))
         throw new Error('收款账户金额超出范围')
     }
+    await assertRecipientRisk(tx, riskTargetId, ctx.authorization)
     const [updated] = await tx
       .update(schema.accounts)
       .set({

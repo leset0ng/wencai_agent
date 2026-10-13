@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 const sections: Section[] = [
   'overview', 'transactions', 'transfers', 'investments',
-  'cards', 'subscriptions', 'plans', 'audit',
+  'cards', 'subscriptions', 'plans', 'audit', 'security', 'risk-review',
 ]
 
 export const Route = createFileRoute('/admin')({

@@ -36,6 +36,7 @@ export default function ConfirmCard(props: ConfirmCardProps) {
   const confirming = useRef(false)
   const [verifying, setVerifying] = useState(false)
   const [escalated, setEscalated] = useState(false)
+  const [latestReasons, setLatestReasons] = useState<string[]>()
   const red = props.level === 'red' || escalated
   const submitting = props.submitting || verifying
   const state = props.done ? (props.doneState ?? 'success') : 'pending'
@@ -52,6 +53,7 @@ export default function ConfirmCard(props: ConfirmCardProps) {
       await props.onConfirm?.(stepUp)
     } catch (err) {
       if (err instanceof ConfirmError && err.data.requiredLevel === 'red') setEscalated(true)
+      if (err instanceof ConfirmError && err.data.reasons) setLatestReasons(err.data.reasons)
       // 错误由 props.error 展示；这里不再自行维护错误态
       setMessage(err instanceof Error ? err.message : '验证失败')
     } finally {
@@ -76,9 +78,9 @@ export default function ConfirmCard(props: ConfirmCardProps) {
           </div>
         ))}
       </dl>
-      {props.reasons.length > 0 && (
+      {(latestReasons ?? props.reasons).length > 0 && (
         <ul className="mt-3 mb-0 list-none space-y-0.5 p-0 text-xs text-[var(--sea-ink-soft)]">
-          {props.reasons.map((r) => (
+          {(latestReasons ?? props.reasons).map((r) => (
             <li key={r}>· {r}</li>
           ))}
         </ul>

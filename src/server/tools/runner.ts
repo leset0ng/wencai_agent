@@ -49,7 +49,10 @@ export async function runBankTool(
 
   let pending: Awaited<ReturnType<typeof createPending>>
   try {
-    pending = await createPending({ ctx, def, args, decision, plan })
+    pending = await createPending({ ctx, def, args, decision, plan,
+      ...(facts.payeeRiskFlag === 'suspected' && facts.payeeRiskAccountId && facts.payeeRiskRevision !== undefined
+        ? { riskSnapshot: { accountId: facts.payeeRiskAccountId, revision: facts.payeeRiskRevision } } : {}),
+    })
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }

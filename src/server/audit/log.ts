@@ -7,9 +7,12 @@ import type { AgentContext } from '#/server/agent/context'
 // 进程内排队，数据库写事务同时约束 Web 与自动任务进程，避免哈希链分叉。
 let tail: Promise<unknown> = Promise.resolve()
 
-export function audit(ctx: AgentContext, type: AuditType, payload: unknown): Promise<void> {
+export type AuditTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+/** Business changes and their evidence commit together; never call outer db from this helper. */
+export async function auditInTransaction(tx: AuditTransaction, ctx: AgentContext, type: AuditType, payload: unknown, at = Date.now()): Promise<void> {
   const entry: AuditEntry = {
-    at: Date.now(),
+    at,
     userId: ctx.userId,
     sessionId: ctx.sessionId,
     channel: ctx.channel,
@@ -17,24 +20,29 @@ export function audit(ctx: AgentContext, type: AuditType, payload: unknown): Pro
     // 先归一化为纯 JSON（Date → 字符串、去掉 undefined），保证写入前后哈希一致
     payload: JSON.parse(JSON.stringify(payload ?? null)),
   }
-  const write = tail.then(() => db.transaction(async (tx) => {
-    const [last] = await tx
-      .select({ hash: schema.auditLogs.hash })
-      .from(schema.auditLogs)
-      .orderBy(desc(schema.auditLogs.seq))
-      .limit(1)
-    const prevHash = last?.hash ?? GENESIS_HASH
-    await tx.insert(schema.auditLogs).values({
-      at: new Date(entry.at),
-      userId: entry.userId,
-      sessionId: entry.sessionId,
-      channel: entry.channel,
-      type: entry.type,
-      payloadJson: JSON.stringify(entry.payload),
-      prevHash,
-      hash: hashEntry(prevHash, entry),
-    })
-  }))
+  const [last] = await tx
+    .select({ hash: schema.auditLogs.hash })
+    .from(schema.auditLogs)
+    .orderBy(desc(schema.auditLogs.seq))
+    .limit(1)
+  const prevHash = last?.hash ?? GENESIS_HASH
+  await tx.insert(schema.auditLogs).values({
+    at: new Date(entry.at),
+    userId: entry.userId,
+    sessionId: entry.sessionId,
+    channel: entry.channel,
+    type: entry.type,
+    payloadJson: JSON.stringify(entry.payload),
+    prevHash,
+    hash: hashEntry(prevHash, entry),
+  })
+}
+
+export function audit(ctx: AgentContext, type: AuditType, payload: unknown): Promise<void> {
+  // Snapshot before queueing: later caller mutations must not rewrite the historical evidence.
+  const captured = JSON.parse(JSON.stringify(payload ?? null)), at = Date.now()
+  const identity = { userId: ctx.userId, sessionId: ctx.sessionId, channel: ctx.channel }
+  const write = tail.then(() => db.transaction((tx) => auditInTransaction(tx, identity, type, captured, at)))
   tail = write.catch(() => {})
   return write
 }

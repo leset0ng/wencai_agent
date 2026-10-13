@@ -101,6 +101,9 @@ const LABELS: Record<string, string> = {
   mandate_failed: '授权执行失败',
   mandate_ended: '授权结束',
   mandate_revoked: '撤销授权',
+  risk_flag_added: '收款账户风险标记',
+  risk_flag_reviewed: '人工复核收款风险',
+  risk_analysis_failed: '收款风险分析暂不可用',
 }
 
 const truncate = (text: string, max = 120) => (text.length > max ? `${text.slice(0, max)}…` : text)

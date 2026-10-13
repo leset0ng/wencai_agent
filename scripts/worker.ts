@@ -3,8 +3,10 @@ import { db, schema } from '../src/server/db/client'
 import { detectSubscriptions, notify, runAutomaticTransfers, sendSubscriptionReminders } from '../src/server/automation/service'
 import { runDueMandates } from '../src/server/automation/mandates'
 import { simNow } from '../src/server/tools/jobs'
+import { runRiskAnalysisPass } from '../src/server/risk/accounts'
 
 let stopping = false
+let riskPass: Promise<unknown> | undefined
 async function tick() {
   const [mode] = await db.select().from(schema.settings).where(eq(schema.settings.key, 'clock_mode'))
   const now = mode?.value === 'manual' ? await simNow() : new Date()
@@ -18,6 +20,11 @@ async function tick() {
     for (const candidate of await detectSubscriptions(user.id)) {
       await notify(user.id, 'subscription_detected', '识别到疑似订阅扣费', `${candidate.merchant}，周期${candidate.cycle === 'monthly' ? '每月' : '每年'}，金额 ${candidate.amount.toFixed(2)} 元。可让 Agent 核对并设置提醒。`, `detected-subscription:${candidate.candidateId}`)
     }
+  }
+  // Analysis runs outside the banking tick so a slow/unavailable model cannot delay due payments.
+  if (!stopping && !riskPass) {
+    riskPass = runRiskAnalysisPass(now).catch((error) => console.error('[worker:risk]', error instanceof Error ? error.message : '风险分析暂不可用'))
+      .finally(() => { riskPass = undefined })
   }
 }
 let timer: NodeJS.Timeout | undefined

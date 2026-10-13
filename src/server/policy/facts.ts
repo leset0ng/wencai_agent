@@ -1,6 +1,9 @@
 import { and, eq, gte, lt, inArray } from 'drizzle-orm'
 import { db, schema } from '#/server/db/client'
 import type { Channel, PolicyFacts } from './types'
+import { ensurePaymentsSchema } from '#/server/payments/migrate'
+import { ensureRiskSchema, readAccountRiskFlag } from '#/server/risk/accounts'
+import { resolveRiskRecipient } from '#/server/risk/recipient'
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -9,6 +12,8 @@ export async function collectFacts(params: {
   userId: string
   channel: Channel
   payeeId?: string
+  toAccountId?: string
+  splitRequestId?: string
   now?: Date
 }): Promise<PolicyFacts> {
   const now = params.now ?? new Date()
@@ -51,6 +56,11 @@ export async function collectFacts(params: {
     if (payee) payeeAgeDays = (now.getTime() - payee.createdAt.getTime()) / DAY
   }
 
+  await ensurePaymentsSchema()
+  await ensureRiskSchema()
+  const riskAccountId = await resolveRiskRecipient(params)
+  const risk = riskAccountId ? await readAccountRiskFlag(riskAccountId) : null
+
   return {
     now,
     channel: params.channel,
@@ -58,5 +68,6 @@ export async function collectFacts(params: {
     dailyOutgoingCents,
     payeeAgeDays,
     recentTransferCount,
+    ...(risk && risk.status !== 'cleared' ? { payeeRiskFlag: risk.status, payeeRiskAccountId: risk.accountId, payeeRiskRevision: risk.revision } : {}),
   }
 }

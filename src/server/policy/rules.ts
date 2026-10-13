@@ -33,6 +33,15 @@ const isTransfer = (i: PolicyInput) => ['transfer', 'commit_transfer', 'commit_s
 
 export const RULES: Rule[] = [
   {
+    id: 'recipient-account-risk',
+    applies: isTransfer,
+    evaluate: ({ facts }) => facts.payeeRiskFlag === 'confirmed'
+      ? { kind: 'deny', reason: '该收款账户经人工复核存在高风险，已阻止本次转账，请联系人工客服' }
+      : facts.payeeRiskFlag === 'suspected'
+        ? { kind: 'raise', to: 'red', reason: '该收款账户近期收款特征异常，请核实对方身份，并完成本次强验证' }
+        : null,
+  },
+  {
     id: 'sensitive-card-operation',
     applies: (i) => i.tool === 'commit_card_change' && ['unlock', 'lost', 'limits'].includes(String(i.args.action)),
     evaluate: () => ({ kind: 'raise', to: 'red', reason: '解锁、挂失和额度变更必须进行强验证' }),

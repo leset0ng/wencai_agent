@@ -8,6 +8,7 @@ import { collectFacts } from '#/server/policy/facts'
 import { decide } from '#/server/policy/engine'
 import { paymentAccounts, settleTransfer } from '#/server/payments/service'
 import { notify } from './service'
+import { parseRiskAcknowledgement, riskAcknowledged } from '#/server/risk/recipient'
 
 /**
  * 常设授权：用户一次红色强验证，授权在有限期内按周期向固定收款人转固定金额。
@@ -139,6 +140,11 @@ export function ensureMandateSchema() {
         amount_cents INTEGER NOT NULL, executed_at INTEGER NOT NULL)`,
       'CREATE UNIQUE INDEX IF NOT EXISTS bank_mandate_seq ON bank_mandate_executions(mandate_id, seq)',
     ]) await db.$client.execute(statement)
+    const columns = await db.$client.execute('PRAGMA table_info(bank_standing_mandates)')
+    if (!columns.rows.some((row) => row.name === 'payee_risk_json')) {
+      try { await db.$client.execute('ALTER TABLE bank_standing_mandates ADD COLUMN payee_risk_json TEXT') }
+      catch (error) { if (!String(error).includes('duplicate column name')) throw error }
+    }
   })().catch((error) => {
     ready = undefined
     throw error
@@ -276,6 +282,7 @@ export async function createMandate(ctx: AgentContext, plan: MandatePlan, now: D
     minIntervalHours: plan.minIntervalHours,
     status: 'active',
     authorizedActionId: actionId,
+    payeeRiskJson: ctx.authorization.payeeRisk ? JSON.stringify(ctx.authorization.payeeRisk) : null,
     createdAt: now,
     expiresAt,
     nextDueAt,
@@ -417,6 +424,10 @@ async function executeOne(userId: string, id: string, now: Date): Promise<Mandat
     facts,
   })
   await audit(ctx, 'policy_decision', { mandateId: id, stage: 'mandate_execution', tool: 'execute_standing_mandate', decision, facts })
+  const payeeRisk = parseRiskAcknowledgement(m.payeeRiskJson)
+  if (!riskAcknowledged(facts, payeeRisk) || facts.payeeRiskFlag === 'confirmed') {
+    return end('suspended', '定期转账已暂停', '收款账户风险标记已变化，请核实对方身份；可重新强验证授权或联系人工复核。')
+  }
 
   const fail = async (message: string): Promise<MandateRunResult> => {
     const failures = m.failureCount + 1
@@ -446,7 +457,7 @@ async function executeOne(userId: string, id: string, now: Date): Promise<Mandat
     const seq = m.executionsDone + 1
     const receipt = await settleTransfer(
       { fromAccountId: m.fromAccountId, payeeId: m.payeeId, amountCents: m.amountCents, memo: m.memo || '定期转账' },
-      ctx,
+      { ...ctx, authorization: { level: 'red', actionId: m.authorizedActionId, payeeRisk } },
       now,
       {
         // 与扣款同一个事务：额度、次数、授权期任何一项不满足，整笔回滚，不扣款

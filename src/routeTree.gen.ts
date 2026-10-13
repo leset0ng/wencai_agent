@@ -15,6 +15,7 @@ import { Route as BindRouteImport } from './routes/bind'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiAdminRouteImport } from './routes/api/admin'
+import { Route as ApiAdminRiskRouteImport } from './routes/api/admin-risk'
 import { Route as ApiBindRouteImport } from './routes/api/bind'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConfirmRouteImport } from './routes/api/confirm'
@@ -59,6 +60,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ApiAdminRoute = ApiAdminRouteImport.update({
   id: '/api/admin',
   path: '/api/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRiskRoute = ApiAdminRiskRouteImport.update({
+  id: '/api/admin-risk',
+  path: '/api/admin-risk',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBindRoute = ApiBindRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/api/admin': typeof ApiAdminRoute
+  '/api/admin-risk': typeof ApiAdminRiskRoute
   '/api/bind': typeof ApiBindRoute
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/api/admin': typeof ApiAdminRoute
+  '/api/admin-risk': typeof ApiAdminRiskRoute
   '/api/bind': typeof ApiBindRoute
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
   '/api/admin': typeof ApiAdminRoute
+  '/api/admin-risk': typeof ApiAdminRiskRoute
   '/api/bind': typeof ApiBindRoute
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/api/admin'
+    | '/api/admin-risk'
     | '/api/bind'
     | '/api/chat'
     | '/api/confirm'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/api/admin'
+    | '/api/admin-risk'
     | '/api/bind'
     | '/api/chat'
     | '/api/confirm'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/settings'
     | '/api/admin'
+    | '/api/admin-risk'
     | '/api/bind'
     | '/api/chat'
     | '/api/confirm'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
   ApiAdminRoute: typeof ApiAdminRoute
+  ApiAdminRiskRoute: typeof ApiAdminRiskRoute
   ApiBindRoute: typeof ApiBindRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiConfirmRoute: typeof ApiConfirmRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/api/admin'
       fullPath: '/api/admin'
       preLoaderRoute: typeof ApiAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin-risk': {
+      id: '/api/admin-risk'
+      path: '/api/admin-risk'
+      fullPath: '/api/admin-risk'
+      preLoaderRoute: typeof ApiAdminRiskRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/bind': {
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
   ApiAdminRoute: ApiAdminRoute,
+  ApiAdminRiskRoute: ApiAdminRiskRoute,
   ApiBindRoute: ApiBindRoute,
   ApiChatRoute: ApiChatRoute,
   ApiConfirmRoute: ApiConfirmRoute,
