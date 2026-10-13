@@ -44,6 +44,27 @@ export default function ChatView({
   const [sending, setSending] = useState(false)
   const activeConfirmation = useRef<string | undefined>(undefined)
   const busy = status === 'submitted' || status === 'streaming'
+  const [stoppedNotice, setStoppedNotice] = useState('')
+  useEffect(() => { if (status === 'submitted') setStoppedNotice('') }, [status])
+  /**
+   * 停止不只是停下文字输出：服务端会让正在执行的计划停在当前步骤并标记为已暂停。
+   * 这里在停止后查一次，把结果告诉用户，避免留下一个用户不知道的计划。
+   */
+  async function stopAndReport() {
+    await stop()
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    void client.invalidateQueries({ queryKey: ['plans'] })
+    try {
+      const res = await fetch('/api/plans')
+      const data = (await res.json()) as { plans?: { status: string; updatedAt: string; state: { plan: { goal: string } } }[] }
+      const paused = data.plans?.find((plan) => plan.status === 'paused' && Date.now() - new Date(plan.updatedAt).getTime() < 120_000)
+      setStoppedNotice(paused
+        ? `已停止。计划「${paused.state.plan.goal}」已暂停在当前步骤，已完成的步骤不会撤销；可在生活页的任务中心恢复或取消。`
+        : '已停止回答。')
+    } catch {
+      setStoppedNotice('已停止回答。')
+    }
+  }
   useEffect(() => subscribeConfirmations((notice) => {
     if (notice.userId !== userId || seenConfirmations.current.has(notice.actionId)) return
     seenConfirmations.current.add(notice.actionId)
@@ -215,10 +236,11 @@ export default function ChatView({
             </div>
           )}
         </div>
+        {stoppedNotice && !busy && <p className="bank-agent-disclaimer" role="status">{stoppedNotice}</p>}
         {(error || sendError) && (
           <div className="bank-chat-error" role="alert">
             {sendError || '暂时无法连接文财，请稍后重新发送。'}
-            <small>你也可以先在首页查看账户和账单。</small>
+            <small>智能助手不可用时，关闭此面板仍可在首页办理转账、卡片管理，并在任务中心处理进行中的计划。</small>
             {failedConfirmation && <button type="button" disabled={busy} className="bank-text-button" onClick={() => {
               setConfirmations((queue) => [...queue, failedConfirmation])
               setFailedConfirmation(undefined)
@@ -251,7 +273,7 @@ export default function ChatView({
             className="bank-send bank-lift"
             type="button"
             aria-label="停止回答"
-            onClick={() => void stop()}
+            onClick={() => void stopAndReport()}
           >
             {status === 'submitted' ? (
               <Loader2 size={20} className="bank-spin" />

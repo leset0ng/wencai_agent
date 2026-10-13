@@ -53,6 +53,9 @@ const TOOL_LABEL: Record<string, string> = {
   adjust_card_limit: '调整限额',
   cancel_subscription: '取消订阅',
   request_password_change: '修改交易密码',
+  create_standing_mandate: '设置定期转账授权',
+  list_standing_mandates: '查看定期转账授权',
+  revoke_standing_mandate: '撤销定期转账授权',
   plan_task: '任务规划',
   show_view: '生成视图',
 }

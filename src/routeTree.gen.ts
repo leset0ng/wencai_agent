@@ -19,6 +19,7 @@ import { Route as ApiBindRouteImport } from './routes/api/bind'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConfirmRouteImport } from './routes/api/confirm'
 import { Route as ApiDashboardRouteImport } from './routes/api/dashboard'
+import { Route as ApiMandatesRouteImport } from './routes/api/mandates'
 import { Route as ApiPaymentsRouteImport } from './routes/api/payments'
 import { Route as ApiPlansRouteImport } from './routes/api/plans'
 import { Route as ApiSecurityRouteImport } from './routes/api/security'
@@ -78,6 +79,11 @@ const ApiConfirmRoute = ApiConfirmRouteImport.update({
 const ApiDashboardRoute = ApiDashboardRouteImport.update({
   id: '/api/dashboard',
   path: '/api/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMandatesRoute = ApiMandatesRouteImport.update({
+  id: '/api/mandates',
+  path: '/api/mandates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPaymentsRoute = ApiPaymentsRouteImport.update({
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/mandates': typeof ApiMandatesRoute
   '/api/payments': typeof ApiPaymentsRoute
   '/api/plans': typeof ApiPlansRoute
   '/api/security': typeof ApiSecurityRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/mandates': typeof ApiMandatesRoute
   '/api/payments': typeof ApiPaymentsRoute
   '/api/plans': typeof ApiPlansRoute
   '/api/security': typeof ApiSecurityRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/confirm': typeof ApiConfirmRoute
   '/api/dashboard': typeof ApiDashboardRoute
+  '/api/mandates': typeof ApiMandatesRoute
   '/api/payments': typeof ApiPaymentsRoute
   '/api/plans': typeof ApiPlansRoute
   '/api/security': typeof ApiSecurityRoute
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/confirm'
     | '/api/dashboard'
+    | '/api/mandates'
     | '/api/payments'
     | '/api/plans'
     | '/api/security'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/confirm'
     | '/api/dashboard'
+    | '/api/mandates'
     | '/api/payments'
     | '/api/plans'
     | '/api/security'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/confirm'
     | '/api/dashboard'
+    | '/api/mandates'
     | '/api/payments'
     | '/api/plans'
     | '/api/security'
@@ -278,6 +290,7 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiConfirmRoute: typeof ApiConfirmRoute
   ApiDashboardRoute: typeof ApiDashboardRoute
+  ApiMandatesRoute: typeof ApiMandatesRoute
   ApiPaymentsRoute: typeof ApiPaymentsRoute
   ApiPlansRoute: typeof ApiPlansRoute
   ApiSecurityRoute: typeof ApiSecurityRoute
@@ -360,6 +373,13 @@ declare module '@tanstack/react-router' {
       path: '/api/dashboard'
       fullPath: '/api/dashboard'
       preLoaderRoute: typeof ApiDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mandates': {
+      id: '/api/mandates'
+      path: '/api/mandates'
+      fullPath: '/api/mandates'
+      preLoaderRoute: typeof ApiMandatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/payments': {
@@ -446,6 +466,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiConfirmRoute: ApiConfirmRoute,
   ApiDashboardRoute: ApiDashboardRoute,
+  ApiMandatesRoute: ApiMandatesRoute,
   ApiPaymentsRoute: ApiPaymentsRoute,
   ApiPlansRoute: ApiPlansRoute,
   ApiSecurityRoute: ApiSecurityRoute,

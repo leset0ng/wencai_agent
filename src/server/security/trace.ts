@@ -96,6 +96,11 @@ const LABELS: Record<string, string> = {
   passkey_registered: '注册 Passkey',
   passkey_deleted: '删除 Passkey',
   login_failed: '登录失败',
+  mandate_created: '创建常设授权',
+  mandate_executed: '授权自动执行',
+  mandate_failed: '授权执行失败',
+  mandate_ended: '授权结束',
+  mandate_revoked: '撤销授权',
 }
 
 const truncate = (text: string, max = 120) => (text.length > max ? `${text.slice(0, max)}…` : text)
@@ -226,7 +231,7 @@ export function buildTraces(entries: TraceInput[]): Trace[] {
           LABELS.policy_decision,
           !allowed ? 'danger' : level === 'red' ? 'red' : level === 'yellow' ? 'yellow' : 'green',
           [
-            `阶段 ${stage === 'execution' ? '执行时复判' : stage === 'scheduled_execution' ? '定时执行复判' : '发起时'}`,
+            `阶段 ${stage === 'execution' ? '执行时复判' : stage === 'scheduled_execution' ? '定时执行复判' : stage === 'mandate_execution' ? '授权执行复判' : '发起时'}`,
             `等级 ${level}${allowed ? '' : '（直接拒绝）'}`,
             reasons.length ? `命中规则：${reasons.join('；')}` : '未命中升级规则',
           ].join(' · '),

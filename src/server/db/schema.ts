@@ -353,3 +353,51 @@ export const bankPasswordChangeGrants = sqliteTable('bank_password_change_grants
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
   consumedAt: integer('consumed_at', { mode: 'timestamp_ms' }),
 })
+
+/**
+ * 常设授权（standing mandate）：用户一次强验证，授权在有限期内按周期向固定收款人转固定金额。
+ *
+ * 安全属性都落在这张表上，由代码在每次执行时强制，不依赖模型：
+ * - 金额固定为 amountCents（即"单次上限"），收款人用指纹锁定，改了就暂停；
+ * - executionsDone / totalSpentCents 与 maxExecutions / maxTotalCents 在结算事务内条件更新；
+ * - minIntervalHours 由频率推导，两次执行之间的硬间隔；
+ * - expiresAt 到期自动失效，撤销立即生效。
+ * 模型只能创建（红色强验证）、查询和撤销，没有任何触发执行的入口。
+ */
+export const bankStandingMandates = sqliteTable('bank_standing_mandates', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  fromAccountId: text('from_account_id').notNull(),
+  payeeId: text('payee_id').notNull(),
+  payeeName: text('payee_name').notNull(),
+  payeeFingerprint: text('payee_fingerprint').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  memo: text('memo').notNull().default(''),
+  cadenceJson: text('cadence_json').notNull(),
+  maxExecutions: integer('max_executions').notNull(),
+  maxTotalCents: integer('max_total_cents').notNull(),
+  minIntervalHours: integer('min_interval_hours').notNull(),
+  executionsDone: integer('executions_done').notNull().default(0),
+  totalSpentCents: integer('total_spent_cents').notNull().default(0),
+  failureCount: integer('failure_count').notNull().default(0),
+  /** active | revoked | expired | exhausted | suspended */
+  status: text('status').notNull(),
+  /** 授权它的那一笔红色待确认动作；唯一，一笔确认只能产生一份授权 */
+  authorizedActionId: text('authorized_action_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  nextDueAt: integer('next_due_at', { mode: 'timestamp_ms' }).notNull(),
+  lastExecutedAt: integer('last_executed_at', { mode: 'timestamp_ms' }),
+  endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
+  endedReason: text('ended_reason'),
+}, (t) => [uniqueIndex('bank_mandate_action').on(t.authorizedActionId)])
+
+/** 每次执行一行；(mandateId, seq) 唯一，同一期不可能被执行两次 */
+export const bankMandateExecutions = sqliteTable('bank_mandate_executions', {
+  id: text('id').primaryKey(),
+  mandateId: text('mandate_id').notNull(),
+  seq: integer('seq').notNull(),
+  transactionId: text('transaction_id').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  executedAt: integer('executed_at', { mode: 'timestamp_ms' }).notNull(),
+}, (t) => [uniqueIndex('bank_mandate_seq').on(t.mandateId, t.seq)])

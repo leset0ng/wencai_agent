@@ -30,6 +30,13 @@ export interface NodeRunner {
   compensate(node: PlanNode, args: Record<string, unknown>, output: unknown): Promise<boolean>
 }
 
+export interface AdvanceHooks {
+  /** 每个节点执行前询问；返回 true 时计划停在当前位置并标记为 paused，已完成的节点保留 */
+  shouldPause?: () => boolean | Promise<boolean>
+  /** 每个节点得到结果后调用，用于保存进度 */
+  onProgress?: (state: PlanState) => void | Promise<void>
+}
+
 export function initPlanState(id: string, plan: Plan): PlanState {
   return {
     id,
@@ -43,8 +50,9 @@ export function initPlanState(id: string, plan: Plan): PlanState {
 /**
  * 推进计划：按依赖就绪顺序执行；遇到需确认的节点挂起该分支，其余独立分支继续；
  * 任一节点失败/被拒，逆序补偿已完成的写操作并终止。
+ * 暂停只发生在两个节点之间：正在执行的节点不会被打断，避免留下半完成的操作。
  */
-export async function advance(state: PlanState, runner: NodeRunner): Promise<PlanState> {
+export async function advance(state: PlanState, runner: NodeRunner, hooks: AdvanceHooks = {}): Promise<PlanState> {
   const s = structuredClone(state)
   const byId = new Map(s.plan.nodes.map((n) => [n.id, n]))
 
@@ -55,6 +63,10 @@ export async function advance(state: PlanState, runner: NodeRunner): Promise<Pla
     if (ready.length === 0) break
 
     for (const node of ready) {
+      if (await hooks.shouldPause?.()) {
+        s.status = 'paused'
+        return s
+      }
       if (node.kind === 'handoff') {
         s.nodes[node.id] = { status: 'handoff' }
         s.status = 'handoff'
@@ -76,6 +88,7 @@ export async function advance(state: PlanState, runner: NodeRunner): Promise<Pla
         case 'error':
           return rollback(s, node.id, outcome.message, byId, runner)
       }
+      await hooks.onProgress?.(s)
     }
   }
 

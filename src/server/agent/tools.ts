@@ -42,8 +42,9 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
         '提交多步骤任务计划（DAG）。系统会校验并按依赖执行，遇到需确认的步骤会挂起等待用户确认，失败时自动回滚已完成的写操作。' +
         '需要人工介入时使用 kind="handoff" 节点。',
       inputSchema: PlanSchema,
-      execute: async (plan) => {
-        const res = await startPlan(ctx, plan, allowed)
+      execute: async (plan, { abortSignal }) => {
+        // 用户按下停止时，计划停在当前步骤并保留为"已暂停"，不再创建后续确认单
+        const res = await startPlan(ctx, plan, allowed, abortSignal)
         if (!res.ok) return { status: 'invalid_plan' as const, errors: res.errors }
         return { status: 'plan' as const, planId: res.state.id, state: res.state }
       },

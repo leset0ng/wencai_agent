@@ -29,7 +29,7 @@ function amountCents(input: PolicyInput): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) : 0
 }
 
-const isTransfer = (i: PolicyInput) => ['transfer', 'commit_transfer', 'commit_scheduled_transfer', 'transfer_between_accounts', 'transfer_between_cards', 'repay_credit_card', 'pay_split_request', 'create_birthday_plan', 'execute_birthday_order'].includes(i.tool)
+const isTransfer = (i: PolicyInput) => ['transfer', 'commit_transfer', 'commit_scheduled_transfer', 'transfer_between_accounts', 'transfer_between_cards', 'repay_credit_card', 'pay_split_request', 'create_birthday_plan', 'execute_birthday_order', 'create_standing_mandate', 'execute_standing_mandate'].includes(i.tool)
 
 export const RULES: Rule[] = [
   {

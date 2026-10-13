@@ -96,6 +96,10 @@ describe('安全要求修复回归', () => {
     expect((await db.select().from(schema.holdings).where(eq(schema.holdings.id, holdingId)))[0].principalCents).toBe(100_000)
   })
   it('两笔预先创建的 600 元确认单在执行时重新升级，强验证前不消费第二张', async () => {
+    // 夜间（北京时间 0–6 点）单笔超过 500 元本身就是红色，会让第一张也被拦下。
+    // 这条用例要验证的是"日累计"升级，所以把时间固定在白天，避免结果随运行时刻变化。
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-13T06:00:00.000Z') })
+    try {
     const input = { fromAccountId: source, toAccountId: target, amountCents: 60_000 }
     const proposals = await Promise.all([runBankTool(transferBetweenAccounts, input, ctx), runBankTool(transferBetweenAccounts, input, ctx)])
     if (proposals.some((p) => p.status !== 'needs_confirmation')) throw new Error(JSON.stringify(proposals))
@@ -109,6 +113,9 @@ describe('安全要求修复回归', () => {
     expect(pending).toMatchObject({ status: 'pending', level: 'red' })
     expect((await confirm(pending.id, await sms(`action:${pending.id}`))).ok).toBe(true)
     expect(await balance(target)).toBe(120_000)
+    } finally {
+      vi.useRealTimers()
+    }
   })
   it('扩展挂失也是红色，密码不能代替强验证，已挂失卡不可解锁', async () => {
     const preview = await previewCardChange.execute({ cardId, action: 'lost' }, ctx)

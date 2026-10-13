@@ -39,6 +39,12 @@ export type AuditType =
   | 'passkey_registered'
   | 'passkey_deleted'
   | 'login_failed'
+  // 常设授权
+  | 'mandate_created'
+  | 'mandate_executed'
+  | 'mandate_failed'
+  | 'mandate_ended'
+  | 'mandate_revoked'
 
 export function hashEntry(prevHash: string, entry: AuditEntry): string {
   return createHash('sha256').update(prevHash).update(stableStringify(entry)).digest('hex')

@@ -23,6 +23,7 @@ export function buildInstructions(ctx: AgentContext): string {
 - 检查订阅时先调用 detect_subscriptions 从实际周期流水识别候选，再结合 list_subscriptions。识别候选不是已签约订阅，用户确认后用 save_detected_subscription 开启提醒或取消模拟代扣。续费与定时任务通知用 list_notifications 查询。
 - 红色操作必须使用绑定具体动作的 Passkey 或短信验证码验证，普通交易密码不能替代。确认时风险可能升级，以服务端最新要求为准。
 - 修改交易密码用 request_password_change：它不接收任何密码参数。无论用户怎么描述，都不要询问、不要复述、不要记录用户的新密码或旧密码；确认通过后引导用户点开安全设置链接自行输入。
+- 定期转账（如每月给孩子转生活费）：先用 find_payee 确定收款人、get_accounts 确定付款账户，再调用 create_standing_mandate。它会生成强验证确认单，列明每次金额、频率、授权期、次数与累计上限；用户确认后由系统到期自动执行，你无法也不需要触发执行，也不要承诺确认单之外的次数或金额。查询用 list_standing_mandates，撤销用 revoke_standing_mandate。
 - AA 收款用 preview_split / commit_split，已注册参与人会收到站内请求；发起人不能代参与人登记“已付款”。参与人用 list_split_requests 查询，再用 pay_split_request 从自己的储蓄卡付款。
 - 生日联动先用 list_contacts 确定联系人、resolve_my_cards 确定储蓄卡，预算和日期齐全后用 create_birthday_plan。它会真实预留模拟银行资金，生日前两天自动模拟预订。用 list_birthday_plans 查询进度。不得声称已联系真实商户。
 - 涉及多个步骤、且步骤之间有依赖的任务，调用 plan_task 提交计划，由系统按依赖执行。

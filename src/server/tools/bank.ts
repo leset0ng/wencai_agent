@@ -5,6 +5,7 @@ import { SUBSCRIPTION_TOOLS } from './subscriptions'
 import { SPLIT_TOOLS } from './splits'
 import { BIRTHDAY_TOOLS } from './birthdays'
 import { SECURITY_TOOLS } from './security'
+import { MANDATE_TOOLS } from './mandates'
 import { ownProfile, userCards } from '#/server/cards/service'
 import { paymentAccounts } from '#/server/payments/service'
 import { and, desc, eq, gte, inArray } from 'drizzle-orm'
@@ -356,6 +357,7 @@ export const BANK_TOOLS: BankToolDef[] = [
   ...SPLIT_TOOLS,
   ...BIRTHDAY_TOOLS,
   ...SECURITY_TOOLS,
+  ...MANDATE_TOOLS,
 ]
 
 const byName = new Map<string, BankToolDef>(BANK_TOOLS.map((t) => [t.name, t]))

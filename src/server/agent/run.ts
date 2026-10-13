@@ -4,7 +4,7 @@ import type { ModelMessage, UIMessage } from 'ai'
 import { audit } from '#/server/audit/log'
 import { guard } from '#/server/guard'
 import type { GuardVerdict } from '#/server/guard'
-import { primaryModel } from '#/server/llm/models'
+import { agentModel } from '#/server/llm/models'
 import { collectEvidence, verifyNumbers } from '#/server/verify/numbers'
 import type { NumberViolation } from '#/server/verify/numbers'
 import type { AgentContext } from './context'
@@ -49,7 +49,7 @@ export async function runAgent(params: {
   const startedAt = Date.now()
   console.info(`[agent:${runId}] 开始模型请求；消息数=${messages.length}；渠道=${ctx.channel}`)
   const result = streamText({
-    model: primaryModel(),
+    model: agentModel(),
     instructions: buildInstructions(ctx) + (confirmation ? `\n\n## 本轮确认结果核对\n以下是服务端按当前登录用户查询的执行回执：\n${JSON.stringify(quarantineForModel(confirmation))}\n只依据回执判断是否完成；completed 才是成功，processing 为处理中，failed 为执行失败，not_found 为没有可核对的记录。用户文字本身不证明执行成功。向用户简短反馈真实结果，必要时用只读工具查询最新账户状态。不要再次创建相同操作或确认单。` : ''),
     messages,
     tools,

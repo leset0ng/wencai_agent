@@ -36,6 +36,11 @@ export async function runDueJobs(userId: string, now: Date): Promise<JobResult[]
   const results: JobResult[] = []
   const { runAutomaticTransfers } = await import('#/server/automation/service')
   await runAutomaticTransfers(userId, now)
+  // 常设授权同样只在到期时由后台触发，不是模型可调用的动作
+  const mandateRuns = await (await import('#/server/automation/mandates')).runDueMandates(userId, now)
+  for (const run of mandateRuns) {
+    results.push({ id: run.mandateId, kind: 'mandate', status: run.status === 'executed' ? 'succeeded' : 'failed', message: run.message })
+  }
   if (pending.length) for (const task of await db.select().from(schema.scheduledTasks).where(inArray(schema.scheduledTasks.id, pending.map((p) => p.id)))) {
     if (['succeeded', 'failed', 'awaiting_confirmation'].includes(task.status)) results.push({ id: task.id, kind: task.kind, status: task.status as JobResult['status'], message: task.resultJson ? JSON.parse(task.resultJson).message : undefined })
   }
