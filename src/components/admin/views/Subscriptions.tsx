@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { Bell, Repeat2 } from 'lucide-react'
 import { Panel, Empty, Badge, type ViewProps } from '../shared'
 import { money, dateTime } from '../utils'
@@ -23,12 +24,12 @@ export function AdminSubscriptions({ s, actions }: ViewProps) {
                 </div>
                 <Badge status="active" />
                 <div className="sub-actions">
-                  <button className="button button-ghost button-sm" onClick={() => actions.reminder(sub.id)}>
+                  <Button className="button button-ghost button-sm" onClick={() => actions.reminder(sub.id)} type="button">
                     <Bell size={14} />提醒
-                  </button>
-                  <button className="button button-ghost button-sm" onClick={() => actions.cancelSubscription(sub.id)}>
+                  </Button>
+                  <Button className="button button-ghost button-sm" onClick={() => actions.cancelSubscription(sub.id)} type="button">
                     取消
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

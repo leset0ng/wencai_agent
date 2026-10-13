@@ -1,0 +1,93 @@
+/* shadcn tokens map to the existing Wencai palette, without a theme reset. */
+:root {
+  --background: #f7faff;
+  --foreground: #0b1945;
+  --card: #ffffff;
+  --card-foreground: #0b1945;
+  --popover: #ffffff;
+  --popover-foreground: #10234e;
+  --primary: #146bff;
+  --primary-foreground: #ffffff;
+  --secondary: #edf4ff;
+  --secondary-foreground: #536a98;
+  --muted: #edf4ff;
+  --muted-foreground: #7185aa;
+  --accent: #edf4ff;
+  --accent-foreground: #146bff;
+  --destructive: #d34848;
+  --border: #dfebff;
+  --input: #dce7fa;
+  --ring: #83baff;
+  --radius: .75rem;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+.ui-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid transparent; border-radius: var(--radius); font: inherit; cursor: pointer; }
+.ui-button-primary { color: white; background: linear-gradient(120deg, #0750ff, #147cff); }
+.ui-button-outline { color: #146bff; background: white; border-color: #dce7fa; }
+.ui-button-ghost { color: inherit; background: transparent; }
+.ui-button-destructive { color: white; background: #d34848; }
+.ui-button-md { min-height: 40px; padding: 9px 16px; }
+.ui-button-sm { min-height: 32px; padding: 6px 12px; font-size: 12px; }
+.ui-button-icon { width: 36px; height: 36px; padding: 0; }
+[data-slot='button']:disabled { cursor: not-allowed; }
+[data-slot='button']:focus-visible, .ui-select-trigger:focus-visible, .ui-checkbox:focus-visible { outline: 3px solid #83baff; outline-offset: 3px; }
+.ui-card { background: white; color: #0b1945; border: 1px solid #dfebff; border-radius: 18px; padding: 18px; }
+.ui-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ui-badge { display: inline-flex; align-items: center; padding: 3px 9px; background: #edf4ff; border-radius: 12px; color: #146bff; font-size: 11px; }
+.ui-select-trigger { display: inline-flex; justify-content: space-between; align-items: center; gap: 9px; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.ui-select-trigger > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ui-select-trigger > span:last-child { flex-shrink: 0; }
+.bank-payment-form .ui-select-trigger { width: 100%; min-width: 0; border: 1px solid #dce7fa; border-radius: 12px; padding: 13px 12px; background: #f8fbff; color: #10234e; font-family: inherit; font-size: 16px; outline: none; }
+.bank-payment-form .ui-select-trigger:focus-visible { border-color: #2675ff; background: white; box-shadow: 0 0 0 3px #2675ff17; }
+.app-shell .ui-select-trigger, .dialog-content .ui-select-trigger { border: 1px solid #dfe5ef; border-radius: 7px; background: white; color: #34435c; padding: 10px 12px; }
+.field .ui-select-trigger { font-size: 12px; width: 100%; color: #5e7394; padding: 11px 12px; border-color: #dde5f1; }
+.table-toolbar > .ui-select-trigger { font-size: 11px; padding: 9px 10px; }
+.ui-select-positioner { z-index: 100; outline: none; }
+.ui-select-content { width: var(--anchor-width); min-width: 150px; max-width: min(500px, calc(100vw - 24px)); max-height: min(320px, var(--available-height)); overflow-y: auto; overscroll-behavior: contain; padding: 5px; border: 1px solid #dfebff; border-radius: 12px; background: white; color: #10234e; font: 13px var(--font-sans, sans-serif); box-shadow: 0 12px 32px #2471da24; outline: none; }
+.ui-select-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 9px; border-radius: 8px; cursor: pointer; outline: none; overflow-wrap: anywhere; }
+.ui-select-item[data-highlighted] { background: #edf4ff; color: #146bff; }
+.ui-select-item[data-disabled] { color: #8b9ab5; cursor: default; }
+.ui-checkbox { display: inline-flex; width: 16px; height: 16px; flex: 0 0 16px; justify-content: center; align-items: center; border: 1px solid #bdcbe1; border-radius: 4px; background: white; vertical-align: middle; cursor: pointer; }
+.ui-checkbox[data-checked] { background: #146bff; color: white; border-color: #146bff; }
+.ui-checkbox[data-disabled] { opacity: .45; cursor: default; }
+.ui-checkbox > span { display: inline-flex; }
+
+/* Motion owns these transforms; retaining the old CSS keyframes would play twice. */
+.bank-reveal[data-motion], .bank-chart [data-motion], .bank-physical-card[data-motion], .bank-stack-card[data-motion], .bank-message[data-motion], .bank-thinking [data-motion] { animation: none; }
+.bank-reveal[data-motion], .bank-physical-card[data-motion], .bank-stack-card[data-motion], .bank-chart [data-motion], [data-slot='button'].bank-lift { transition-property: box-shadow, background, border-color; }
+.bank-sheet[data-motion] { visibility: visible; transition: none; touch-action: pan-y; }
+.bank-sheet-backdrop[data-motion] { transition: none; }
+.bank-floating-anchor[data-motion] .bank-agent-fab { transition-property: box-shadow; }
+.bank-sheet[data-motion] { overflow: hidden; }
+.bank-chart [data-motion='arc'] { transition: none; }
+.ui-admin-donut { height: 190px; display: flex; align-items: center; justify-content: center; }
+.ui-admin-donut .bank-chart { width: 190px; }
+.ui-admin-donut svg { height: 190px; }
+.bank-card-viewport[data-slot='carousel-content'] { display: block; overflow: hidden; scroll-snap-type: none; touch-action: pan-y pinch-zoom; }
+.ui-carousel-track { display: flex; touch-action: pan-y pinch-zoom; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-select-content, [data-slot='dialog-content'] { transform: none; }
+}

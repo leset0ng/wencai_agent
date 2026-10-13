@@ -137,7 +137,7 @@
   border: 1.5px solid #eaf4ff;
 }
 .bank-page-content {
-  animation: bank-enter 500ms var(--bank-ease) backwards;
+
 }
 .bank-assets {
   position: relative;
@@ -778,7 +778,7 @@
   gap: 8px;
   align-items: flex-start;
   margin-top: 12px;
-  animation: bank-message-in 380ms var(--bank-ease) backwards;
+
 }
 .bank-message.is-user {
   justify-content: flex-end;
@@ -852,7 +852,7 @@
   height: 4px;
   border-radius: 50%;
   background: #6693d0;
-  animation: bank-dot 1000ms ease-in-out infinite;
+
 }
 .bank-thinking i:nth-child(2) {
   animation-delay: 130ms;
@@ -1338,7 +1338,7 @@
   white-space: nowrap;
 }
 .bank-gen-table tbody tr {
-  animation: bank-enter 400ms var(--bank-ease) backwards;
+
   transition: background 200ms;
 }
 .bank-gen-table tbody tr:hover {

@@ -1,3 +1,5 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '#/components/ui/table'
+import { Button } from '#/components/ui/button'
 import type { ReactNode } from 'react'
 import {
   ArrowUpRight,
@@ -9,6 +11,8 @@ import {
 import { categories, money, dateTime, statuses, type Ledger } from './utils'
 import type { AdminSnapshot } from './client'
 import type { AdminActions } from './actions'
+import { Card, CardHeader } from '#/components/ui/card'
+import { Badge as UIBadge } from '#/components/ui/badge'
 
 export type Section =
   | 'overview'
@@ -55,16 +59,16 @@ export function Panel({
   className?: string
 }) {
   return (
-    <section className={`panel ${className}`}>
-      <div className="panel-head">
+    <Card className={`panel ${className}`}>
+      <CardHeader className="panel-head">
         <div>
           <h2>{title}</h2>
           {subtitle && <p>{subtitle}</p>}
         </div>
         {action}
-      </div>
+      </CardHeader>
       {children}
-    </section>
+    </Card>
   )
 }
 
@@ -99,10 +103,10 @@ export function Badge({
   children?: ReactNode
 }) {
   return (
-    <span className={`badge badge-${status ?? 'neutral'}`}>
+    <UIBadge className={`badge badge-${status ?? 'neutral'}`}>
       <i />
       {children ?? statuses[status ?? ''] ?? status}
-    </span>
+    </UIBadge>
   )
 }
 
@@ -117,19 +121,19 @@ export function TransactionTable({
 }) {
   return (
     <div className="table-scroll">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>交易对象 / 时间</th>
-            <th>分类</th>
-            <th>状态</th>
-            <th className="align-right">金额</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table className="data-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>交易对象 / 时间</TableHead>
+            <TableHead>分类</TableHead>
+            <TableHead>状态</TableHead>
+            <TableHead className="align-right">金额</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.slice(0, limit).map((t) => (
-            <tr key={t.id}>
-              <td>
+            <TableRow key={t.id}>
+              <TableCell>
                 <div className="transaction-name">
                   <span className={`transaction-icon ${t.amount > 0 ? 'income' : ''}`}>
                     {t.amount > 0 ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
@@ -139,35 +143,35 @@ export function TransactionTable({
                     <small>{dateTime(t.occurredAt)}</small>
                   </div>
                 </div>
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 <span className="category-tag">{categories[t.category] ?? t.category}</span>
-              </td>
-              <td>
+              </TableCell>
+              <TableCell>
                 {anomalyIds.has(t.id) ? (
                   <Badge status="warning">待复核</Badge>
                 ) : (
                   <Badge status="active">已入账</Badge>
                 )}
-              </td>
-              <td className={`amount align-right ${t.amount > 0 ? 'text-green' : ''}`}>
+              </TableCell>
+              <TableCell className={`amount align-right ${t.amount > 0 ? 'text-green' : ''}`}>
                 {t.amount > 0 ? '+' : '−'}
                 {money(Math.abs(t.amount))}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }
 
 export function More({ onClick, children = '查看全部' }: { onClick: () => void; children?: ReactNode }) {
   return (
-    <button className="button button-ghost button-sm" onClick={onClick}>
+    <Button className="button button-ghost button-sm" onClick={onClick} type="button">
       {children}
       <ChevronRight size={14} />
-    </button>
+    </Button>
   )
 }
 

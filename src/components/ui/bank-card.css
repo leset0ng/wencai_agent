@@ -16,42 +16,20 @@
   box-shadow:
     0 5px 9px #246cc735,
     inset 0 1px #ffffff99;
-  transition: transform 500ms var(--bank-ease);
-  transform: var(--stack-rest);
 }
 .bank-stack-card.stack-2 {
-  --stack-rest: rotate(5deg);
-  --stack-delay: 0ms;
   left: 28px;
   top: 4px;
   opacity: 0.55;
-  transform: var(--stack-rest);
 }
 .bank-stack-card.stack-1 {
-  --stack-rest: rotate(3deg);
-  --stack-delay: 90ms;
   left: 14px;
   top: 17px;
   opacity: 0.8;
-  transform: var(--stack-rest);
 }
 .bank-stack-card.stack-0 {
-  --stack-rest: rotate(-6deg);
-  --stack-delay: 180ms;
   left: 0;
   top: 30px;
-  transform: var(--stack-rest);
-}
-.bank-reveal[data-visible='true'] .bank-stack-card {
-  animation: bank-stack-in 700ms var(--bank-ease) var(--stack-delay) backwards;
-}
-@keyframes bank-stack-in {
-  from {
-    transform: translate3d(15px, 20px, -90px) rotateY(-25deg);
-  }
-  to {
-    transform: var(--stack-rest);
-  }
 }
 .bank-chip {
   display: block;
@@ -76,19 +54,9 @@
   background: #c6eaffaa;
   border-radius: 1px;
 }
-.bank-lift:hover .stack-0,
-.bank-lift:focus-visible .stack-0,
-.bank-lift:active .stack-0 {
-  transform: translate3d(-7px, -9px, 60px) rotate(-9deg);
-}
-.bank-lift:hover .stack-1,
-.bank-lift:focus-visible .stack-1 {
-  transform: translate3d(2px, -6px, 25px) rotate(2deg);
-}
-.bank-lift:hover .stack-2,
-.bank-lift:focus-visible .stack-2 {
-  transform: translate3d(5px, -4px, 10px) rotate(9deg);
-}
+
+
+
 .bank-physical-card {
   position: relative;
   overflow: hidden;
@@ -99,7 +67,6 @@
   color: white;
   border: 1px solid #b7d7ff;
   box-shadow: 0 16px 30px #1d6ae12b;
-  animation: bank-card-push 700ms var(--bank-ease) var(--card-delay, 0ms) backwards;
 }
 .bank-physical-card.is-credit {
   background: linear-gradient(120deg, #606aab, #384878 60%, #253756);

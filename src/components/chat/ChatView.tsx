@@ -1,3 +1,5 @@
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { useEffect, useRef, useState } from 'react'
@@ -10,6 +12,7 @@ import { toolPresentations } from './presentation'
 import AssistantText, { presentedTables } from './AssistantText'
 import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import ConfirmCard from './ConfirmCard'
+import { MotionMessage, ThinkingDots } from '#/components/ui/motion'
 
 const SUGGESTIONS = [
   { label: '查一下本月支出', prompt: '帮我分析本月支出并用图表展示分类', icon: ReceiptText },
@@ -144,15 +147,15 @@ export default function ChatView({
           <p>查账户、转账、看账单，我来帮你</p>
           <div className="bank-agent-suggestions">
             {SUGGESTIONS.map(({ label, prompt, icon: Icon }) => (
-              <button
+              <Button
                 key={label}
                 className="bank-lift"
                 disabled={busy}
-                onClick={() => send(prompt)}
+                onClick={() => send(prompt)} type="button"
               >
                 <Icon size={17} />
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -167,7 +170,7 @@ export default function ChatView({
             const presentation = toolPresentations(message.parts, processing)
             const tables = presentedTables(message.parts, presentation)
             return (
-              <div
+              <MotionMessage
                 key={message.id}
                 className={`bank-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}
               >
@@ -221,7 +224,7 @@ export default function ChatView({
                     return null
                   })}
                 </div>
-              </div>
+              </MotionMessage>
             )
           })}
           {status === 'submitted' && (
@@ -229,9 +232,7 @@ export default function ChatView({
               <AgentAvatar small />
               <span>
                 文财正在思考
-                <i />
-                <i />
-                <i />
+                <ThinkingDots />
               </span>
             </div>
           )}
@@ -241,11 +242,11 @@ export default function ChatView({
           <div className="bank-chat-error" role="alert">
             {sendError || '暂时无法连接文财，请稍后重新发送。'}
             <small>智能助手不可用时，关闭此面板仍可在首页办理转账、卡片管理，并在任务中心处理进行中的计划。</small>
-            {failedConfirmation && <button type="button" disabled={busy} className="bank-text-button" onClick={() => {
+            {failedConfirmation && <Button type="button" disabled={busy} className="bank-text-button" onClick={() => {
               setConfirmations((queue) => [...queue, failedConfirmation])
               setFailedConfirmation(undefined)
               setSendError('')
-            }}>重新核对结果</button>}
+            }}>重新核对结果</Button>}
           </div>
         )}
       </div>
@@ -259,7 +260,7 @@ export default function ChatView({
         <span className="bank-composer-mark" aria-hidden="true">
           <ReceiptText size={20} />
         </span>
-        <input
+        <Input
           data-autofocus
           aria-label="发送给文财的消息"
           value={input}
@@ -269,7 +270,7 @@ export default function ChatView({
           maxLength={4000}
         />
         {busy ? (
-          <button
+          <Button
             className="bank-send bank-lift"
             type="button"
             aria-label="停止回答"
@@ -280,16 +281,16 @@ export default function ChatView({
             ) : (
               <Square size={18} />
             )}
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             type="submit"
             aria-label="发送消息"
             className="bank-send bank-lift"
             disabled={!input.trim()}
           >
             <ArrowUp size={24} />
-          </button>
+          </Button>
         )}
       </form>
       <p className="bank-agent-disclaimer">敏感操作须由你确认，请以银行数据为准</p>

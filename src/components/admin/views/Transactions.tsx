@@ -1,3 +1,8 @@
+import { Button } from '#/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { Input } from '#/components/ui/input'
+import { Checkbox } from '#/components/ui/checkbox'
+import { SelectControl, SelectOption } from '#/components/ui/select'
 import { useState } from 'react'
 import { Search, Download, AlertTriangle, ArrowUpRight, ArrowDownLeft, ChartNoAxesCombined } from 'lucide-react'
 import { Panel, Metric, TransactionTable, Empty, type ViewProps } from '../shared'
@@ -32,30 +37,30 @@ export function AdminTransactions({ ledger, period, report, anomalies }: ViewPro
         title="交易明细"
         subtitle={`${rows.length} 笔记录${anomalies.length ? ` · ${anomalies.length} 笔待复核` : ''}`}
         action={
-          <button className="button button-outline button-sm" onClick={() => exportLedger(periodLedger, period)}>
+          <Button className="button button-outline button-sm" onClick={() => exportLedger(periodLedger, period)} type="button">
             <Download size={15} />导出
-          </button>
+          </Button>
         }
       >
         <div className="table-toolbar">
           <div className="search-input">
             <Search size={15} />
-            <input placeholder="搜索交易对象或流水号" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} />
+            <Input placeholder="搜索交易对象或流水号" value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} />
           </div>
-          <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(0) }}>
-            <option value="">全部分类</option>
-            {Object.entries(categories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-          <div className="segmented">
+          <SelectControl value={category} onValueChange={(value) => { setCategory(value); setPage(0) }}>
+            <SelectOption value="">全部分类</SelectOption>
+            {Object.entries(categories).map(([k, v]) => <SelectOption key={k} value={k}>{v}</SelectOption>)}
+          </SelectControl>
+          <ToggleGroup className="segmented" value={direction} onValueChange={(value) => { setDirection(value); setPage(0) }} aria-label="收支方向">
             {(['all', 'income', 'expense'] as const).map((d) => (
-              <button key={d} className={direction === d ? 'selected' : ''} onClick={() => { setDirection(d); setPage(0) }}>
+              <ToggleGroupItem value={d} key={d} className={direction === d ? 'selected' : ''} type="button">
                 {d === 'all' ? '全部' : d === 'income' ? '收入' : '支出'}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           {anomalies.length > 0 && (
             <label className="toggle-label">
-              <input type="checkbox" checked={onlyAnomalies} onChange={(e) => { setOnlyAnomalies(e.target.checked); setPage(0) }} />
+              <Checkbox  checked={onlyAnomalies} onCheckedChange={(checked) => { setOnlyAnomalies(checked); setPage(0) }} />
               <AlertTriangle size={14} />只看异常
             </label>
           )}
@@ -65,9 +70,9 @@ export function AdminTransactions({ ledger, period, report, anomalies }: ViewPro
             <TransactionTable rows={rows} anomalyIds={ids} limit={(page + 1) * 15} />
             {rows.length > 15 && (
               <div className="pagination">
-                <button className="button button-ghost button-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>上一页</button>
+                <Button className="button button-ghost button-sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} type="button">上一页</Button>
                 <span>{page + 1} / {count}</span>
-                <button className="button button-ghost button-sm" disabled={page >= count - 1} onClick={() => setPage(p => p + 1)}>下一页</button>
+                <Button className="button button-ghost button-sm" disabled={page >= count - 1} onClick={() => setPage(p => p + 1)} type="button">下一页</Button>
               </div>
             )}
           </>

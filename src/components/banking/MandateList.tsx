@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '#/components/ui/button'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 type Mandate = {
@@ -63,9 +64,9 @@ export function MandateList() {
             {!live && m.endedReason && <small>{m.endedReason}</small>}
             {(live || m.status === 'suspended') && (
               <div className="bank-card-actions">
-                <button className="bank-payment-secondary" disabled={busy === m.id} onClick={() => void revoke(m.id)}>
+                <Button type="button" className="bank-payment-secondary" disabled={busy === m.id} onClick={() => void revoke(m.id)}>
                   {busy === m.id ? '撤销中…' : '撤销授权'}
-                </button>
+                </Button>
               </div>
             )}
           </article>

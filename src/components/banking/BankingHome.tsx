@@ -1,3 +1,6 @@
+import { Button } from '#/components/ui/button'
+import { motion, useReducedMotion } from 'motion/react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '#/components/ui/tabs'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -60,6 +63,7 @@ async function fetchDashboard(): Promise<DashboardData> {
 }
 
 export default function BankingHome({ user }: { user: { id: string; name: string } }) {
+  const reduce = useReducedMotion()
   const queryClient = useQueryClient()
   const pageScroll = useRef<HTMLDivElement>(null)
   const query = useQuery({
@@ -135,36 +139,36 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   }
   return (
     <div className="bank-stage">
-      <div className="bank-shell">
+      <Tabs className="bank-shell" value={tab} onValueChange={(value) => selectTab(value as Tab)}>
         <div className="bank-home-scroll" ref={pageScroll} inert={agentOpen || !!detail || !!paymentView || !!cardService}>
           <header className="bank-home-header">
-            <button
+            <Button
               className="bank-profile bank-lift"
               onClick={() => selectTab('profile')}
-              aria-label="查看我的资料"
+              aria-label="查看我的资料" type="button"
             >
               <span className="bank-user-avatar">{user.name.slice(0, 1)}</span>
               <span>
                 <strong>{user.name}</strong>
                 <small>你好，美好的一天</small>
               </span>
-            </button>
+            </Button>
             <div className="bank-header-actions">
-              <button
+              <Button
                 className="bank-icon-button bank-lift"
                 onClick={() => openPayment('receive')}
-                aria-label="查看收款账户"
+                aria-label="查看收款账户" type="button"
               >
                 <ScanLine size={18} />
-              </button>
-              <button
+              </Button>
+              <Button
                 className="bank-icon-button bank-lift bank-bell"
                 onClick={() => setDetail('notifications')}
-                aria-label="消息与提醒"
+                aria-label="消息与提醒" type="button"
               >
                 <Bell size={18} />
                 {data?.subscriptions.some((item) => item.status === 'active') && <i />}
-              </button>
+              </Button>
             </div>
           </header>
           {query.isPending ? (
@@ -182,26 +186,27 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                   重新登录
                 </a>
               ) : (
-                <button className="bank-primary bank-lift" onClick={() => void query.refetch()}>
+                <Button className="bank-primary bank-lift" onClick={() => void query.refetch()} type="button">
                   重新加载
-                </button>
+                </Button>
               )}
             </div>
           ) : (
             data && (
-              <main key={tab} className="bank-page-content">
+              <TabsContent value={tab} key={tab} className="bank-page-content"
+                render={<motion.main initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : .5 }} />}>
                 {tab === 'home' && (
                   <>
                     <section className="bank-assets">
                       <div className="bank-asset-label">
                         账户总资产（元）
-                        <button
+                        <Button
                           className="bank-icon-button bank-lift"
                           aria-label={hidden ? '显示资产金额' : '隐藏资产金额'}
-                          onClick={() => setHidden(!hidden)}
+                          onClick={() => setHidden(!hidden)} type="button"
                         >
                           {hidden ? <EyeOff size={17} /> : <Eye size={17} />}
-                        </button>
+                        </Button>
                       </div>
                       <h1>{hidden ? '••••••' : <AnimatedAmount value={data.totalAssets} />}</h1>
                       <div className="bank-asset-bottom">
@@ -211,13 +216,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                             {hidden ? '••••••' : `¥ ${formatAmount(data.availableBalance)}`}
                           </strong>
                         </p>
-                        <button
+                        <Button
                           className="bank-text-button bank-lift"
-                          onClick={() => setDetail('assets')}
+                          onClick={() => setDetail('assets')} type="button"
                         >
                           资产详情
                           <ChevronRight size={15} />
-                        </button>
+                        </Button>
                       </div>
                     </section>
                     <nav className="bank-quick-actions" aria-label="快捷业务">
@@ -231,19 +236,19 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         { label: '银行卡', icon: CreditCard, action: () => selectTab('accounts') },
                         { label: '更多', icon: Grid2X2, action: () => selectTab('life') },
                       ].map(({ label, icon: Icon, action }) => (
-                        <button key={label} className="bank-lift" onClick={action}>
+                        <Button key={label} className="bank-lift" onClick={action} type="button">
                           <span>
                             <Icon size={28} strokeWidth={2.2} />
                           </span>
                           {label}
-                        </button>
+                        </Button>
                       ))}
                     </nav>
                     <div className="bank-home-tiles">
                       <Reveal delay={60}>
-                        <button
+                        <Button
                           className="bank-home-tile bank-lift bank-account-tile"
-                          onClick={() => selectTab('accounts')}
+                          onClick={() => selectTab('accounts')} type="button"
                         >
                           <strong>我的账户</strong>
                           <span>
@@ -251,12 +256,12 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                             <ChevronRight size={13} />
                           </span>
                           <BankCardStack count={data.cards.length} />
-                        </button>
+                        </Button>
                       </Reveal>
                       <Reveal delay={130}>
-                        <button
+                        <Button
                           className="bank-home-tile bank-lift bank-income-tile"
-                          onClick={() => setDetail('bill')}
+                          onClick={() => setDetail('bill')} type="button"
                         >
                           <strong>本月收支</strong>
                           <div className="bank-income-lines">
@@ -272,13 +277,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                           <span className="bank-mini-bars" aria-hidden="true">
                             <AnimatedBarChart data={data.trend} compact />
                           </span>
-                        </button>
+                        </Button>
                       </Reveal>
                     </div>
                     <Reveal delay={180}>
-                      <button
+                      <Button
                         className="bank-analysis-tile bank-lift"
-                        onClick={() => setDetail('bill')}
+                        onClick={() => setDetail('bill')} type="button"
                       >
                         <span>
                           <strong>智能账单分析</strong>
@@ -290,19 +295,19 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         <span className="bank-mini-pie" aria-hidden="true">
                           <AnimatedDonutChart data={data.monthly.categories} compact pie />
                         </span>
-                      </button>
+                      </Button>
                     </Reveal>
                     <Reveal delay={220}>
                       <section className="bank-recent">
                         <div className="bank-section-heading">
                           <h2>最近交易</h2>
-                          <button
+                          <Button
                             className="bank-text-button bank-lift"
-                            onClick={() => setDetail('transactions')}
+                            onClick={() => setDetail('transactions')} type="button"
                           >
                             查看全部
                             <ChevronRight size={13} />
-                          </button>
+                          </Button>
                         </div>
                         <TransactionList
                           transactions={data.transactions.slice(0, 3)}
@@ -317,18 +322,18 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                     <div className="bank-section-heading">
                       <h1>我的账户</h1>
                       <span>{data.cards.length} 张银行卡</span>
-                      <button className="bank-text-button bank-lift" onClick={() => setCardService({ id: 'new', mode: 'apply' })}>申请新卡</button>
+                      <Button className="bank-text-button bank-lift" onClick={() => setCardService({ id: 'new', mode: 'apply' })} type="button">申请新卡</Button>
                     </div>
                     <p className="bank-page-note">每张卡独立记账，左右滑动查看对应账单。</p>
                     <AccountCarousel data={data} selectedId={selectedCard?.id} onSelect={setSelectedCardId} hidden={hidden} />
                     {selectedCard && <>
                       <div className="bank-card-actions">
                         {selectedCard.kind === 'debit' ? <>
-                          <button className="bank-primary bank-lift" disabled={selectedCard.status !== 'active'} onClick={() => openPayment('transfer', selectedCard.accountId)}>转账</button>
-                          <button className="bank-payment-secondary bank-lift" disabled={selectedCard.status !== 'active'} onClick={() => openPayment('receive', selectedCard.accountId)}>收款</button>
-                        </> : <button className="bank-primary bank-lift" disabled={selectedCard.status !== 'active' || selectedCard.outstanding <= 0} onClick={() => openCardService('repay')}>信用卡还款</button>}
-                        <button className="bank-payment-secondary bank-lift" onClick={() => openCardService('remark')}>修改备注</button>
-                        <button className="bank-payment-secondary bank-lift" onClick={() => openCardService('manage')}>管理</button>
+                          <Button className="bank-primary bank-lift" disabled={selectedCard.status !== 'active'} onClick={() => openPayment('transfer', selectedCard.accountId)} type="button">转账</Button>
+                          <Button className="bank-payment-secondary bank-lift" disabled={selectedCard.status !== 'active'} onClick={() => openPayment('receive', selectedCard.accountId)} type="button">收款</Button>
+                        </> : <Button className="bank-primary bank-lift" disabled={selectedCard.status !== 'active' || selectedCard.outstanding <= 0} onClick={() => openCardService('repay')} type="button">信用卡还款</Button>}
+                        <Button className="bank-payment-secondary bank-lift" onClick={() => openCardService('remark')} type="button">修改备注</Button>
+                        <Button className="bank-payment-secondary bank-lift" onClick={() => openCardService('manage')} type="button">管理</Button>
                       </div>
                       {selectedCard.kind === 'credit' && <Reveal key={selectedCard.id}><div className="bank-credit-summary">
                         <div><span>当前待还</span><strong>{hidden ? '••••••' : `¥ ${formatAmount(selectedCard.outstanding)}`}</strong></div>
@@ -354,13 +359,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                     )}
                     <div className="bank-section-heading">
                       <h2>其他资金账户</h2>
-                      <button
+                      <Button
                         className="bank-text-button bank-lift"
-                        onClick={() => setDetail('assets')}
+                        onClick={() => setDetail('assets')} type="button"
                       >
                         查看资产
                         <ChevronRight size={14} />
-                      </button>
+                      </Button>
                     </div>
                     {data.accounts.filter((account) => !data.cards.some((card) => card.accountId === account.id)).map((account, index) => (
                       <Reveal key={account.id} delay={index * 70}>
@@ -379,18 +384,18 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                       </Reveal>
                     ))}
                     {!data.accounts.length && <p className="bank-empty">你还没有银行账户</p>}
-                    <div className="bank-payment-entry"><button className="bank-payment-secondary bank-lift" onClick={() => openPayment('payees')}><UsersRound size={16} />收款人</button><button className="bank-payment-secondary bank-lift" onClick={() => openPayment('transfer', selectedCard?.kind === 'debit' ? selectedCard.accountId : undefined)}>账户互转</button></div>
+                    <div className="bank-payment-entry"><Button className="bank-payment-secondary bank-lift" onClick={() => openPayment('payees')} type="button"><UsersRound size={16} />收款人</Button><Button className="bank-payment-secondary bank-lift" onClick={() => openPayment('transfer', selectedCard?.kind === 'debit' ? selectedCard.accountId : undefined)} type="button">账户互转</Button></div>
                   </>
                 )}
                 {tab === 'life' && (
                   <>
-                    <button className="bank-payment-secondary bank-full-width" onClick={() => setDetail('tasks')}>任务中心 · 暂停 / 恢复 / 人工处理</button>
+                    <Button className="bank-payment-secondary bank-full-width" onClick={() => setDetail('tasks')} type="button">任务中心 · 暂停 / 恢复 / 人工处理</Button>
                     <h1 className="bank-page-title">生活服务</h1>
                     <p className="bank-page-note">照顾日常，也为重要的日子做好准备。</p>
                     <div className="bank-life-actions">
-                      <button
+                      <Button
                         className="bank-lift"
-                        onClick={() => openAgent('帮我查看生日计划和联系人')}
+                        onClick={() => openAgent('帮我查看生日计划和联系人')} type="button"
                       >
                         <Gift size={26} />
                         <strong>生日计划</strong>
@@ -398,10 +403,10 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                           为重要的人用心安排
                           <ChevronRight size={14} />
                         </span>
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         className="bank-lift"
-                        onClick={() => openAgent('我想发起一笔AA收款，请先帮我查看联系人')}
+                        onClick={() => openAgent('我想发起一笔AA收款，请先帮我查看联系人')} type="button"
                       >
                         <UsersRound size={26} />
                         <strong>AA 收款</strong>
@@ -409,17 +414,17 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                           和朋友轻松分账
                           <ChevronRight size={14} />
                         </span>
-                      </button>
+                      </Button>
                     </div>
                     <div className="bank-section-heading">
                       <h2>订阅与代扣</h2>
-                      <button
+                      <Button
                         className="bank-text-button bank-lift"
-                        onClick={() => openAgent('帮我查看所有订阅与自动扣费')}
+                        onClick={() => openAgent('帮我查看所有订阅与自动扣费')} type="button"
                       >
                         管理
                         <ChevronRight size={14} />
-                      </button>
+                      </Button>
                     </div>
                     <SubscriptionList subscriptions={data.subscriptions} hidden={hidden} />
                   </>
@@ -442,29 +447,29 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         </span>
                         <ChevronRight size={17} />
                       </a>
-                      <button className="bank-lift" onClick={() => setDetail('assets')}>
+                      <Button className="bank-lift" onClick={() => setDetail('assets')} type="button">
                         <Wallet size={21} />
                         <span>
                           我的资产<small>查看账户余额与理财持仓</small>
                         </span>
                         <ChevronRight size={17} />
-                      </button>
-                      <button className="bank-lift" onClick={() => openAgent()}>
+                      </Button>
+                      <Button className="bank-lift" onClick={() => openAgent()} type="button">
                         <AgentAvatar small />
                         <span>
                           文财 Agent<small>查账户、转账、看账单</small>
                         </span>
                         <ChevronRight size={17} />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         className="bank-lift"
                         disabled={signingOut}
-                        onClick={() => void signOut()}
+                        onClick={() => void signOut()} type="button"
                       >
                         <LogOut size={21} />
                         <span>{signingOut ? '正在退出…' : '退出登录'}</span>
                         <ChevronRight size={17} />
-                      </button>
+                      </Button>
                     </div>
                     {profileError && (
                       <p className="bank-error" role="alert">
@@ -473,24 +478,25 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                     )}
                   </>
                 )}
-              </main>
+              </TabsContent>
             )
           )}
           <p className="bank-service-note">文财银行 · 模拟银行服务</p>
         </div>
-        <nav className="bank-bottom-nav" aria-label="底部导航" inert={agentOpen || !!detail || !!paymentView || !!cardService}>
+        <TabsList className="bank-bottom-nav" aria-label="底部导航" inert={agentOpen || !!detail || !!paymentView || !!cardService}>
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button
+            <TabsTrigger
               key={id}
+              value={id}
               className={`bank-lift${tab === id ? ' is-active' : ''}`}
               aria-current={tab === id ? 'page' : undefined}
-              onClick={() => selectTab(id)}
+              type="button"
             >
               <Icon size={19} strokeWidth={tab === id ? 2.4 : 1.8} />
               <span>{label}</span>
-            </button>
+            </TabsTrigger>
           ))}
-        </nav>
+        </TabsList>
         <DraggableFloatingButton
           hidden={agentOpen || !!detail || !!paymentView}
           expanded={agentOpen}
@@ -543,13 +549,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                 <div className="bank-trend-panel">
                   <AnimatedBarChart title="近六个月支出" data={data.trend} />
                 </div>
-                <button
+                <Button
                   className="bank-primary bank-lift bank-full-width"
-                  onClick={() => openAgent('帮我分析本月的消费，按分类展示支出，并给一些建议')}
+                  onClick={() => openAgent('帮我分析本月的消费，按分类展示支出，并给一些建议')} type="button"
                 >
                   让文财帮我分析
                   <ArrowUpRight size={17} />
-                </button>
+                </Button>
               </>
             )}
             {data && detail === 'assets' && (
@@ -594,13 +600,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                   </div>
                 ))}
                 {!data.accounts.length && <p className="bank-empty">暂无可用收款账户</p>}
-                <button
+                <Button
                   className="bank-primary bank-lift bank-full-width"
-                  onClick={() => openAgent('我想发起一笔AA收款，请帮我准备')}
+                  onClick={() => openAgent('我想发起一笔AA收款，请帮我准备')} type="button"
                 >
                   发起 AA 收款
                   <ChevronRight size={17} />
-                </button>
+                </Button>
               </>
             )}
             {data && detail === 'transactions' && (
@@ -619,19 +625,19 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                   subscriptions={data.subscriptions.filter((item) => item.status === 'active')}
                   hidden={hidden}
                 />
-                <button
+                <Button
                   className="bank-primary bank-lift bank-full-width"
-                  onClick={() => openAgent('帮我查看订阅扣费时间和提醒设置')}
+                  onClick={() => openAgent('帮我查看订阅扣费时间和提醒设置')} type="button"
                 >
                   管理订阅提醒
                   <ChevronRight size={17} />
-                </button>
+                </Button>
               </>
             )}
             {detail === 'tasks' && <TaskCenter onFollowUp={openAgent} />}
           </div>
         </Sheet>
-      </div>
+      </Tabs>
     </div>
   )
 }

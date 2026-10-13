@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { formatAmount } from '#/lib/dashboard'
 import { motionStyle, useReveal } from './motion'
 import './charts.css'
@@ -54,6 +55,7 @@ function BarSeries({
   compact: boolean
 }) {
   const reveal = useReveal<HTMLDivElement>()
+  const reduce = useReducedMotion()
   const id = useId().replace(/:/g, '')
   const [active, setActive] = useState<number | null>(null)
   const max = Math.max(1, ...data.map((point) => point.value))
@@ -115,16 +117,19 @@ function BarSeries({
                       fill="transparent"
                     />
                     <g transform={`translate(${i * gap + gap * 0.3}, 140)`}>
-                      <rect
+                      <motion.rect
                         data-bar
+                        data-motion="bar"
                         x="0"
                         y={-height}
                         width={gap * 0.4}
                         height={height}
                         rx="4"
                         fill={`url(#bar-${id})`}
-                        opacity={active === null || active === i ? 1 : 0.45}
-                        style={motionStyle({ '--bar-delay': `${i * 95}ms` })}
+                        initial={{ scaleY: 0 }}
+                        animate={{ scaleY: reveal['data-visible'] ? 1 : 0, opacity: active === null || active === i ? 1 : .45 }}
+                        transition={{ scaleY: { duration: reduce ? 0 : .7, delay: reduce ? 0 : i * .095, ease: [.2, .75, .2, 1] }, opacity: { duration: .18 } }}
+                        style={{ transformOrigin: '0px 0px', transformBox: 'view-box' }}
                       />
                     </g>
                     {!compact && (
@@ -162,15 +167,23 @@ export function AnimatedDonutChart({
   title,
   compact = false,
   pie = false,
+  colors = CHART_COLORS,
+  ringRadius = 51,
+  ringWidth = 25,
+  gapDegrees,
 }: {
   data: ChartDatum[]
   title?: string
   compact?: boolean
   pie?: boolean
+  colors?: string[]
+  ringRadius?: number
+  ringWidth?: number
+  gapDegrees?: number
 }) {
   const safe = normalizeChartData(data, 'label', 'value').filter((point) => point.value > 0)
   return (
-    <DonutSeries key={JSON.stringify(safe)} data={safe} title={title} compact={compact} pie={pie} />
+    <DonutSeries key={JSON.stringify(safe)} data={safe} title={title} compact={compact} pie={pie} colors={colors.length ? colors : CHART_COLORS} ringRadius={ringRadius} ringWidth={ringWidth} gapDegrees={gapDegrees} />
   )
 }
 
@@ -179,16 +192,25 @@ function DonutSeries({
   title,
   compact,
   pie,
+  colors,
+  ringRadius,
+  ringWidth,
+  gapDegrees,
 }: {
   data: ChartDatum[]
   title?: string
   compact: boolean
   pie: boolean
+  colors: string[]
+  ringRadius: number
+  ringWidth: number
+  gapDegrees?: number
 }) {
   const reveal = useReveal<HTMLDivElement>()
+  const reduce = useReducedMotion()
   const [active, setActive] = useState<number | null>(null)
   const total = data.reduce((sum, point) => sum + point.value, 0)
-  const radius = pie ? 34 : 51
+  const radius = pie ? 34 : ringRadius
   const circumference = 2 * Math.PI * radius
   let offset = 0
   return (
@@ -203,21 +225,21 @@ function DonutSeries({
         <div className="bank-donut-body">
           <svg viewBox="0 0 160 160" role="img" aria-label={title ?? '支出分类占比'}>
             {!pie && (
-              <circle cx="80" cy="80" r={radius} fill="none" stroke="#edf4ff" strokeWidth="25" />
+              <circle cx="80" cy="80" r={radius} fill="none" stroke="#edf4ff" strokeWidth={ringWidth} />
             )}
             {data.map((point, i) => {
               const start = offset
               offset += point.value / total
               return (
                 <g key={`${point.label}-${i}`} transform={`rotate(${-90 + start * 360} 80 80)`}>
-                  <circle
+                  <motion.circle
                     data-arc
+                    data-motion="arc"
                     cx="80"
                     cy="80"
                     r={radius}
                     fill="none"
-                    stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                    strokeWidth={pie ? 68 : active === i ? 29 : 25}
+                    stroke={colors[i % colors.length]}
                     tabIndex={compact ? undefined : 0}
                     role={compact ? undefined : 'img'}
                     aria-label={`${point.label}：${((point.value / total) * 100).toFixed(1)}%，${formatAmount(point.value)}元`}
@@ -225,12 +247,18 @@ function DonutSeries({
                     onMouseLeave={() => setActive(null)}
                     onFocus={() => setActive(i)}
                     onBlur={() => setActive(null)}
-                    opacity={active === null || active === i ? 1 : 0.4}
+                    initial={{ strokeDasharray: `0 ${circumference}` }}
+                    animate={{
+                      strokeDasharray: `${reveal['data-visible'] ? Math.max(0, point.value / total * circumference - (data.length > 1 ? gapDegrees === undefined ? 2 : circumference * gapDegrees / 360 : 0)) : 0} ${circumference}`,
+                      strokeWidth: pie ? 68 : active === i ? ringWidth + 4 : ringWidth,
+                      opacity: active === null || active === i ? 1 : .4,
+                    }}
+                    transition={{ strokeDasharray: { duration: reduce ? 0 : Math.max(.12, point.value / total * 1.05), delay: reduce ? 0 : start * 1.05, ease: 'linear' }, strokeWidth: { duration: .2 }, opacity: { duration: .2 } }}
                     style={motionStyle({
                       '--circumference': circumference,
                       '--arc-length': Math.max(
                         0,
-                        (point.value / total) * circumference - (data.length > 1 ? 2 : 0),
+                        (point.value / total) * circumference - (data.length > 1 ? gapDegrees === undefined ? 2 : circumference * gapDegrees / 360 : 0),
                       ),
                       '--arc-delay': `${start * 1050}ms`,
                       '--arc-duration': `${Math.max(120, (point.value / total) * 1050)}ms`,
@@ -240,7 +268,7 @@ function DonutSeries({
                       {point.label}：¥{formatAmount(point.value)}（
                       {((point.value / total) * 100).toFixed(1)}%）
                     </title>
-                  </circle>
+                  </motion.circle>
                 </g>
               )
             })}
@@ -258,7 +286,7 @@ function DonutSeries({
                 <li key={`${point.label}-${i}`} data-active={active === i}>
                   <span
                     className="bank-legend-dot"
-                    style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                    style={{ background: colors[i % colors.length] }}
                   />
                   <span>{point.label}</span>
                   <strong>{((point.value / total) * 100).toFixed(1)}%</strong>

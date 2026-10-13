@@ -1,3 +1,5 @@
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { PlanState } from '#/server/executor/executor'
@@ -18,12 +20,12 @@ export function TaskCenter({ onFollowUp }: { onFollowUp: (text: string) => void 
   return <div><MandateList />{query.isPending && <p>读取任务中…</p>}{(error || query.error) && <p className="bank-error">{error || query.error?.message}</p>}
     {query.data?.plans.map((plan) => <article className="bank-payment-address" key={plan.id}><h3>{plan.state.plan.goal}</h3><p>{labels[plan.status] ?? plan.status}</p><ol>{plan.state.plan.nodes.map((node) => <li key={node.id}>{node.note || node.tool || '人工处理'} · {labels[plan.state.nodes[node.id].status] ?? plan.state.nodes[node.id].status}</li>)}</ol>
       {!['completed', 'compensated', 'failed'].includes(plan.status) && <div className="bank-card-actions">
-        {plan.status !== 'paused' && <button className="bank-payment-secondary" disabled={busy} onClick={() => void control(plan.id, 'pause')}>暂停</button>}
-        {['paused', 'suspended'].includes(plan.status) && <button className="bank-primary" disabled={busy} onClick={() => void control(plan.id, 'resume')}>恢复</button>}
-        <button className="bank-payment-secondary" disabled={busy} onClick={() => void control(plan.id, 'cancel')}>取消并回退</button>
+        {plan.status !== 'paused' && <Button className="bank-payment-secondary" disabled={busy} onClick={() => void control(plan.id, 'pause')} type="button">暂停</Button>}
+        {['paused', 'suspended'].includes(plan.status) && <Button className="bank-primary" disabled={busy} onClick={() => void control(plan.id, 'resume')} type="button">恢复</Button>}
+        <Button className="bank-payment-secondary" disabled={busy} onClick={() => void control(plan.id, 'cancel')} type="button">取消并回退</Button>
       </div>}
-      {plan.status === 'handoff' && <div className="bank-payment-form"><label>人工处理说明<input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="填写你已处理的事项，不代替银行回执" /></label><button className="bank-primary" disabled={busy || !note.trim()} onClick={() => void control(plan.id, 'complete_handoff')}>记录人工处理并继续</button></div>}
-      {plan.status === 'failed' && <div className="bank-payment-form">{plan.state.manualReview ? <p>已记录核对：{plan.state.manualReview.note}</p> : <><p>部分操作无法自动回退。请核对实际流水后记录处理结果，此计划不会继续扣款。</p><label>核对结果<input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></label><button className="bank-primary" disabled={busy || !note.trim()} onClick={() => void control(plan.id, 'acknowledge_failure')}>记录人工核对结果</button></>}</div>}
+      {plan.status === 'handoff' && <div className="bank-payment-form"><label>人工处理说明<Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="填写你已处理的事项，不代替银行回执" /></label><Button className="bank-primary" disabled={busy || !note.trim()} onClick={() => void control(plan.id, 'complete_handoff')} type="button">记录人工处理并继续</Button></div>}
+      {plan.status === 'failed' && <div className="bank-payment-form">{plan.state.manualReview ? <p>已记录核对：{plan.state.manualReview.note}</p> : <><p>部分操作无法自动回退。请核对实际流水后记录处理结果，此计划不会继续扣款。</p><label>核对结果<Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></label><Button className="bank-primary" disabled={busy || !note.trim()} onClick={() => void control(plan.id, 'acknowledge_failure')} type="button">记录人工核对结果</Button></>}</div>}
       {plan.status !== 'paused' && plan.state.plan.nodes.map((node) => {
         const item = plan.state.nodes[node.id]
         return item.status === 'suspended' && item.output ? <ToolPart key={item.actionId} part={{ type: `tool-${node.tool}`, toolCallId: item.actionId!, state: 'output-available', output: item.output }} onFollowUp={onFollowUp} /> : null

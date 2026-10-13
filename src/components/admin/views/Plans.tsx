@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { Gift, Check, Flower2, CakeSlice } from 'lucide-react'
 import { Panel, Empty, Badge, type ViewProps } from '../shared'
 import { money } from '../utils'
@@ -8,10 +9,10 @@ export function AdminPlans({ s, actions }: ViewProps) {
       title="生日计划"
       subtitle="预留预算，生日前两天自动订购礼物"
       action={
-        <button className="button button-sm button-primary" onClick={actions.birthday}>
+        <Button className="button button-sm button-primary" onClick={actions.birthday} type="button">
           <Gift size={15} />
           创建生日计划
-        </button>
+        </Button>
       }
     >
       {s.plans.length ? (
@@ -28,12 +29,12 @@ export function AdminPlans({ s, actions }: ViewProps) {
                   </div>
                   <Badge status={plan.status} />
                   {plan.status !== 'cancelled' && (
-                    <button
+                    <Button
                       className="button button-ghost button-sm"
-                      onClick={() => actions.cancelPlan(plan.id)}
+                      onClick={() => actions.cancelPlan(plan.id)} type="button"
                     >
                       取消
-                    </button>
+                    </Button>
                   )}
                 </div>
                 {planOrders.length > 0 && (
@@ -62,9 +63,9 @@ export function AdminPlans({ s, actions }: ViewProps) {
           title="还没有生日计划"
           text="为重要的人提前规划预算与礼物，生日当天不再手忙脚乱。"
           action={
-            <button className="button button-outline" onClick={actions.birthday}>
+            <Button className="button button-outline" onClick={actions.birthday} type="button">
               创建第一个生日计划
-            </button>
+            </Button>
           }
         />
       )}

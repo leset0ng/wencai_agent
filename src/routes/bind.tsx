@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useMutation } from '@tanstack/react-query'
 import { useSession } from '#/lib/auth-client'
@@ -97,9 +98,9 @@ function BindConfirmCard({ code, navigate }: { code: string; navigate: Nav }) {
     return (
       <div className="flex flex-col gap-3">
         <p className="m-0 text-sm text-[var(--sea-ink)]">✅ 绑定成功，现在可以在飞书中使用文财了。</p>
-        <button className="demo-button" type="button" onClick={() => navigate({ to: '/' })}>
+        <Button className="demo-button" type="button" onClick={() => navigate({ to: '/' })}>
           返回首页
-        </button>
+        </Button>
       </div>
     )
   }
@@ -130,9 +131,9 @@ function LoginFirst({ navigate }: { navigate: Nav }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm demo-muted">请先登录文财，再完成绑定。</p>
-      <button className="demo-button" type="button" onClick={() => navigate({ to: '/login' })}>
+      <Button className="demo-button" type="button" onClick={() => navigate({ to: '/login' })}>
         去登录
-      </button>
+      </Button>
     </div>
   )
 }

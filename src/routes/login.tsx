@@ -1,3 +1,5 @@
+import { Input } from '#/components/ui/input'
+import { Button } from '#/components/ui/button'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '#/lib/auth-client'
@@ -78,7 +80,7 @@ function LoginPage() {
             <label className="text-sm text-[var(--sea-ink-soft)]" htmlFor="phone">
               手机号
             </label>
-            <input
+            <Input
               id="phone"
               className="demo-input"
               inputMode="numeric"
@@ -87,9 +89,9 @@ function LoginPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
             />
-            <button className="demo-button" type="submit" disabled={busy}>
+            <Button className="demo-button" type="submit" disabled={busy}>
               {busy ? '发送中…' : '获取验证码'}
-            </button>
+            </Button>
           </form>
         ) : (
           <form
@@ -106,7 +108,7 @@ function LoginPage() {
             <label className="text-sm text-[var(--sea-ink-soft)]" htmlFor="code">
               验证码（已发送至 {phone}）
             </label>
-            <input
+            <Input
               id="code"
               className="demo-input"
               inputMode="numeric"
@@ -115,12 +117,12 @@ function LoginPage() {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             />
-            <button className="demo-button" type="submit" disabled={busy}>
+            <Button className="demo-button" type="submit" disabled={busy}>
               {busy ? '验证中…' : '登录'}
-            </button>
-            <button className="text-sm demo-muted underline" type="button" onClick={() => setStep('phone')}>
+            </Button>
+            <Button className="text-sm demo-muted underline" type="button" onClick={() => setStep('phone')}>
               换个手机号
-            </button>
+            </Button>
           </form>
         )}
 

@@ -1,23 +1,29 @@
 import { Wifi } from 'lucide-react'
-import { motionStyle } from './motion'
+import { motion, useReducedMotion } from 'motion/react'
+import { bankEase, useReveal } from './motion'
 import { formatAmount } from '#/lib/dashboard'
 import './bank-card.css'
 
 export function BankCardStack({ count = 3 }: { count?: number }) {
+  const reveal = useReveal<HTMLSpanElement>()
+  const reduce = useReducedMotion()
   return (
-    <span className="bank-card-stack" aria-hidden="true">
+    <span {...reveal} className="bank-card-stack" aria-hidden="true">
       {Array.from({ length: Math.max(0, count) }, (_, index) => index)
         .reverse()
         .map((index) => (
-          <span key={index} className={`bank-stack-card stack-${index}`} style={{
+          <motion.span key={index} data-motion="stack-card" className={`bank-stack-card stack-${index}`} style={{
             left: `${count > 1 ? index * 28 / (count - 1) : 0}px`,
             top: `${30 - (count > 1 ? index * 26 / (count - 1) : 0)}px`,
             opacity: `${1 - (count > 1 ? index * .45 / (count - 1) : 0)}`,
-            ...motionStyle({ '--stack-rest': `rotate(${index === 0 ? -6 : 2 + index}deg)`, '--stack-delay': `${(count - index - 1) * 70}ms` }),
-          }}>
+          }}
+            initial={{ x: 15, y: 20, z: -90, rotateY: -25 }}
+            animate={reveal['data-visible'] ? { x: 0, y: 0, z: 0, rotateY: 0, rotate: index === 0 ? -6 : 2 + index } : undefined}
+            transition={{ duration: reduce ? 0 : .7, delay: reduce ? 0 : (count - index - 1) * .07, ease: bankEase }}
+            variants={{ hover: reduce ? {} : { x: index === 0 ? -7 : index === 1 ? 2 : 5, y: index === 0 ? -9 : index === 1 ? -6 : -4, z: index === 0 ? 60 : 25, rotate: index === 0 ? -9 : index === 1 ? 2 : 9 }, pressed: reduce ? {} : { x: -7, y: -9, z: 60 } }}>
             <span className="bank-chip" />
             <span className="bank-stack-lines" />
-          </span>
+          </motion.span>
         ))}
     </span>
   )
@@ -40,11 +46,18 @@ export function BankCard({
   hidden?: boolean
   index?: number
 }) {
+  const reduce = useReducedMotion()
   return (
-    <article
+    <motion.article
+      data-motion="physical-card"
       className={`bank-physical-card bank-lift${kind === 'credit' ? ' is-credit' : ''}`}
       tabIndex={0}
-      style={motionStyle({ '--card-delay': `${index * 110}ms` })}
+      initial={reduce ? false : { opacity: 0, y: 28, z: -100, rotateY: -14 }}
+      whileInView={{ opacity: 1, y: 0, z: 0, rotateY: 0 }}
+      viewport={{ once: true, amount: .2 }}
+      whileHover={reduce ? undefined : { y: -4 }}
+      whileTap={reduce ? undefined : { scale: .98 }}
+      transition={{ duration: reduce ? 0 : .7, delay: reduce ? 0 : index * .11, ease: bankEase }}
     >
       <div className="bank-card-top">
         <strong>
@@ -71,6 +84,6 @@ export function BankCard({
         </span>
         {balance !== undefined && <span className="bank-card-value"><small>{kind === 'credit' ? '可用额度' : '可用余额'}</small><strong>{hidden ? '••••••' : `¥ ${formatAmount(balance)}`}</strong></span>}
       </div>
-    </article>
+    </motion.article>
   )
 }

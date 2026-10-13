@@ -21,12 +21,6 @@
   transform-origin: 0 0;
   transition: opacity 180ms;
 }
-.bank-chart[data-visible='false'] [data-bar] {
-  transform: scaleY(0);
-}
-.bank-chart[data-visible='true'] [data-bar] {
-  animation: bank-bar-grow 700ms var(--bank-ease) var(--bar-delay) both;
-}
 .bank-chart-caption {
   margin: 8px 0 0;
   min-height: 18px;
@@ -56,12 +50,6 @@
   transition:
     stroke-width 200ms,
     opacity 200ms;
-}
-.bank-donut[data-visible='false'] [data-arc] {
-  stroke-dasharray: 0 var(--circumference);
-}
-.bank-donut[data-visible='true'] [data-arc] {
-  animation: bank-ring-draw var(--arc-duration) linear var(--arc-delay) both;
 }
 .bank-chart-legend {
   display: flex;

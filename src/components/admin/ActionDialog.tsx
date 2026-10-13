@@ -1,8 +1,13 @@
+import { Checkbox } from '#/components/ui/checkbox'
+import { Input } from '#/components/ui/input'
+import { Button } from '#/components/ui/button'
+import { SelectControl, SelectOption } from '#/components/ui/select'
 import { useState } from 'react'
 import { Loader2, ShieldCheck, AlertCircle } from 'lucide-react'
 import type { Action } from './actions'
 import type { AdminCommand } from './client'
 import { AdminApiError } from './client'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '#/components/ui/dialog'
 
 export function ActionDialog({
   action,
@@ -38,11 +43,11 @@ export function ActionDialog({
   const set = (name: string, v: string | string[]) => setValues((x) => ({ ...x, [name]: v }))
 
   return (
-    <div className="dialog-overlay" onClick={(e) => { if (!busy && e.target === e.currentTarget) onClose() }}>
-      <div className="dialog-content" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <Dialog open onOpenChange={(open, details) => { if (busy) details.cancel(); else if (!open) onClose() }} disablePointerDismissal={busy}>
+      <DialogContent>
         <div className="dialog-head">
-          <h2 id="dlg-title">{action.title}</h2>
-          {action.description && <p>{action.description}</p>}
+          <DialogTitle>{action.title}</DialogTitle>
+          {action.description && <DialogDescription>{action.description}</DialogDescription>}
         </div>
         <form onSubmit={submit}>
           <div className="dialog-fields">
@@ -50,22 +55,19 @@ export function ActionDialog({
               <label key={field.name} className="field">
                 <span>{field.label}</span>
                 {field.type === 'select' ? (
-                  <select value={val(field.name)} onChange={(e) => set(field.name, e.target.value)} required={field.required !== false}>
-                    {!field.value && <option value="">请选择</option>}
-                    {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <SelectControl value={val(field.name)} onValueChange={(value) => set(field.name, value)} required={field.required !== false}>
+                    {!field.value && <SelectOption value="">请选择</SelectOption>}
+                    {field.options?.map((o) => <SelectOption key={o.value} value={o.value}>{o.label}</SelectOption>)}
+                  </SelectControl>
                 ) : field.type === 'multi' ? (
                   <div className="multi-options">
                     {field.options?.map((o) => (
                       <label className="check-option" key={o.value}>
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={(values[field.name] as string[]).includes(o.value)}
-                          onChange={(e) =>
-                            set(field.name, e.target.checked
+                          onCheckedChange={(checked) => set(field.name, checked
                               ? [...(values[field.name] as string[]), o.value]
-                              : (values[field.name] as string[]).filter((x) => x !== o.value))
-                          }
+                              : (values[field.name] as string[]).filter((x) => x !== o.value))}
                         />
                         {o.label}
                       </label>
@@ -74,7 +76,7 @@ export function ActionDialog({
                 ) : (
                   <div className={field.type === 'money' ? 'money-input' : ''}>
                     {field.type === 'money' && <b>¥</b>}
-                    <input
+                    <Input
                       name={field.name}
                       value={val(field.name)}
                       type={field.type === 'money' ? 'text' : (field.type ?? 'text')}
@@ -99,15 +101,15 @@ export function ActionDialog({
           <div className="dialog-foot">
             <span><ShieldCheck size={15} /> 仅操作模拟账户</span>
             <div>
-              <button type="button" className="button button-ghost" disabled={busy} onClick={onClose}>取消</button>
-              <button type="submit" className={`button ${action.danger ? 'button-danger' : 'button-primary'}`} disabled={busy}>
+              <Button type="button" className="button button-ghost" disabled={busy} onClick={onClose}>取消</Button>
+              <Button type="submit" className={`button ${action.danger ? 'button-danger' : 'button-primary'}`} disabled={busy}>
                 {busy && <Loader2 size={15} className="spin" />}
                 {action.submitLabel ?? '确认执行'}
-              </button>
+              </Button>
             </div>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

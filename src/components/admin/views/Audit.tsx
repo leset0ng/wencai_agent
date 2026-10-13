@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { FileClock, ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { Panel, Empty, type ViewProps } from '../shared'
@@ -17,7 +18,7 @@ export function AdminAudit({ s }: ViewProps) {
         <div className="audit-list">
           {logs.slice(0, 50).map((entry) => (
             <div key={entry.seq} className="audit-item">
-              <button
+              <Button
                 type="button"
                 className="audit-head"
                 aria-expanded={expanded === entry.seq}
@@ -28,7 +29,7 @@ export function AdminAudit({ s }: ViewProps) {
                   {entry.channel} · {dateTime(entry.at)}
                 </span>
                 {expanded === entry.seq ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
+              </Button>
               {expanded === entry.seq && (
                 <pre className="audit-payload">
                   {JSON.stringify(JSON.parse(entry.payloadJson), null, 2)}

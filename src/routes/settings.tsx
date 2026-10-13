@@ -1,3 +1,5 @@
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -94,9 +96,9 @@ function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket,
       <section className="space-y-2">
         <h2 className="m-0 text-sm font-semibold text-[var(--sea-ink)]">账号</h2>
         <p className="m-0 text-sm demo-muted">{data.user.name}</p>
-        <button className="text-xs underline demo-muted" type="button" onClick={() => void onSignOut()}>
+        <Button className="text-xs underline demo-muted" type="button" onClick={() => void onSignOut()}>
           退出登录
-        </button>
+        </Button>
       </section>
 
       <section className="space-y-2">
@@ -111,9 +113,9 @@ function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket,
               </p>
             </div>
             {s.id !== currentSessionId && (
-              <button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_session', sessionId: s.id })}>
+              <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_session', sessionId: s.id })}>
                 踢掉
-              </button>
+              </Button>
             )}
           </div>
         ))}
@@ -126,9 +128,9 @@ function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket,
         {data.bindings.map((b) => (
           <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-xs">
             <span className="text-[var(--sea-ink)]">{b.channel === 'lark' ? '飞书' : b.channel}</span>
-            <button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_binding', bindingId: b.id })}>
+            <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onAction({ action: 'revoke_binding', bindingId: b.id })}>
               解绑
-            </button>
+            </Button>
           </div>
         ))}
       </section>
@@ -162,7 +164,7 @@ function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket,
             } catch (error) { setError(error instanceof Error ? error.message : '验证失败') }
           }}
         >
-          <input
+          <Input
             className="demo-input"
             inputMode="numeric"
             maxLength={6}
@@ -172,20 +174,20 @@ function SettingsBody({ data, currentSessionId, password, setPassword, pwTicket,
             onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
           />
           {!pwTicket && verification.controls}
-          <button
+          <Button
             className="demo-button shrink-0"
             type="submit"
             disabled={busy || password.length !== 6 || (!pwTicket && !verification.ready)}
           >
             保存
-          </button>
+          </Button>
         </form>
         {data.passkeys.map((p) => (
           <div key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3 text-xs">
             <span className="text-[var(--sea-ink)]">Passkey{p.backedUp ? '（已同步）' : ''}</span>
-            <button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onDeletePasskey(p.id)}>
+            <Button className="shrink-0 text-red-600 underline" type="button" disabled={busy} onClick={() => onDeletePasskey(p.id)}>
               删除
-            </button>
+            </Button>
           </div>
         ))}
         <RegisterPasskeyButton />
@@ -215,9 +217,9 @@ function RegisterPasskeyButton() {
   })
   return (
     <>
-      <button className="demo-button" type="button" disabled={register.isPending} onClick={() => register.mutate()}>
+      <Button className="demo-button" type="button" disabled={register.isPending} onClick={() => register.mutate()}>
         {register.isPending ? '注册中…' : '注册 Passkey'}
-      </button>
+      </Button>
       {register.error && <p className="m-0 text-xs text-red-600">{register.error.message}</p>}
     </>
   )

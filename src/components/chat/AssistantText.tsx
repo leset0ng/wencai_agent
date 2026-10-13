@@ -1,3 +1,4 @@
+import { Table } from '#/components/ui/table'
 import { createContext, useContext } from 'react'
 import { Streamdown } from 'streamdown'
 import type { Components, ExtraProps } from 'streamdown'
@@ -97,7 +98,7 @@ export function duplicatesTable(candidate: PresentedTable, shown: PresentedTable
 function MarkdownTable({ node, children, ...props }: ComponentProps<'table'> & ExtraProps) {
   const { tables, processing } = useContext(TableContext)
   if (processing || (node && tables.some((shown) => duplicatesTable(markdownTable(node), shown)))) return null
-  return <div className="bank-gen-table bank-chat-table"><table {...props}>{children}</table></div>
+  return <div className="bank-gen-table bank-chat-table"><Table {...props}>{children}</Table></div>
 }
 const COMPONENTS: Components = { table: MarkdownTable }
 

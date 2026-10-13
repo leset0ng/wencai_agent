@@ -1,3 +1,5 @@
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { useEffect, useRef, useState } from 'react'
 import type { StrongStepUp } from '#/server/auth/step-up'
 
@@ -33,13 +35,13 @@ export function useStrongVerification(request: Request, disabled = false) {
     } finally { active.current = false; setVerifying(false) }
   }
   const controls = <div className="space-y-2">
-    <div className="flex gap-2 text-xs">{(['passkey', 'sms'] as const).map((value) => <button key={value} type="button" disabled={disabled || sending || verifying} onClick={() => setMethod(value)} className={`bank-lift flex-1 rounded-full border py-2 ${method === value ? 'border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500'}`}>{value === 'passkey' ? 'Passkey 验证' : '短信验证'}</button>)}</div>
+    <div className="flex gap-2 text-xs">{(['passkey', 'sms'] as const).map((value) => <Button key={value} type="button" disabled={disabled || sending || verifying} onClick={() => setMethod(value)} className={`bank-lift flex-1 rounded-full border py-2 ${method === value ? 'border-blue-500 text-blue-700' : 'border-slate-200 text-slate-500'}`}>{value === 'passkey' ? 'Passkey 验证' : '短信验证'}</Button>)}</div>
     {method === 'sms' && <div className="space-y-2">
-      <button type="button" className="bank-payment-secondary w-full" disabled={disabled || sending || verifying} onClick={async () => {
+      <Button type="button" className="bank-payment-secondary w-full" disabled={disabled || sending || verifying} onClick={async () => {
         setSending(true); setError('')
         try { setChallenge(await begin('sms')) } catch (e) { setError(e instanceof Error ? e.message : '发送失败') } finally { setSending(false) }
-      }}>{sending ? '发送中…' : challenge ? `重新发送至 ${challenge.maskedPhone}` : '获取绑定手机号验证码'}</button>
-      <input className="demo-input w-full" aria-label="短信验证码" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="请输入 6 位验证码" disabled={disabled || verifying} />
+      }}>{sending ? '发送中…' : challenge ? `重新发送至 ${challenge.maskedPhone}` : '获取绑定手机号验证码'}</Button>
+      <Input className="demo-input w-full" aria-label="短信验证码" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="请输入 6 位验证码" disabled={disabled || verifying} />
     </div>}
     {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
   </div>

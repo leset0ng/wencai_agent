@@ -1,3 +1,4 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { useState } from 'react'
 import { ChartColumn, ChartPie } from 'lucide-react'
 import { AnimatedBarChart, AnimatedDonutChart } from '#/components/ui/charts'
@@ -16,33 +17,33 @@ export function FinancialReport({
 }) {
   const [mode, setMode] = useState<'pie' | 'bar'>('pie')
   return (
-    <section className="bank-financial-report">
+    <Tabs value={mode} onValueChange={(value) => setMode(value as 'pie' | 'bar')} className="bank-financial-report" render={<section />}>
       <div className="bank-report-total">
         <span>支出合计</span>
         <AnimatedAmount value={total} prefix="¥ " />
       </div>
       <div className="bank-chart-heading">
         <h3>{title}</h3>
-        <div className="bank-chart-switch" aria-label="图表类型">
-          <button
+        <TabsList className="bank-chart-switch" aria-label="图表类型">
+          <TabsTrigger value="pie"
             className="bank-lift"
             aria-label="环形图"
             aria-pressed={mode === 'pie'}
-            onClick={() => setMode('pie')}
+            type="button"
           >
             <ChartPie size={15} />
-          </button>
-          <button
+          </TabsTrigger>
+          <TabsTrigger value="bar"
             className="bank-lift"
             aria-label="柱状图"
             aria-pressed={mode === 'bar'}
-            onClick={() => setMode('bar')}
+            type="button"
           >
             <ChartColumn size={15} />
-          </button>
-        </div>
+          </TabsTrigger>
+        </TabsList>
       </div>
-      {mode === 'pie' ? <AnimatedDonutChart data={data} /> : <AnimatedBarChart data={data} />}
-    </section>
+      <TabsContent value={mode}>{mode === 'pie' ? <AnimatedDonutChart data={data} /> : <AnimatedBarChart data={data} />}</TabsContent>
+    </Tabs>
   )
 }

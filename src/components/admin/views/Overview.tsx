@@ -1,10 +1,12 @@
+import { Button } from '#/components/ui/button'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
 } from 'recharts'
 import { Wallet, ArrowUpRight, ArrowDownLeft, ShieldCheck, Plus, Clock3, Gift, AlertTriangle, CreditCard } from 'lucide-react'
 import { Panel, Metric, Empty, TransactionTable, More, Badge, type ViewProps } from '../shared'
 import { money, categories, monthlyTrend, dateTime, taskNames } from '../utils'
+import { AnimatedDonutChart } from '#/components/ui/charts'
+import { MotionPlot } from '#/components/ui/motion'
 
 const COLORS = ['#3869ea', '#76a1f8', '#93c5fd', '#93d8d1', '#c2d5ee', '#e3b580', '#a7a9e9', '#d6dde8']
 
@@ -62,7 +64,7 @@ export function AdminOverview({ s, ledger, report, anomalies, actions, go }: Vie
             </div>
           }
         >
-          <div className="trend-chart">
+          <MotionPlot key={JSON.stringify(trend)} className="trend-chart">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trend} margin={{ top: 18, right: 12, left: -15, bottom: 5 }} accessibilityLayer>
                 <defs>
@@ -86,7 +88,7 @@ export function AdminOverview({ s, ledger, report, anomalies, actions, go }: Vie
                 <Area type="monotone" dataKey="expense" stroke="#7bbeb6" fill="url(#expenseFill)" strokeWidth={2} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </MotionPlot>
           <div className="chart-foot">
             <span>每笔收支都来自实际模拟流水</span>
             <More onClick={() => go('transactions')}>查看账单分析</More>
@@ -97,14 +99,8 @@ export function AdminOverview({ s, ledger, report, anomalies, actions, go }: Vie
           <div className="donut-wrap">
             {total > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height={190}>
-                  <PieChart>
-                    <Pie data={expenses} dataKey="value" innerRadius={63} outerRadius={81} paddingAngle={3} stroke="none" isAnimationActive={false}>
-                      {expenses.map((p, i) => <Cell key={p.name} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(value) => money(Number(value))} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="ui-admin-donut"><AnimatedDonutChart compact colors={COLORS} ringRadius={61} ringWidth={15} gapDegrees={3}
+                  data={expenses.map((point) => ({ label: point.name, value: point.value }))} /></div>
                 <div className="donut-center">
                   <span>本期总支出</span>
                   <strong>{money(total)}</strong>
@@ -166,8 +162,8 @@ export function AdminOverview({ s, ledger, report, anomalies, actions, go }: Vie
               </div>
             )}
             <div className="quick-actions">
-              <button onClick={() => actions.transfer()}><Plus size={15} />新建转账</button>
-              <button onClick={actions.birthday}><Gift size={15} />生日计划</button>
+              <Button onClick={() => actions.transfer()} className="ui-button-reset" type="button"><Plus size={15} />新建转账</Button>
+              <Button onClick={actions.birthday} className="ui-button-reset" type="button"><Gift size={15} />生日计划</Button>
             </div>
           </Panel>
         </div>
@@ -182,9 +178,9 @@ export function AdminOverview({ s, ledger, report, anomalies, actions, go }: Vie
               <p>检测到大额支出或短时间重复扣款。</p>
             </div>
           </div>
-          <button className="button button-outline button-sm" onClick={() => go('transactions')}>
+          <Button className="button button-outline button-sm" onClick={() => go('transactions')} type="button">
             查看异常<ArrowUpRight size={14} />
-          </button>
+          </Button>
         </div>
       )}
     </>

@@ -1,3 +1,5 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '#/components/ui/table'
+import { Button } from '#/components/ui/button'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -75,9 +77,9 @@ export function AdminSecurity({ s }: ViewProps) {
           <div>
             <strong>{toast}</strong>
           </div>
-          <button className="button button-outline button-sm" onClick={() => setToast('')}>
+          <Button className="button button-outline button-sm" onClick={() => setToast('')} type="button">
             知道了
-          </button>
+          </Button>
         </div>
       )}
 
@@ -97,35 +99,35 @@ export function AdminSecurity({ s }: ViewProps) {
         {chain ? (
           <>
             <div className="chain-actions">
-              <button
+              <Button
                 className="button button-outline button-sm"
                 onClick={() => client.invalidateQueries({ queryKey: ['admin', 'security'] })}
-                disabled={security.isFetching}
+                disabled={security.isFetching} type="button"
               >
                 <Eye size={14} />
                 校验整链
-              </button>
-              <button
+              </Button>
+              <Button
                 className="button button-outline button-sm"
                 onClick={() => {
                   // 选一条较早的记录：链尾容易被后续写入掩盖，中间位置最能说明问题
                   const target = chain.entries.filter((e) => e.seq > 1)[Math.floor(Math.max(chain.entries.length - 8, 0) / 2)]
                   if (target) command.mutate({ type: 'tamperAudit', seq: target.seq })
                 }}
-                disabled={command.isPending || chain.entries.length < 3}
+                disabled={command.isPending || chain.entries.length < 3} type="button"
               >
                 <Bug size={14} />
                 模拟篡改一条记录
-              </button>
+              </Button>
               {chain.entries.some((e) => e.tampered) && (
-                <button
+                <Button
                   className="button button-primary button-sm"
                   onClick={() => command.mutate({ type: 'restoreAudit' })}
-                  disabled={command.isPending}
+                  disabled={command.isPending} type="button"
                 >
                   <Link2 size={14} />
                   还原并重新校验
-                </button>
+                </Button>
               )}
             </div>
             <div className="chain-list">
@@ -164,7 +166,7 @@ export function AdminSecurity({ s }: ViewProps) {
               const outcome = OUTCOME[trace.outcome]
               return (
                 <div key={trace.id} className="trace-card">
-                  <button
+                  <Button
                     type="button"
                     className="trace-head"
                     aria-expanded={expanded}
@@ -181,7 +183,7 @@ export function AdminSecurity({ s }: ViewProps) {
                     </span>}
                     <Badge status={outcome.status}>{outcome.label}</Badge>
                     {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                  </button>
+                  </Button>
                   {expanded && (
                     <div className="trace-body">
                       <ol className="trace-steps">
@@ -259,42 +261,42 @@ export function AdminSecurity({ s }: ViewProps) {
       >
         {overview ? (
           <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>攻击样本</th>
-                  <th>类别</th>
-                  <th>判定</th>
-                  <th>防线</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="data-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>攻击样本</TableHead>
+                  <TableHead>类别</TableHead>
+                  <TableHead>判定</TableHead>
+                  <TableHead>防线</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {overview.redTeam.map((item) => (
-                  <tr key={item.id}>
-                    <td>
+                  <TableRow key={item.id}>
+                    <TableCell>
                       <div className="redteam-input">
                         <strong>{item.input}</strong>
                         <small>预期：{item.expect}</small>
                       </div>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <span className="category-tag">{item.category}</span>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <Badge status={item.verdict === 'block' ? 'lost' : item.verdict === 'flag' ? 'pending' : 'scheduled'}>
                         {item.verdict === 'block' ? '拦截' : item.verdict === 'flag' ? '标记' : '放行'}
                       </Badge>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <small className="muted">
                         {item.passed ? item.caughtBy : '未命中启发式——由结构约束兜底'}
                         {item.score > 0 && ` · 可疑度 ${item.score}`}
                       </small>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         ) : (
           <div className="loading-workspace">
@@ -337,10 +339,10 @@ export function AdminSecurity({ s }: ViewProps) {
         title="代码沙箱监控"
         subtitle="模型生成的 JavaScript 在 QuickJS WASM 中执行：无文件系统、无网络、限时 1 秒、限内存 32MB"
         action={
-          <button className="button button-outline button-sm" onClick={() => sandbox.refetch()} disabled={sandbox.isFetching}>
+          <Button className="button button-outline button-sm" onClick={() => sandbox.refetch()} disabled={sandbox.isFetching} type="button">
             {sandbox.isFetching ? <Loader2 size={14} className="spin" /> : <Play size={14} />}
             运行沙箱样本
-          </button>
+          </Button>
         }
       >
         {sandbox.data ? (

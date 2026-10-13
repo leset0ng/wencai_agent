@@ -1,3 +1,5 @@
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { createFileRoute } from '@tanstack/react-router'
 import '../components/admin/admin.css'
 import { AdminWorkspace } from '../components/admin/Workspace'
@@ -28,7 +30,7 @@ function Admin() {
   const navigate = Route.useNavigate()
   return (
     <>
-    <div style={{ padding: '8px 20px', textAlign: 'right' }}><button className="button button-ghost button-sm" onClick={() => setShowAccess(!showAccess)}>后台访问验证</button>{showAccess && <form style={{ display: 'flex', justifyContent: 'end', gap: 8 }} onSubmit={(e) => { e.preventDefault(); sessionStorage.setItem('wencai_admin_token', token); setToken(''); setShowAccess(false); void qc.invalidateQueries() }}><input type="password" autoComplete="off" aria-label="后台访问凭据" value={token} onChange={(e) => setToken(e.target.value)} /><button className="button button-primary">验证</button></form>}</div>
+    <div style={{ padding: '8px 20px', textAlign: 'right' }}><Button className="button button-ghost button-sm" onClick={() => setShowAccess(!showAccess)} type="button">后台访问验证</Button>{showAccess && <form style={{ display: 'flex', justifyContent: 'end', gap: 8 }} onSubmit={(e) => { e.preventDefault(); sessionStorage.setItem('wencai_admin_token', token); setToken(''); setShowAccess(false); void qc.invalidateQueries() }}><Input type="password" autoComplete="off" aria-label="后台访问凭据" value={token} onChange={(e) => setToken(e.target.value)} /><Button className="button button-primary" type="submit">验证</Button></form>}</div>
     {!userId ? <AdminHome onSelect={(id) => navigate({ search: { userId: id, section: 'overview' } })} /> :
     <AdminWorkspace
       key={userId}

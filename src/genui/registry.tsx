@@ -1,8 +1,11 @@
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '#/components/ui/table'
+import { Button } from '#/components/ui/button'
 import { defineRegistry } from '@json-render/react'
 import { createContext, useContext } from 'react'
 import { AnimatedBarChart, AnimatedDonutChart, normalizeChartData } from '#/components/ui/charts'
 import { AnimatedAmount, Reveal } from '#/components/ui/motion'
 import { catalog } from './catalog'
+import { Card } from '#/components/ui/card'
 
 /** FollowUp 点击后以用户身份发送消息。数值仍只能由已验证的 state 引用传入。 */
 export const FollowUpContext = createContext<(prompt: string) => void>(() => {})
@@ -16,11 +19,11 @@ export const { registry } = defineRegistry(catalog, {
   components: {
     Panel: ({ props, children }) => (
       <Reveal>
-        <section className="bank-gen-panel">
+        <Card className="bank-gen-panel" initial={false} animate={{ opacity: 1, y: 0 }}>
           <h3>{props.title}</h3>
           {props.subtitle && <p>{props.subtitle}</p>}
           <div className="bank-gen-children">{children}</div>
-        </section>
+        </Card>
       </Reveal>
     ),
     Metric: ({ props }) => (
@@ -50,24 +53,24 @@ export const { registry } = defineRegistry(catalog, {
     ),
     Table: ({ props }) => (
       <div className="bank-gen-table">
-        <table>
-          <thead>
-            <tr>
+        <Table>
+          <TableHeader>
+            <TableRow>
               {props.columns.map((column) => (
-                <th key={column.key}>{column.label}</th>
+                <TableHead key={column.key}>{column.label}</TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {asRows(props.rows).map((row, index) => (
-              <tr key={index} style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}>
+              <TableRow key={index} animated delay={Math.min(index, 10) * .05}>
                 {props.columns.map((column) => (
-                  <td key={column.key}>{String(row[column.key] ?? '')}</td>
+                  <TableCell key={column.key}>{String(row[column.key] ?? '')}</TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     ),
     Note: ({ props }) => <p className="bank-gen-note">{props.text}</p>,
@@ -78,8 +81,8 @@ export const { registry } = defineRegistry(catalog, {
 function FollowUpButton({ label, prompt }: { label: string; prompt: string }) {
   const send = useContext(FollowUpContext)
   return (
-    <button onClick={() => send(prompt)} className="bank-follow-up bank-lift">
+    <Button onClick={() => send(prompt)} className="bank-follow-up bank-lift" type="button">
       {label}
-    </button>
+    </Button>
   )
 }

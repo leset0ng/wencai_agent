@@ -1,3 +1,7 @@
+import { Button } from '#/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { Input } from '#/components/ui/input'
+import { SelectControl, SelectOption } from '#/components/ui/select'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -171,7 +175,7 @@ export default function PaymentCenter({
               { id: 'receive', name: '我的收款账号', Icon: Wallet },
             ] as const
           ).map(({ id, name: label, Icon }) => (
-            <button
+            <Button
               type="button"
               key={id}
               className={`bank-lift${view === id ? ' is-active' : ''}`}
@@ -181,7 +185,7 @@ export default function PaymentCenter({
             >
               <Icon size={15} />
               {label}
-            </button>
+            </Button>
           ))}
         </nav>
       )}
@@ -192,9 +196,9 @@ export default function PaymentCenter({
       ) : query.isError ? (
         <div role="alert" className="bank-error">
           {query.error.message}
-          <button type="button" onClick={() => void query.refetch()}>
+          <Button type="button" onClick={() => void query.refetch()} className="ui-button-reset">
             重新加载
-          </button>
+          </Button>
         </div>
       ) : pending ? (
         <Reveal key={pending.actionId}>
@@ -231,7 +235,7 @@ export default function PaymentCenter({
               <small>流水号：{receipt.transactionId}</small>
             )}
             {receipt.settlement === 'internal' && <p>收款账户已入账</p>}
-            <button
+            <Button
               type="button"
               className="bank-primary bank-lift bank-full-width"
               onClick={() => {
@@ -243,14 +247,14 @@ export default function PaymentCenter({
               }}
             >
               {receipt.transactionId ? '继续转账' : '向该收款人转账'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="bank-text-button bank-lift"
               onClick={() => go('payees')}
             >
               查看收款人
-            </button>
+            </Button>
           </div>
         </Reveal>
       ) : (
@@ -297,53 +301,45 @@ export default function PaymentCenter({
                   )
                 }}
               >
-                <div className="bank-payment-switch">
-                  <button
+                <ToggleGroup className="bank-payment-switch" aria-label="转账方式" value={ownTransfer ? 'own' : 'payee'} onValueChange={(value) => { setOwnTransfer(value === 'own'); setError('') }}>
+                  <ToggleGroupItem value="payee"
                     disabled={busy}
                     type="button"
                     className={`bank-lift${!ownTransfer ? ' is-active' : ''}`}
                     aria-pressed={!ownTransfer}
-                    onClick={() => {
-                      setOwnTransfer(false)
-                      setError('')
-                    }}
                   >
                     转给收款人
-                  </button>
-                  <button
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="own"
                     disabled={busy}
                     type="button"
                     className={`bank-lift${ownTransfer ? ' is-active' : ''}`}
                     aria-pressed={ownTransfer}
-                    onClick={() => {
-                      setOwnTransfer(true)
-                      setError('')
-                    }}
                   >
                     本人互转
-                  </button>
-                </div>
+                  </ToggleGroupItem>
+                </ToggleGroup>
                 <label>
                   付款账户
-                  <select
+                  <SelectControl
                     disabled={busy}
                     value={fromId}
-                    onChange={(e) => {
-                      setSource(e.target.value)
+                    onValueChange={(value) => {
+                      setSource(value)
                       setDestination('')
                       setError('')
                     }}
                     required
                   >
-                    <option value="" disabled>
+                    <SelectOption value="" disabled>
                       请选择付款账户
-                    </option>
+                    </SelectOption>
                     {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
+                      <SelectOption key={a.id} value={a.id}>
                         {a.name}{!a.cardLast4 ? ` · 尾号 ${a.accountNo.slice(-4)}` : ''}
-                      </option>
+                      </SelectOption>
                     ))}
-                  </select>
+                  </SelectControl>
                 </label>
                 {from && (
                   <small className="bank-payment-balance">
@@ -353,43 +349,43 @@ export default function PaymentCenter({
                 {ownTransfer ? (
                   <label>
                     收款账户
-                    <select
+                    <SelectControl
                       disabled={busy}
                       value={destination}
                       required
-                      onChange={(e) => setDestination(e.target.value)}
+                      onValueChange={(value) => setDestination(value)}
                     >
-                      <option value="">请选择本人收款账户</option>
+                      <SelectOption value="">请选择本人收款账户</SelectOption>
                       {accounts
                         .filter((a) => a.id !== fromId)
                         .map((a) => (
-                          <option key={a.id} value={a.id}>
+                          <SelectOption key={a.id} value={a.id}>
                             {a.name}{!a.cardLast4 ? ` · 尾号 ${a.accountNo.slice(-4)}` : ''}
-                          </option>
+                          </SelectOption>
                         ))}
-                    </select>
+                    </SelectControl>
                     {accounts.length < 2 && <small>本人互转需要至少两个人民币账户。</small>}
                   </label>
                 ) : (
                   <>
                     <label>
                       收款人
-                      <select
+                      <SelectControl
                         disabled={busy}
                         value={payeeId}
                         required
-                        onChange={(e) => setPayeeId(e.target.value)}
+                        onValueChange={(value) => setPayeeId(value)}
                       >
-                        <option value="">请选择收款人</option>
+                        <SelectOption value="">请选择收款人</SelectOption>
                         {payees.map((p) => (
-                          <option key={p.id} value={p.id}>
+                          <SelectOption key={p.id} value={p.id}>
                             {p.alias ? `${p.alias} · ` : ''}
                             {p.name} · {p.account.slice(-4)}
-                          </option>
+                          </SelectOption>
                         ))}
-                      </select>
+                      </SelectControl>
                     </label>
-                    <button
+                    <Button
                       type="button"
                       className="bank-text-button bank-lift"
                       onClick={() => {
@@ -398,14 +394,14 @@ export default function PaymentCenter({
                       }}
                     >
                       <Plus size={16} /> 添加新收款人
-                    </button>
+                    </Button>
                   </>
                 )}
                 <label className="bank-payment-amount">
                   转账金额（元）
                   <div>
                     <span>¥</span>
-                    <input
+                    <Input
                       disabled={busy}
                       aria-label="转账金额（元）"
                       inputMode="decimal"
@@ -419,7 +415,7 @@ export default function PaymentCenter({
                 </label>
                 <label>
                   转账备注（选填）
-                  <input
+                  <Input
                     disabled={busy}
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
@@ -427,12 +423,12 @@ export default function PaymentCenter({
                     placeholder="例如：生活费"
                   />
                 </label>
-                <button
+                <Button
                   className="bank-primary bank-lift bank-full-width"
-                  disabled={busy || !accounts.length}
+                  disabled={busy || !accounts.length} type="submit"
                 >
                   {busy ? '正在准备…' : '下一步 · 核对转账'}
-                </button>
+                </Button>
                 <p className="bank-page-note">
                   文财银行账户实时入账；已有外部银行卡收款人为模拟转出。
                 </p>
@@ -449,7 +445,7 @@ export default function PaymentCenter({
                     void lookup()
                   }}
                 >
-                  <button
+                  <Button
                     type="button"
                     className="bank-text-button bank-lift"
                     disabled={busy}
@@ -459,38 +455,30 @@ export default function PaymentCenter({
                     }}
                   >
                     <ArrowLeft size={16} /> 返回收款人
-                  </button>
+                  </Button>
                   <h2>添加收款人</h2>
-                  <div className="bank-payment-switch">
-                    <button
+                  <ToggleGroup className="bank-payment-switch" aria-label="收款人查找方式" value={method} onValueChange={(value) => { setMethod(value as 'phone' | 'account'); lookupChanged() }}>
+                    <ToggleGroupItem value="phone"
                       disabled={busy}
                       type="button"
                       className={`bank-lift${method === 'phone' ? ' is-active' : ''}`}
                       aria-pressed={method === 'phone'}
-                      onClick={() => {
-                        setMethod('phone')
-                        lookupChanged()
-                      }}
                     >
                       手机号查找
-                    </button>
-                    <button
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="account"
                       disabled={busy}
                       type="button"
                       className={`bank-lift${method === 'account' ? ' is-active' : ''}`}
                       aria-pressed={method === 'account'}
-                      onClick={() => {
-                        setMethod('account')
-                        lookupChanged()
-                      }}
                     >
                       账号与户名
-                    </button>
-                  </div>
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                   {method === 'phone' ? (
                     <label>
                       收款人手机号
-                      <input
+                      <Input
                         disabled={busy}
                         type="tel"
                         inputMode="tel"
@@ -509,7 +497,7 @@ export default function PaymentCenter({
                     <>
                       <label>
                         文财银行账号
-                        <input
+                        <Input
                           disabled={busy}
                           inputMode="numeric"
                           value={accountNo}
@@ -525,7 +513,7 @@ export default function PaymentCenter({
                       </label>
                       <label>
                         收款户名
-                        <input
+                        <Input
                           disabled={busy}
                           value={name}
                           maxLength={60}
@@ -539,10 +527,10 @@ export default function PaymentCenter({
                       </label>
                     </>
                   )}
-                  <button className="bank-payment-secondary bank-lift" disabled={busy}>
+                  <Button className="bank-payment-secondary bank-lift" disabled={busy} type="submit">
                     <Search size={16} />
                     {busy ? '查找中…' : '查找收款账户'}
-                  </button>
+                  </Button>
                   {candidates && candidates.length > 0 && (
                     <fieldset className="bank-payment-candidates">
                       <legend>请选择收款账户</legend>
@@ -551,7 +539,7 @@ export default function PaymentCenter({
                           key={c.reference}
                           className={`bank-payment-candidate bank-lift${chosen === c.reference ? ' is-selected' : ''}`}
                         >
-                          <input
+                          <Input
                             disabled={busy}
                             type="radio"
                             name="recipient"
@@ -576,7 +564,7 @@ export default function PaymentCenter({
                     <>
                       <label>
                         备注名（选填）
-                        <input
+                        <Input
                           disabled={busy}
                           value={alias}
                           maxLength={30}
@@ -584,7 +572,7 @@ export default function PaymentCenter({
                           placeholder="例如：家人、朋友"
                         />
                       </label>
-                      <button
+                      <Button
                         type="button"
                         className="bank-primary bank-lift bank-full-width"
                         disabled={busy}
@@ -596,7 +584,7 @@ export default function PaymentCenter({
                         }
                       >
                         {busy ? '正在准备…' : '添加收款人 · 核对信息'}
-                      </button>
+                      </Button>
                     </>
                   )}
                   <p className="bank-page-note">支持已注册文财银行的用户。只展示核对所需信息。</p>
@@ -605,7 +593,7 @@ export default function PaymentCenter({
                 <>
                   <div className="bank-section-heading">
                     <h2>我的收款人</h2>
-                    <button
+                    <Button
                       type="button"
                       className="bank-text-button bank-lift"
                       onClick={() => {
@@ -615,12 +603,12 @@ export default function PaymentCenter({
                       }}
                     >
                       <Plus size={16} /> 添加收款人
-                    </button>
+                    </Button>
                   </div>
                   <div className="bank-payment-payees">
                     {payees.map((p, i) => (
                       <Reveal key={p.id} delay={Math.min(i, 6) * 45}>
-                        <button
+                        <Button
                           type="button"
                           className="bank-payment-payee bank-lift"
                           onClick={() => {
@@ -642,7 +630,7 @@ export default function PaymentCenter({
                             </small>
                           </span>
                           <ArrowRightLeft size={17} />
-                        </button>
+                        </Button>
                       </Reveal>
                     ))}
                   </div>
@@ -666,7 +654,7 @@ export default function PaymentCenter({
                     </span>
                     <strong>{a.accountNo.replace(/(.{4})/g, '$1 ').trim()}</strong>
                     <p>户名：{a.ownerName}</p>
-                    <button
+                    <Button
                       type="button"
                       className="bank-text-button bank-lift"
                       onClick={async () => {
@@ -682,7 +670,7 @@ export default function PaymentCenter({
                     >
                       <Copy size={15} />
                       {copied === a.id ? '已复制' : '复制收款信息'}
-                    </button>
+                    </Button>
                   </article>
                 </Reveal>
               ))}
@@ -740,13 +728,13 @@ export function PaymentApproval({
         </p>
       )}
       {terminal && (
-        <button
+        <Button
           type="button"
           className="bank-payment-secondary bank-lift bank-full-width"
           onClick={onBack}
         >
           返回重新填写
-        </button>
+        </Button>
       )}
     </div>
   )

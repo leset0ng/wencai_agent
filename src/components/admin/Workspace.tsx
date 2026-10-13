@@ -1,3 +1,7 @@
+import { Button } from '#/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '#/components/ui/toggle-group'
+import { MotionMessage } from '#/components/ui/motion'
+import { Input } from '#/components/ui/input'
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -153,7 +157,7 @@ export function AdminWorkspace({
   return (
     <div className="app-shell">
       {navOpen && (
-        <button className="nav-scrim" aria-label="关闭导航" onClick={() => setNavOpen(false)} />
+        <Button className="nav-scrim" aria-label="关闭导航" onClick={() => setNavOpen(false)} type="button" />
       )}
       <aside className={`sidebar ${navOpen ? 'open' : ''}`}>
         <a href="/admin" className="brand">
@@ -166,24 +170,24 @@ export function AdminWorkspace({
         </a>
         <div className="sidebar-label">ADMIN</div>
         <nav aria-label="主导航">
-          <button onClick={home}>
+          <Button onClick={home} className="ui-button-reset" type="button">
             <UsersRound size={18} strokeWidth={1.7} />
             <span>首页 · 切换账户</span>
-          </button>
+          </Button>
           {navigation.map((n) => (
-            <button
+            <Button
               key={n.id}
               aria-label={n.name}
               aria-current={section === n.id ? 'page' : undefined}
               className={section === n.id ? 'active' : ''}
-              onClick={() => navigate(n.id)}
+              onClick={() => navigate(n.id)} type="button"
             >
               <n.icon size={18} strokeWidth={1.7} />
               <span>{n.name}</span>
               {n.id === 'transactions' && !!query.data?.anomalies.length && (
                 <b>{query.data.anomalies.length}</b>
               )}
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -211,13 +215,13 @@ export function AdminWorkspace({
       <div className="workspace">
         <header className="topbar">
           <div>
-            <button
+            <Button
               className="mobile-menu button button-ghost button-icon"
               aria-label="打开导航"
-              onClick={() => setNavOpen(true)}
+              onClick={() => setNavOpen(true)} type="button"
             >
               <Menu size={20} />
-            </button>
+            </Button>
             <span className="breadcrumb">
               管理后台
               <ChevronRight size={13} />
@@ -225,23 +229,23 @@ export function AdminWorkspace({
             </span>
           </div>
           <div className="topbar-right">
-            <button className="button button-outline button-sm account-switch" onClick={home}>
+            <Button className="button button-outline button-sm account-switch" onClick={home} type="button">
               <UsersRound size={14} />
               <span>{s?.user.name ?? '切换账户'}</span>
               切换
-            </button>
+            </Button>
             <span className="env-badge">
               <i />
               ADMIN
             </span>
-            <button
+            <Button
               className="notification"
               aria-label={`异常交易 ${unread} 笔`}
-              onClick={() => navigate('transactions')}
+              onClick={() => navigate('transactions')} type="button"
             >
               <Bell size={18} />
               {unread > 0 && <i />}
-            </button>
+            </Button>
           </div>
         </header>
 
@@ -253,30 +257,30 @@ export function AdminWorkspace({
               <p>{descriptions[section]}</p>
             </div>
             <div className="heading-actions">
-              <button
+              <Button
                 className="button button-outline button-icon"
                 aria-label="刷新数据"
                 onClick={refresh}
-                disabled={query.isFetching}
+                disabled={query.isFetching} type="button"
               >
                 <RefreshCw size={16} className={query.isFetching ? 'spin' : ''} />
-              </button>
+              </Button>
               {section === 'overview' ? (
-                <button className="button button-primary" onClick={() => actions?.transfer()} disabled={!actions}>
+                <Button className="button button-primary" onClick={() => actions?.transfer()} disabled={!actions} type="button">
                   <Plus size={16} />
                   新建转账
-                </button>
+                </Button>
               ) : section === 'transactions' ? (
-                <button
+                <Button
                   className="button button-outline"
                   onClick={() =>
                     query.data &&
                     exportLedger(periodRows(query.data.s.transactions, reportPeriod), reportPeriod)
-                  }
+                  } type="button"
                 >
                   <Download size={15} />
                   导出本期流水
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -291,15 +295,15 @@ export function AdminWorkspace({
             <div>
               {['overview', 'transactions'].includes(section) && (
                 <>
-                  <div className="segmented period-switch">
-                    <button className={!annual ? 'selected' : ''} onClick={() => setAnnual(false)}>
+                  <ToggleGroup className="segmented period-switch" value={annual ? 'year' : 'month'} onValueChange={(value) => setAnnual(value === 'year')} aria-label="报表周期">
+                    <ToggleGroupItem value="month" className={!annual ? 'selected' : ''} type="button">
                       月度
-                    </button>
-                    <button className={annual ? 'selected' : ''} onClick={() => setAnnual(true)}>
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="year" className={annual ? 'selected' : ''} type="button">
                       年度
-                    </button>
-                  </div>
-                  <input
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <Input
                     className="period-input"
                     type={annual ? 'number' : 'month'}
                     min={annual ? '2025' : '2025-01'}
@@ -314,11 +318,11 @@ export function AdminWorkspace({
                   />
                 </>
               )}
-              <button className="clock-link" onClick={() => actions?.clock()} disabled={!actions}>
+              <Button className="clock-link" onClick={() => actions?.clock()} disabled={!actions} type="button">
                 <Clock3 size={14} />
                 推进时间
                 <ChevronRight size={13} />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -329,9 +333,9 @@ export function AdminWorkspace({
                 <strong>无法读取银行数据</strong>
                 <p>{(query.error ?? report.error)?.message}</p>
               </div>
-              <button className="button button-outline button-sm" onClick={refresh}>
+              <Button className="button button-outline button-sm" onClick={refresh} type="button">
                 重新加载
-              </button>
+              </Button>
             </div>
           )}
 
@@ -343,7 +347,7 @@ export function AdminWorkspace({
             </div>
           ) : view ? (
             <>
-              <div className="view-content" key={section}>
+              <MotionMessage className="view-content" key={section}>
                 {section === 'overview' ? (
                   <AdminOverview {...view} />
                 ) : section === 'transactions' ? (
@@ -363,7 +367,7 @@ export function AdminWorkspace({
                 ) : (
                   <AdminAudit {...view} />
                 )}
-              </div>
+              </MotionMessage>
               <footer className="workspace-footer">
                 <span>文财银行管理后台 <i /> 模拟银行服务</span>
                 <a href="/" className="text-sm">
@@ -380,9 +384,9 @@ export function AdminWorkspace({
         <div className="toast" role="status">
           <CheckCircle2 size={18} />
           <span>{toast}</span>
-          <button aria-label="关闭提示" onClick={() => setToast('')}>
+          <Button aria-label="关闭提示" onClick={() => setToast('')} className="ui-button-reset" type="button">
             <X size={15} />
-          </button>
+          </Button>
         </div>
       )}
 

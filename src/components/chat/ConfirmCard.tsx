@@ -1,3 +1,4 @@
+import { Button } from '#/components/ui/button'
 import { useRef, useState } from 'react'
 import { ConfirmError } from '#/lib/queries'
 import { useStrongVerification } from '#/components/ui/StrongVerification'
@@ -89,17 +90,17 @@ export default function ConfirmCard(props: ConfirmCardProps) {
         <div className="mt-4 space-y-2">
           {red && verification.controls}
           <div className="flex gap-2">
-            <button type="button" onClick={() => props.onCancel?.()} disabled={submitting} className="bank-confirm-cancel bank-lift flex-1 rounded-full border border-[var(--line)] py-2 text-sm">
+            <Button type="button" onClick={() => props.onCancel?.()} disabled={submitting} className="bank-confirm-cancel bank-lift flex-1 rounded-full border border-[var(--line)] py-2 text-sm">
               取消
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => void confirm()}
               type="button"
               disabled={submitting || !props.onConfirm || (red && !verification.ready)}
               className="bank-confirm-submit bank-lift flex-1 rounded-full py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               {submitting ? '处理中…' : '确认'}
-            </button>
+            </Button>
           </div>
           {(message ?? props.error) && <p className="m-0 text-center text-xs text-red-600">{message ?? props.error}</p>}
         </div>
