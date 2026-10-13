@@ -1,12 +1,14 @@
-# UI 迁移副本
+# UI 迁移与原版合并
 
 ## 范围与隔离
 
-本副本位于 `E:\Finance\wencai_agent_shadcn`，从原项目 `07a5e35` 复制，分支为 `ui/shadcn-motion`。迁移覆盖用户端、登录/绑定/设置、Agent 生成式视图，以及管理后台。原项目的页面、配置和数据库不由本次迁移修改；复制之后原项目的新提交也不会自动进入本副本。
+UI 最初在 `E:\Finance\wencai_agent_shadcn` 独立副本实现，基线 `07a5e35`，迁移提交 `5803187`，已推送 `ui/shadcn-motion`。2026-10-13 按用户要求合回本地原版 `E:\Finance\wencai_agent_ref`。覆盖用户端、登录/绑定/设置、Agent 生成式视图和管理后台。
 
-本地 `.env.local` 使用独立的 `data/bank.db`、确认签名密钥和 3018 端口。数据库通过 SQLite 一致性快照复制，没有重新播种。配置、数据库、日志、截图和临时测试库均不进入版本控制。运行中的后台任务只连接副本数据库。
+合并前将原版未提交的功能保存为 `98e2c8b`，保留备份分支 `backup/pre-ui-merge-20261013`。定期转账授权、模型故障切换、停止回答时暂停计划、确认边界测试均保留；服务端和 API 文件与此快照一致。任务中心的授权列表、Agent 停止提示及工具标签同时迁入新版组件。
 
-双击根目录 `start.bat` 启动并打开实时日志；日志中显示实际地址。本副本的 Git origin 仍指向本地原仓库，未推送迁移内容；需要发布时应先明确目标远程仓库。
+远程 `main` 的另一套 UI 由用户指定的迁移版本替换，同时保留 `pnpm dev` 启动网页与 worker、服务停止清理、国际手机号解析等改进。号码选择器统一为 Base UI，解析采用完整元数据严格校验，中国大陆号码继续提交原来的 11 位身份格式。合并保留两侧 Git 历史，不需要强制推送。
+
+原版 `.env.local` 和业务数据库不被复制覆盖或重新播种。测试与浏览器验证使用 `.scratch/` 下的独立数据库；配置、数据库、日志和截图不进入版本控制。双击 `start.bat` 或 `pnpm dev` 启动，日志显示实际地址。
 
 ## 组件结构
 
@@ -25,7 +27,7 @@
 | `DraggableFloatingButton.tsx` | Agent 拖动边界、位置保持与拖动后抑制误点击 |
 | `primitives.css`、`src/lib/utils.ts` | 蓝白主题令牌、控件皮肤和类名合并 |
 
-依赖锁定版本：Base UI 1.9.0、Motion 14.1.0、Embla Carousel 8.6.0；增加 cva、clsx、tailwind-merge。业务服务、策略引擎、确认令牌和账务执行逻辑保持原有实现。
+依赖锁定版本：Base UI 1.9.0、Motion 14.1.0、Embla Carousel 8.6.0；增加 cva、clsx、tailwind-merge，并保留 libphonenumber-js。业务服务、策略引擎、确认令牌和账务执行逻辑保持原版最新实现。
 
 ## 后续开发约定
 
@@ -39,10 +41,13 @@
 
 ## 验证记录
 
-- 完整测试：27 个文件、234 个用例通过。测试使用 `.scratch/ui-migration-final.db`，独立于预览数据库。
-- 修正了一个依赖运行时刻的日累计转账测试：只冻结该用例的日期为 UTC+8 正午，避免夜间风险升级干扰；没有降低生产安全策略。
+- 迁移副本初次验证：27 个文件、234 个用例通过。原版合并后完整测试 **32 个文件、288 个用例通过**，包含定期授权、故障切换、计划中断、确认边界与手机号兼容验证；使用 `.scratch/ui-merge-regression-20261013.db`。
+- 保留原版依赖运行时刻的日累计转账测试隔离：该用例固定白天，避免夜间风险升级干扰；没有降低生产安全策略。
 - 浏览器验证：手机号登录、四张卡显示、单卡拖动与对应账单同步、付款账户选择、白条拖动收起、Agent 草稿保留、悬浮入口拖动不误打开、柱图/环图切换、系统减少动态效果、后台用户选择与操作弹窗 Escape 收起。
 - Agent 实际只读查询「帮我分析本月支出并用图表展示分类」成功，结果显示单份分类环图与分析文字。
 - 类型检查与生产构建通过；构建仍有现有包体积提示，可在后续按路由拆分优化。
+- 合并版使用独立播种的 `.scratch/ui-merge-preview-safe-20261013.db` 验证大陆演示账号登录、国际区号切换与校验。定期授权测试条目展示次数/总额/间隔/有效期，撤销后立即显示「已撤销」；只读暂停计划从任务中心恢复后显示「已完成」。这些条目仅存在于测试库。
+- `pnpm dev -- --no-open` 实际启动网页和 worker，页面就绪与实时日志正常；测试端口 3021，不修改原版 `.env.local`。
+- 合并版完整服务实测 Agent 分类分析，成功生成单份结果图表；浏览器控制台无错误。停止回答按钮继续调用原版的停止与计划查询流程。
 
 参考：[shadcn Base UI Button](https://ui.shadcn.com/docs/components/base/button)、[Carousel](https://ui.shadcn.com/docs/components/base/carousel)、[Base UI Dialog](https://base-ui.com/react/components/dialog)、[MotionConfig](https://motion.dev/docs/react-motion-config)。

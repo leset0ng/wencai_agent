@@ -6,7 +6,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "node scripts/start-local.mjs",
+    "dev:web": "vite dev --port 3000",
     "worker": "node --import=tsx scripts/worker.ts",
     "generate-routes": "tsr generate",
     "build": "vite build",
@@ -47,6 +48,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "embla-carousel-react": "^8.6.0",
+    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^0.577.0",
     "motion": "^14.1.0",
     "quickjs-emscripten": "^0.32.0",

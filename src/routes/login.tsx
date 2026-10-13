@@ -1,5 +1,6 @@
 import { Input } from '#/components/ui/input'
 import { Button } from '#/components/ui/button'
+import { PhoneInput, resolvePhoneNumber, type PhoneInputValue } from '#/components/ui/phone-input'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '#/lib/auth-client'
@@ -15,6 +16,7 @@ function LoginPage() {
   const { refetch } = authClient.useSession()
   const [step, setStep] = useState<Step>('phone')
   const [phone, setPhone] = useState('')
+  const [phoneMeta, setPhoneMeta] = useState<PhoneInputValue>(() => resolvePhoneNumber(''))
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,7 +26,7 @@ function LoginPage() {
     setBusy(true)
     try {
       // 未注册手机号同样发码：服务端配了 signUpOnVerification，验证通过即自动开户
-      const res = await authClient.phoneNumber.sendOtp({ phoneNumber: phone })
+      const res = await authClient.phoneNumber.sendOtp({ phoneNumber: phoneMeta.submissionNumber })
       if (res.error) {
         setError(res.error.message ?? '发送失败')
         return
@@ -39,7 +41,7 @@ function LoginPage() {
     setError('')
     setBusy(true)
     try {
-      const res = await authClient.phoneNumber.verify({ phoneNumber: phone, code }, {
+      const res = await authClient.phoneNumber.verify({ phoneNumber: phoneMeta.submissionNumber, code }, {
         onError: (ctx) => setError(ctx.error.message),
       })
       if (res?.error) setError(res.error.message ?? '验证失败')
@@ -70,8 +72,8 @@ function LoginPage() {
             className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault()
-              if (!/^1\d{10}$/.test(phone)) {
-                setError('请输入 11 位手机号')
+              if (!phoneMeta.isValid) {
+                setError('请输入所选国家或地区的有效手机号')
                 return
               }
               void sendCode()
@@ -80,14 +82,13 @@ function LoginPage() {
             <label className="text-sm text-[var(--sea-ink-soft)]" htmlFor="phone">
               手机号
             </label>
-            <Input
+            <PhoneInput
               id="phone"
               className="demo-input"
-              inputMode="numeric"
-              autoComplete="tel"
               placeholder="13800000000"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              disabled={busy}
+              onChange={(value, meta) => { setPhone(value); setPhoneMeta(meta) }}
             />
             <Button className="demo-button" type="submit" disabled={busy}>
               {busy ? '发送中…' : '获取验证码'}
@@ -106,7 +107,7 @@ function LoginPage() {
             }}
           >
             <label className="text-sm text-[var(--sea-ink-soft)]" htmlFor="code">
-              验证码（已发送至 {phone}）
+              验证码（已发送至 {phoneMeta.formatted || phone}）
             </label>
             <Input
               id="code"

@@ -6,7 +6,7 @@ import type { PlanState } from '#/server/executor/executor'
 import ToolPart from '#/components/chat/ToolPart'
 import { MandateList } from './MandateList'
 
-const labels: Record<string, string> = { running: '执行中', suspended: '等待确认', paused: '已暂停', completed: '已完成', failed: '未完成，需核对', compensated: '已回退', handoff: '等待人工处理', pending: '待执行', processing: '执行中，勿重复发起', succeeded: '已完成', cancelled: '已取消', awaiting_confirmation: '需要重新确认' }
+const labels: Record<string, string> = { running: '执行中', suspended: '等待确认', paused: '已暂停', completed: '已完成', done: '已完成', failed: '未完成，需核对', compensated: '已回退', handoff: '等待人工处理', pending: '待执行', processing: '执行中，勿重复发起', succeeded: '已完成', cancelled: '已取消', awaiting_confirmation: '需要重新确认' }
 export function TaskCenter({ onFollowUp }: { onFollowUp: (text: string) => void }) {
   const qc = useQueryClient(), [error, setError] = useState(''), [note, setNote] = useState(''), [busy, setBusy] = useState(false)
   const query = useQuery({ queryKey: ['plans'], queryFn: async () => {

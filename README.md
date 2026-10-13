@@ -1,6 +1,6 @@
 # 文财 · 银行 AI 智能体
 
-本目录是独立的 **shadcn / Base UI + Motion 迁移副本**，复制基线为 `07a5e35`。保留蓝白视觉和原有业务流程，组件架构、动效复用方式与验证记录见 [UI 迁移说明](docs/UI-MIGRATION.md)。Windows 双击 [start.bat](start.bat)，副本默认地址为 `http://127.0.0.1:3018`；数据库与本地配置独立于原项目。
+用户端、Agent 与后台已合入 **shadcn / Base UI + Motion** UI，保留文财蓝白视觉，以及原版新增的定期转账授权、模型故障切换和计划中断机制。组件架构、动效复用方式与合并验证见 [UI 迁移说明](docs/UI-MIGRATION.md)。Windows 双击 [start.bat](start.bat)，或运行 `pnpm dev` 启动网页、后台任务和实时日志。
 
 用自然语言办理银行业务的 AI Banking Agent。核心原则：**大模型负责理解与提议，确定性代码负责授权与执行。**
 
@@ -8,7 +8,7 @@
 
 ## 快速开始
 
-Windows 可直接双击根目录的 `start.bat`：自动加载 `.env.local`、检查依赖、启动服务并打开浏览器。启动窗口就是实时日志窗口，日志同时保存在 `.scratch/logs/`；按 `Ctrl+C` 停止服务。副本配置默认端口为 3018，端口占用时自动顺延，并使用日志中显示的实际地址。
+Windows 可直接双击根目录的 `start.bat`：自动加载 `.env.local`、检查依赖、启动服务并打开浏览器。启动窗口就是实时日志窗口，日志同时保存在 `.scratch/logs/`；按 `Ctrl+C` 停止服务。端口优先读取本地 `PORT`，未配置时为 3000；端口占用时自动顺延，并使用日志中显示的实际地址。
 
 首次运行会从 `.env.example` 创建本地配置并生成签名密钥；填写 `DEEPSEEK_API_KEY` 后重启即可启用 Agent，默认模型为 `deepseek-flash`。只有数据库文件不存在时才自动建表并播种，已有数据库不会被重新播种。`.env.local`、数据库与日志均不上传 Git。
 
@@ -20,7 +20,7 @@ Copy-Item .env.example .env.local  # 填入至少 16 位的 CONFIRM_SECRET 和�
 New-Item -ItemType Directory -Force data | Out-Null
 pnpm exec node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs push
 pnpm exec node --env-file=.env.local --import=tsx src/server/db/seed.ts
-pnpm exec node --env-file=.env.local ./node_modules/vite/bin/vite.js --port 3018
+pnpm dev
 ```
 
 以上适用于首次初始化；播种会重建演示数据。服务端从进程环境变量读取配置，上述命令显式加载 `.env.local`。环境变量已经注入时可直接使用下方快捷命令。
@@ -38,7 +38,8 @@ pnpm exec node --env-file=.env.local ./node_modules/vite/bin/vite.js --port 3018
 
 | 命令 | 说明 |
 |---|---|
-| `pnpm dev` | 启动 Web/H5 |
+| `pnpm dev` | 启动 Web/H5、后台任务与实时日志 |
+| `pnpm dev:web` | 仅启动网页（已有环境变量时使用） |
 | `pnpm test` | 单元测试与红队用例（策略、令牌、审计链、执行器、注入、沙箱、生成式 UI、越权） |
 | `pnpm typecheck` | 类型检查 |
 | `pnpm db:reset` | POSIX shell 下重建数据库并写入演示数据；Windows 见上方步骤 |
@@ -59,7 +60,7 @@ pnpm exec node --env-file=.env.local ./node_modules/vite/bin/vite.js --port 3018
 
 ## 银行管理后台
 
-`http://127.0.0.1:3018/admin` 首页展示全部银行用户与注册用户，支持按姓名、手机号或用户 ID 搜索，并显示账户数、总余额和风险等级。点击「登录账户」进入指定用户的管理界面，右上角或侧栏可返回首页切换账户。
+启动地址的 `/admin` 首页展示全部银行用户与注册用户，支持按姓名、手机号或用户 ID 搜索，并显示账户数、总余额和风险等级。点击「登录账户」进入指定用户的管理界面，右上角或侧栏可返回首页切换账户。
 
 这是面向银行运营/演示的管理后台（不是用户端），可直接查看和操作所选用户的模拟银行数据：账户总览、流水与异常、转账与 AA、理财、卡片、订阅、生日计划、仿真时钟、操作审计。账户切换只改变后台管理对象，不创建用户端登录会话；各用户的查询缓存、命令与审计均携带对应用户标识。
 

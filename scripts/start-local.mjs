@@ -108,7 +108,7 @@ async function waitUntilReady(url) {
   while (!stopping && server?.exitCode === null && Date.now() < deadline) {
     try {
       const response = await fetch(`${url}/login`, { signal: AbortSignal.timeout(5000) })
-      await response.body?.cancel()
+      await response.arrayBuffer()
       if (response.ok) {
         log(`启动完成：首页 ${url}/  管理后台 ${url}/admin`)
         log('此窗口持续显示实时日志，按 Ctrl+C 停止服务。')
@@ -215,15 +215,43 @@ async function main() {
   })
   void waitUntilReady(url)
   await closed
+  stopAll(false)
+  process.exit(0)
 }
 
+function killProcess(child, signal = 'SIGTERM') {
+  if (!child || child.killed || child.exitCode !== null) return
+  try {
+    child.kill(signal)
+  } catch {}
+}
+
+function stopAll(force = false) {
+  stopping = true
+  const signal = force ? 'SIGKILL' : 'SIGTERM'
+  killProcess(activeChild, signal)
+  killProcess(server, signal)
+  killProcess(worker, signal)
+}
+
+let sigintCount = 0
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
+    sigintCount++
+    if (sigintCount > 1) {
+      stopAll(true)
+      process.exit(signal === 'SIGINT' ? 130 : 143)
+    }
     if (stopping) return
     stopping = true
     log('正在停止服务……')
-    activeChild?.kill('SIGTERM')
-    worker?.kill('SIGTERM')
+    stopAll(false)
+
+    const timer = setTimeout(() => {
+      stopAll(true)
+      process.exit(signal === 'SIGINT' ? 130 : 143)
+    }, 500)
+    timer.unref()
   })
 }
 
@@ -233,6 +261,6 @@ try {
   log(`错误：${error.message}`)
   process.exitCode = 1
 } finally {
-  stopping = true
-  worker?.kill('SIGTERM')
+  stopAll(true)
+  process.exit(process.exitCode || 0)
 }

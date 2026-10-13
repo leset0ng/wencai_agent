@@ -20,10 +20,27 @@ async function tick() {
     }
   }
 }
-for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => { stopping = true })
+let timer: NodeJS.Timeout | undefined
+
+function shutdown() {
+  if (stopping) return
+  stopping = true
+  if (timer) clearTimeout(timer)
+  try { db.$client.close() } catch {}
+  process.exit(0)
+}
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, shutdown)
+}
+
 console.info('[worker] 自动任务与续费提醒已启动')
 while (!stopping) {
   try { await tick() } catch (error) { console.error('[worker]', error instanceof Error ? error.message : '自动任务执行失败') }
-  if (!stopping) await new Promise((resolve) => setTimeout(resolve, 10_000))
+  if (!stopping) {
+    await new Promise((resolve) => {
+      timer = setTimeout(resolve, 10_000)
+    })
+  }
 }
-db.$client.close()
+shutdown()

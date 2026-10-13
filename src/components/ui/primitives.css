@@ -59,6 +59,10 @@
 .ui-select-trigger { display: inline-flex; justify-content: space-between; align-items: center; gap: 9px; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .ui-select-trigger > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ui-select-trigger > span:last-child { flex-shrink: 0; }
+.ui-phone-input { display: flex; align-items: center; gap: 10px; }
+.ui-phone-input .ui-select-trigger { flex: 0 0 auto; max-width: 145px; border: 0; background: transparent; padding: 0 10px 0 0; border-right: 1px solid var(--line); font-size: 12px; }
+.ui-phone-input .ui-input { flex: 1; min-width: 0; width: 0; border: 0; background: transparent; outline: none; }
+.ui-phone-input:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px #2675ff17; }
 .bank-payment-form .ui-select-trigger { width: 100%; min-width: 0; border: 1px solid #dce7fa; border-radius: 12px; padding: 13px 12px; background: #f8fbff; color: #10234e; font-family: inherit; font-size: 16px; outline: none; }
 .bank-payment-form .ui-select-trigger:focus-visible { border-color: #2675ff; background: white; box-shadow: 0 0 0 3px #2675ff17; }
 .app-shell .ui-select-trigger, .dialog-content .ui-select-trigger { border: 1px solid #dfe5ef; border-radius: 7px; background: white; color: #34435c; padding: 10px 12px; }
