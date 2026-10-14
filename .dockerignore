@@ -9,3 +9,7 @@ dist
 .tanstack
 .vscode
 *.log
+backups
+*.tar.gz
+*.db
+*.db-*
