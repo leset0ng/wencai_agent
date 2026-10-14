@@ -276,11 +276,11 @@ export const POLICY_PROBES: PolicyProbe[] = [
   },
   {
     id: 'pp-daily-large',
-    label: '累计金额不改变常规单笔验证',
+    label: '日累计超过1000元需强验证',
     tool: 'transfer',
     amount: 300,
     facts: { payeeAgeDays: 400, dailyOutgoingCents: 80_000 },
-    note: '单笔300元、收款账户未标记异常 → 任选一种验证方式',
+    note: '今日已转800元，再转300元，跨账户累计1100元 → 红色强验证',
   },
   {
     id: 'pp-new-payee',

@@ -1,6 +1,8 @@
 import type { PolicyInput, RiskLevel } from './types'
 
 export const LIMITS = {
+  /** UTC+8 自然日跨本人所有账户累计（含本笔），严格超过 1000 元需强验证。 */
+  dailyOutgoingCents: 100_000,
   /** 单笔超过 3000 元需密码与生物识别双重验证（分）。 */
   singleLargeCents: 300_000,
   /** 10 分钟内转账笔数超过该值触发熔断 */
@@ -57,6 +59,13 @@ export const RULES: Rule[] = [
       facts.recentTransferCount >= LIMITS.burstTransfers
         ? { kind: 'deny', reason: '短时间内转账过于频繁，已触发风控熔断' }
         : null,
+  },
+  {
+    id: 'transfer-daily-total',
+    applies: isTransfer,
+    evaluate: (input) => input.facts.dailyOutgoingCents + amountCents(input) > LIMITS.dailyOutgoingCents
+      ? { kind: 'raise', to: 'red', reason: '今日累计转账超过 1000 元，需要强验证' }
+      : null,
   },
   {
     id: 'transfer-single-large',

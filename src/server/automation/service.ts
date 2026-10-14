@@ -147,7 +147,7 @@ export async function runAutomaticTransfers(userId: string, now: Date) {
         await notify(userId, 'confirmation', '预约任务需要核对', '执行时风险发生变化或缺少有效授权，请核对并完成验证后执行。', `task:${task.id}:approval`, outcome.actionId)
         return
       }
-      const result = birthday ? await (await import('./birthdays')).executeBirthdayOrder(userId, args.planId, now, { id: task.id, marker }) : await settleTransfer(args, { ...ctx, authorization: { level: permission.level, actionId: `scheduled:${task.id}`, payeeRisk } }, now, { onSettled: async (tx, transactionId) => {
+      const result = birthday ? await (await import('./birthdays')).executeBirthdayOrder(userId, args.planId, now, { id: task.id, marker }, { level: permission.level, actionId: `scheduled:${task.id}` }) : await settleTransfer(args, { ...ctx, authorization: { level: permission.level, actionId: `scheduled:${task.id}`, payeeRisk } }, now, { onSettled: async (tx, transactionId) => {
         const [saved] = await tx.update(schema.scheduledTasks).set({ status: 'succeeded', resultJson: JSON.stringify({ transactionId, amount: args.amountCents / 100 }) }).where(and(eq(schema.scheduledTasks.id, task.id), eq(schema.scheduledTasks.status, 'processing'), eq(schema.scheduledTasks.resultJson, marker))).returning()
         if (!saved) throw new Error('任务执行权已变化，未扣款')
       } })

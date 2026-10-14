@@ -4,6 +4,7 @@ import { db, schema } from '#/server/db/client'
 import { assertDebitAccount } from '#/server/cards/service'
 import { ensureAutomationSchema, notify } from './service'
 import type { AgentContext } from '#/server/agent/context'
+import { assertDailyTransferAuthorization } from '#/server/policy/transfer-activity'
 
 let ready: Promise<unknown> | undefined
 export const ensureBirthdaySchema = () => ready ??= db.$client.execute('CREATE TABLE IF NOT EXISTS bank_birthday_funds (plan_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, account_id TEXT NOT NULL, held_cents INTEGER NOT NULL, status TEXT NOT NULL)').catch((e) => { ready = undefined; throw e })
@@ -30,7 +31,7 @@ export async function reserveBirthday(a: { fromAccountId: string; contactId: str
     return { planId, taskId, heldAmount: a.budgetCents / 100, birthday: a.birthday, contact: contact.name, status: 'reserved', service: '文财模拟鲜花与蛋糕预订' }
   })
 }
-export async function executeBirthdayOrder(userId: string, planId: string, now = new Date(), taskClaim?: { id: string; marker: string }) {
+export async function executeBirthdayOrder(userId: string, planId: string, now = new Date(), taskClaim?: { id: string; marker: string }, authorization?: AgentContext['authorization']) {
   await ensureBirthdaySchema()
   const result = await db.transaction(async (tx) => {
     const [plan] = await tx.select().from(schema.birthdayPlans).where(and(eq(schema.birthdayPlans.id, planId), eq(schema.birthdayPlans.userId, userId)))
@@ -39,6 +40,7 @@ export async function executeBirthdayOrder(userId: string, planId: string, now =
     if (new Date(`${plan.birthday}T00:00:00+08:00`).getTime() - 2 * 86400_000 > now.getTime()) throw new Error('尚未到预约预订时间')
     if (plan.status === 'ordered' && fund.status === 'spent') return { planId, amount: plan.budgetCents / 100, status: 'ordered', duplicate: true }
     if (plan.status !== 'reserved' || fund.status !== 'reserved' || fund.heldCents !== plan.budgetCents) throw new Error('计划已变化，不可重复下单')
+    await assertDailyTransferAuthorization(tx, userId, plan.budgetCents, now, authorization)
     if (taskClaim) {
       const [task] = await tx.update(schema.scheduledTasks).set({ status: 'succeeded', resultJson: JSON.stringify({ planId, amount: plan.budgetCents / 100, status: 'ordered' }) }).where(and(eq(schema.scheduledTasks.id, taskClaim.id), eq(schema.scheduledTasks.userId, userId), eq(schema.scheduledTasks.status, 'processing'), eq(schema.scheduledTasks.resultJson, taskClaim.marker))).returning()
       if (!task) throw new Error('任务执行权已变化，未下单')

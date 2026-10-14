@@ -9,6 +9,7 @@ import { assertDebitAccount, cardLabel, ensureUserCardAccounts, userCards } from
 import { ensureRiskSchema } from '#/server/risk/accounts'
 import { assertRecipientRisk } from '#/server/risk/recipient'
 import { ensureCardNumberSchema, numberFingerprint } from '#/server/cards/numbers'
+import { assertDailyTransferAuthorization } from '#/server/policy/transfer-activity'
 
 export const maskAccount = (no: string) => `${no.slice(0, 4)} **** ${no.slice(-4)}`
 export const lookupSchema = z.discriminatedUnion('method', [
@@ -331,6 +332,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
       .where(and(eq(schema.accounts.id, a.fromAccountId), eq(schema.accounts.userId, ctx.userId)))
     const [sender] = await tx.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
     if (!source) throw new Error('付款账户不存在')
+    await assertDailyTransferAuthorization(tx, ctx.userId, a.amountCents, occurredAt, ctx.authorization)
     await assertDebitAccount(tx, source.id, a.amountCents, occurredAt)
     if (sender?.lockedUntil && sender.lockedUntil > new Date()) throw new Error('账户已临时锁定')
     let targetId = a.toAccountId,

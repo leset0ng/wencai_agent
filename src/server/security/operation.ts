@@ -12,6 +12,17 @@ import { collectFacts } from '#/server/policy/facts'
 import { resolveTool } from '#/server/tools/bank'
 import { transferVerification } from './verification-policy'
 import { env } from '#/server/env'
+import { decide } from '#/server/policy/engine'
+import { maxRisk } from '#/server/policy/types'
+
+async function pendingVerification(pending: typeof schema.pendingActions.$inferSelect, ctx: AgentContext) {
+  const args = JSON.parse(pending.argsJson)
+  const def = resolveTool(pending.tool)
+  if (!def) throw new Error('操作类型不存在')
+  const facts = await collectFacts({ userId: ctx.userId, channel: ctx.channel, ...def.factsHint?.(args) })
+  const decision = decide({ tool: pending.tool, baseRisk: def.baseRisk, args, facts })
+  return transferVerification(pending.tool, args, facts, maxRisk(pending.level, decision.level))
+}
 
 export type SecurePurpose = 'confirm_action' | 'view_card' | 'change_card_password'
 export async function ownedSecureRequest(ctx: AgentContext, id: string, allowExpired = false) {
@@ -42,13 +53,11 @@ export async function secureRequestInfo(ctx: AgentContext, id: string) {
   const [card] = row.cardId ? await db.select().from(schema.cards).where(and(eq(schema.cards.id, row.cardId), eq(schema.cards.userId, ctx.userId))) : []
   const [pending] = row.actionId ? await db.select().from(schema.pendingActions).where(and(eq(schema.pendingActions.id, row.actionId), eq(schema.pendingActions.userId, ctx.userId))) : []
   const requirement = pending ? await pendingCardRequirement(pending) : null
-  const args = pending ? JSON.parse(pending.argsJson) : {}
-  const facts = pending ? await collectFacts({ userId: ctx.userId, channel: ctx.channel, ...resolveTool(pending.tool)?.factsHint?.(args) }) : {}
-  const policy = pending ? transferVerification(pending.tool, args, facts) : { transfer: false, dualRequired: false }
+  const policy = pending ? await pendingVerification(pending, ctx) : { transfer: false, dualRequired: false, strongRequired: false }
   return { id, purpose: row.purpose, status: row.status, card: card ? { id: card.id, last4: card.last4, kind: card.kind } : null,
     actionId: row.actionId, newPassword: row.purpose === 'change_card_password' || !!requirement?.newCard,
-    passwordRequired: !!card, strongRequired: row.purpose === 'change_card_password' || (policy.transfer ? policy.dualRequired : pending?.level === 'red'),
-    singleChoice: policy.transfer && !policy.dualRequired && !requirement?.newCard, dualRequired: policy.dualRequired, demoBiometrics: env.AUTH_DEMO_MODE,
+    passwordRequired: !!card, strongRequired: row.purpose === 'change_card_password' || policy.strongRequired,
+    singleChoice: policy.transfer && !policy.dualRequired && (!policy.strongRequired || !card) && !requirement?.newCard, dualRequired: policy.dualRequired, demoBiometrics: env.AUTH_DEMO_MODE,
     summary: pending ? JSON.parse(pending.summaryJson) as { title: string; fields: { label: string; value: string }[] } : null,
   }
 }
@@ -84,10 +93,8 @@ export async function submitSecureRequest(ctx: AgentContext, id: string, input: 
     if (!pending || pending.status !== 'pending') throw new Error('操作已处理或不存在')
     const requirement = await pendingCardRequirement(pending)
     const method = input.method ?? 'password'
-    const args = JSON.parse(pending.argsJson)
-    const facts = await collectFacts({ userId: ctx.userId, channel: ctx.channel, ...resolveTool(pending.tool)?.factsHint?.(args) })
-    const policy = transferVerification(pending.tool, args, facts)
-    if (method !== 'password' && (!policy.transfer || policy.dualRequired || requirement?.newCard)) throw new Error('本次操作必须先验证银行卡交易密码')
+    const policy = await pendingVerification(pending, ctx)
+    if (method !== 'password' && (!policy.transfer || policy.dualRequired || (policy.strongRequired && requirement && !requirement.newCard) || requirement?.newCard)) throw new Error('本次操作必须先验证银行卡交易密码')
     const passwordHash = requirement?.newCard ? hashCardPassword(input.password ?? '') : null
     const version = requirement && !requirement.newCard ? method === 'password' ? await verifyCardPassword(ctx, requirement.cardId, input.password ?? '') : requirement.version : null
     await db.update(schema.bankSecureRequests).set({ status: 'verified', passwordHash, passwordVersion: version, verificationMethod: method }).where(eq(schema.bankSecureRequests.id, id))

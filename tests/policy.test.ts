@@ -34,10 +34,12 @@ describe('权限分级', () => {
     expect(d).toMatchObject({ level: 'yellow', allowed: true })
   })
 
-  it('单笔超过 3000 元升级为红色，累计不影响单笔边界', () => {
+  it('单笔超过 3000 元继续升级，日累计含本笔超过 1000 元也升级', () => {
     expect(decide(transfer(3000.01)).level).toBe('red')
-    expect(decide(transfer(300, { dailyOutgoingCents: 800_000 })).level).toBe('yellow')
-    expect(decide(transfer(3000)).level).toBe('yellow')
+    expect(decide(transfer(300, { dailyOutgoingCents: 80_000 })).level).toBe('red')
+    expect(decide(transfer(3000)).level).toBe('red')
+    expect(decide(transfer(200, { dailyOutgoingCents: 80_000 })).level).toBe('yellow')
+    expect(decide(transfer(200.01, { dailyOutgoingCents: 80_000 })).level).toBe('red')
   })
 
   it('未标记异常的新收款人不强制双重验证', () => {
@@ -71,6 +73,6 @@ describe('权限分级', () => {
 
   it('命中规则写入 reasons', () => {
     const d = decide(transfer(3001, { payeeRiskFlag: 'suspected' }))
-    expect(d.reasons).toHaveLength(2)
+    expect(d.reasons).toHaveLength(3)
   })
 })

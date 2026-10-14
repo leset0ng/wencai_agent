@@ -20,7 +20,7 @@ export const birthdayOrder = defineBankTool({
   inputSchema: z.object({ planId: z.string() }),
   prepare: async (a, ctx) => { await ensureBirthdaySchema(); const [plan] = await db.select().from(schema.birthdayPlans).where(and(eq(schema.birthdayPlans.id, a.planId), eq(schema.birthdayPlans.userId, ctx.userId))); if (!plan) throw new Error('计划不存在'); return { ...a, amountCents: plan.budgetCents } },
   summarize: async (a, ctx) => { const [plan] = await db.select().from(schema.birthdayPlans).where(and(eq(schema.birthdayPlans.id, a.planId), eq(schema.birthdayPlans.userId, ctx.userId))); if (!plan) throw new Error('计划不存在'); return { title: '确认使用已预留的生日预算', fields: [{ label: '生日', value: plan.birthday }, { label: '预算', value: `¥${(plan.budgetCents / 100).toFixed(2)}` }, { label: '商户', value: '文财模拟鲜花与蛋糕商户' }] } },
-  execute: async (a, ctx) => executeBirthdayOrder(ctx.userId, a.planId, await simNow()),
+  execute: async (a, ctx) => executeBirthdayOrder(ctx.userId, a.planId, await simNow(), undefined, ctx.authorization),
 })
 export const listBirthdayPlans = defineBankTool({ name: 'list_birthday_plans', kind: 'read', baseRisk: 'green', description: '查询本人生日计划与模拟订单、预算状态。', inputSchema: z.object({}), execute: async (_a, ctx) => {
   const plans = await db.select().from(schema.birthdayPlans).where(eq(schema.birthdayPlans.userId, ctx.userId))

@@ -4,6 +4,7 @@ import { auth, db, schema, type DB } from '#/server/db/client'
 import type { AgentContext } from '#/server/agent/context'
 import { ensureCardNumber, ensureCardNumberSchema } from './numbers'
 import { ensureCardPasswordSchema, migrateLegacyCardPassword } from './password'
+import { assertDailyTransferAuthorization } from '#/server/policy/transfer-activity'
 
 let ready: Promise<void> | undefined
 export function ensureCardSchema() {
@@ -193,6 +194,7 @@ export async function repayCredit(a: { creditCardId: string; sourceCardId: strin
     const [owner] = await tx.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
     if (owner?.lockedUntil && owner.lockedUntil > new Date()) throw new Error('账户已临时锁定')
     await assertDebitAccount(tx, source.accountId, a.amountCents)
+    await assertDailyTransferAuthorization(tx, ctx.userId, a.amountCents, new Date(), ctx.authorization)
     const [debt] = await tx.update(schema.bankCardProfiles).set({ outstandingCents: sql`${schema.bankCardProfiles.outstandingCents} - ${a.amountCents}` })
       .where(and(eq(schema.bankCardProfiles.cardId, credit.id), gte(schema.bankCardProfiles.outstandingCents, a.amountCents))).returning()
     if (!debt) throw new Error('还款金额超过待还金额，请重新核对')

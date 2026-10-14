@@ -211,7 +211,7 @@ describe('风险分级推演', () => {
     const byId = new Map(results.map((r) => [r.id, r]))
     expect(byId.get('pp-small-known')!.level).toBe('yellow')
     expect(byId.get('pp-new-payee')!.level).toBe('yellow')
-    expect(byId.get('pp-daily-large')!.level).toBe('yellow')
+    expect(byId.get('pp-daily-large')!.level).toBe('red')
     expect(byId.get('pp-night')!.level).toBe('yellow')
   })
 

@@ -22,7 +22,7 @@ function SecurePage() {
   const strong = !!info.data?.strongRequired
   const useAlternative = !!info.data?.singleChoice && (alternative || !info.data.passwordRequired)
   const needsProof = strong || useAlternative
-  const verification = useStrongVerification(info.data?.purpose === 'change_card_password' ? { purpose: 'card_password', requestId } : { purpose: 'action', actionId: info.data?.actionId ?? '' }, busy, { allowSms: !strong, onMethodSelect: () => { setActive(null); if (info.data?.singleChoice) { setAlternative(true); setPassword('') } } })
+  const verification = useStrongVerification(info.data?.purpose === 'change_card_password' ? { purpose: 'card_password', requestId } : { purpose: 'action', actionId: info.data?.actionId ?? '' }, busy, { allowSms: !info.data?.dualRequired, onMethodSelect: () => { setActive(null); if (info.data?.singleChoice) { setAlternative(true); setPassword('') } } })
   const notify = (type: string) => {
     if (window.parent !== window) window.parent.postMessage({ type, requestId }, window.location.origin)
     else window.location.assign('/settings')
@@ -72,6 +72,7 @@ function SecurePage() {
           {!useAlternative && (data.newPassword || data.passwordRequired) && <CardPasswordInput id="secure-card-password" label={data.newPassword ? `请设置${cardSuffix}交易密码` : `请输入${cardSuffix}交易密码`} value={password} onChange={setPassword} onActivate={() => setActive('password')} disabled={busy} isNew={data.newPassword} />}
           {data.newPassword && <CardPasswordInput id="secure-repeat-password" label={`请再次输入${cardSuffix}交易密码`} value={repeat} onChange={setRepeat} onActivate={() => setActive('repeat')} disabled={busy} isNew />}
           {data.dualRequired && <p className="bank-secure-factor-hint">本次交易需交易密码 + 指纹或人脸验证</p>}
+          {strong && !data.dualRequired && data.passwordRequired && <p className="bank-secure-factor-hint">本次操作为红色风险，验证交易密码后还需完成额外验证</p>}
           {strong && <div className="bank-secure-mfa" aria-label="指纹或人脸验证">{verification.controls}</div>}
           {error && <p role="alert" className="bank-auth-error">{error}</p>}
           <Button className="bank-primary-button bank-secure-submit" type="submit" disabled={busy || (!useAlternative && (data.newPassword || data.passwordRequired) && password.length !== 6) || (data.newPassword && repeat.length !== 6) || (needsProof && !verification.ready)}>{busy ? '正在安全处理…' : data.newPassword ? data.purpose === 'change_card_password' ? '确认设置此卡密码' : '设置密码并确认申请' : '确认验证'}</Button>

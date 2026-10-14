@@ -120,14 +120,14 @@ describe('每张银行卡密码独立与交易绑定', () => {
   it.each(['sms', 'fingerprint', 'face'] as const)('常规交易仅用 %s 即可，无需附加卡密码，回执不能重放', async (method) => {
     const a = await issue(), b = await issue()
     await db.update(schema.accounts).set({ balanceCents: 500_000 }).where(eq(schema.accounts.id, a.accountId))
-    const proposal = await runBankTool(transferBetweenCards, { fromCardQuery: a.last4, toCardQuery: b.last4, amountCents: 300_000 }, ctx)
+    const proposal = await runBankTool(transferBetweenCards, { fromCardQuery: a.last4, toCardQuery: b.last4, amountCents: 100_000 }, ctx)
     if (proposal.status !== 'needs_confirmation') throw new Error(JSON.stringify(proposal))
     const request = await createSecureRequest(ctx, { purpose: 'confirm_action', actionId: proposal.actionId })
     expect(await secureRequestInfo(ctx, request.id)).toMatchObject({ singleChoice: true, dualRequired: false })
     let code = ''
     const stepUp = method === 'sms' ? { method, ...await requestStepUpCode(uid, `action:${proposal.actionId}`, async (_phone, value) => { code = value }), code } : { method, ...await beginDemoBiometric(uid, `action:${proposal.actionId}`, method) }
     expect(await submitSecureRequest(ctx, request.id, { method, stepUp })).toEqual({ ok: true })
-    expect((await db.select().from(schema.accounts).where(eq(schema.accounts.id, a.accountId)))[0].balanceCents).toBe(200_000)
+    expect((await db.select().from(schema.accounts).where(eq(schema.accounts.id, a.accountId)))[0].balanceCents).toBe(400_000)
     await expect(submitSecureRequest(ctx, request.id, { method, stepUp })).rejects.toThrow('已处理')
   })
   it.each(['fingerprint', 'face'] as const)('超过3000元必须卡密码加 %s，短信及单一方式不能放行', async (method) => {

@@ -155,7 +155,7 @@ async function confirmUnderLock(params: {
 
   const cardProof = await validateCardProof(row, params.secureRequestId)
   if (cardProof.required && !cardProof.valid) return fail('card_password_required', cardProof.requirement.newCard ? '请在独立安全页面设置新卡的交易密码后申请' : '请在独立安全页面验证本次操作对应银行卡的交易密码')
-  const verification = transferVerification(row.tool, args, facts)
+  const verification = transferVerification(row.tool, args, facts, effectiveLevel)
   let verificationProof = cardProof.required ? cardProof.proof : undefined
   let proofRequired = cardProof.required
   if (verification.transfer && !cardProof.required) {
@@ -172,9 +172,10 @@ async function confirmUnderLock(params: {
     }
   }
   const method = verificationProof?.verificationMethod ?? 'password'
+  if (verification.strongRequired && cardProof.required && !cardProof.requirement.newCard && method !== 'password') return fail('card_password_required', '本次操作已升级为红色风险，请验证付款卡交易密码并完成额外验证')
   if (verification.dualRequired && method !== 'password') return fail('card_password_required', '异常交易须验证付款卡交易密码，再进行指纹或人脸验证')
   const alternative = verification.transfer && !verification.dualRequired && method !== 'password'
-  const additional = verification.transfer ? verification.dualRequired : effectiveLevel === 'red'
+  const additional = verification.strongRequired
   if (additional || alternative) {
     const [user] = await db.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
     if (user?.lockedUntil && user.lockedUntil.getTime() > Date.now()) {

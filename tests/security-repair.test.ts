@@ -98,12 +98,16 @@ describe('安全要求修复回归', () => {
     expect(await balance()).toBe(200_000)
     expect((await db.select().from(schema.holdings).where(eq(schema.holdings.id, holdingId)))[0].principalCents).toBe(100_000)
   })
-  it('两笔600元常规交易不会因累计超过旧阈值误要求双重验证', async () => {
+  it('两笔600元并发确认，累计越线的一笔必须补强验证，短信可完成而不强制生物因子', async () => {
     const input = { fromAccountId: source, toAccountId: target, amountCents: 60_000 }
     const proposals = await Promise.all([runBankTool(transferBetweenAccounts, input, ctx), runBankTool(transferBetweenAccounts, input, ctx)])
     if (proposals.some((p) => p.status !== 'needs_confirmation')) throw new Error(JSON.stringify(proposals))
     const result = await Promise.all(proposals.map((p) => confirm((p as { actionId: string }).actionId)))
-    expect(result.every((r) => r.ok)).toBe(true)
+    expect(result.filter((r) => r.ok)).toHaveLength(1)
+    expect(result.filter((r) => !r.ok && r.code === 'step_up_required')).toHaveLength(1)
+    expect(await balance(target)).toBe(60_000)
+    const retry = proposals[result[0].ok ? 1 : 0] as { actionId: string }
+    expect((await confirm(retry.actionId, await sms(`action:${retry.actionId}`))).ok).toBe(true)
     expect(await balance(target)).toBe(120_000)
   })
   it('扩展挂失也是红色，密码不能代替强验证，已挂失卡不可解锁', async () => {
