@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient, useSession } from '#/lib/auth-client'
 import { usePasskeyDelete, useSecurityAction, useSettings } from '#/lib/queries'
-import ThemeToggle from '#/components/ThemeToggle'
+import ThemeToggle, { ThemeSelector } from '#/components/ThemeToggle'
 import { ShieldCheck, ArrowLeft } from 'lucide-react'
 import { Reveal } from '#/components/ui/motion'
 import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
@@ -22,6 +22,7 @@ function SettingsPage() {
     <header className="bank-auth-top"><a href="/" aria-label="返回银行首页"><ArrowLeft size={20} /></a><span>安全中心</span><ThemeToggle /></header>
     <Reveal className="bank-settings-heading"><span className="bank-security-symbol"><ShieldCheck size={27} /></span><div><h1>守护每一笔安心</h1><p>每卡独立密码 · 安全验证与设备管理</p></div></Reveal>
     <div className="bank-settings-body">
+      <section className="bank-appearance-settings"><h2>外观设置</h2><p className="demo-muted text-xs">选择适合你的界面风格，设置会自动保存。</p><ThemeSelector /></section>
       {!session && <p className="demo-muted">请先登录后查看安全设置。</p>}
       {settings.isPending && <p className="demo-muted">加载中…</p>}
       {settings.error && <p className="bank-auth-error" role="alert">{settings.error.message}</p>}

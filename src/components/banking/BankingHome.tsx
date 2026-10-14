@@ -1,7 +1,7 @@
 import { Button } from '#/components/ui/button'
 import { motion, useReducedMotion } from 'motion/react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '#/components/ui/tabs'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDownLeft,
@@ -44,6 +44,7 @@ import { AccountCarousel, accountSlides } from './AccountCarousel'
 import { CardApplication, CardServices, type CardServiceMode } from './CardServices'
 import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import { TaskCenter } from './TaskCenter'
+import { trackAgentKeyboard } from '#/lib/agent-keyboard'
 import './banking.css'
 
 type Tab = 'home' | 'accounts' | 'life' | 'profile'
@@ -66,6 +67,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   const reduce = useReducedMotion()
   const queryClient = useQueryClient()
   const pageScroll = useRef<HTMLDivElement>(null)
+  const shell = useRef<HTMLDivElement>(null)
   const query = useQuery({
     queryKey: ['dashboard', user.id],
     queryFn: fetchDashboard,
@@ -76,6 +78,9 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   const [tab, setTab] = useState<Tab>('home')
   const [hidden, setHidden] = useState(false)
   const [agentOpen, setAgentOpen] = useState(false)
+  useLayoutEffect(() => {
+    if (agentOpen && shell.current) return trackAgentKeyboard(shell.current)
+  }, [agentOpen])
   const [paymentView, setPaymentView] = useState<PaymentView | null>(null)
   const [request, setRequest] = useState<{ id: number; text: string }>()
   const [detail, setDetail] = useState<Detail>(null)
@@ -139,7 +144,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   }
   return (
     <div className="bank-stage">
-      <Tabs className="bank-shell" value={tab} onValueChange={(value) => selectTab(value as Tab)}>
+      <Tabs ref={shell} className="bank-shell" value={tab} onValueChange={(value) => selectTab(value as Tab)}>
         <div className="bank-home-scroll" ref={pageScroll} inert={agentOpen || !!detail || !!paymentView || !!cardService}>
           <header className="bank-home-header">
             <Button

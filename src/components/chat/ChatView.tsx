@@ -14,7 +14,7 @@ import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import ConfirmCard from './ConfirmCard'
 import { MotionMessage, ThinkingDots } from '#/components/ui/motion'
 import { AgentInteractionContext, AgentInteractionGroup } from './AgentInteraction'
-import { interactionSnapshot, InteractionMemory, type AgentMessageOptions } from './interaction-message'
+import { interactionSnapshot, InteractionMemory, operationMessage, type AgentMessageOptions } from './interaction-message'
 
 const SUGGESTIONS = [
   { label: '查一下本月支出', prompt: '帮我分析本月支出并用图表展示分类', icon: ReceiptText },
@@ -125,7 +125,7 @@ export default function ChatView({
         const response = await fetch(`/api/confirm?actionId=${encodeURIComponent(actionId)}`, { credentials: 'same-origin' })
         if (!response.ok) throw new Error('无法读取本次确认摘要')
         const receipt = await response.json() as { summary: { title: string; fields: { label: string; value: string }[] } }
-        text = `我已核对并确认${receipt.summary.title}（${receipt.summary.fields.map((field) => `${field.label}：${field.value}`).join('；')}）。请仅按服务端回执核对执行结果，不要再次执行。`
+        text = operationMessage(receipt.summary, { requests: [], selections: [] }, 'receipt')
       }
       await sendMessage({ text }, actionId ? { body: { confirmedActionId: actionId } } : undefined)
     })().catch(() => {
@@ -182,13 +182,15 @@ export default function ChatView({
             const processing = busy && messageIndex === messages.length - 1
             const presentation = toolPresentations(message.parts, processing)
             const tables = presentedTables(message.parts, presentation)
+            const securityConfirmation = message.parts.some((part) => 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && ['needs_confirmation', 'needs_handoff', 'plan'].includes(String(part.output.status)))
+            const batchSelection = !securityConfirmation && message.parts.some((part) => part.type === 'tool-prepare_transfer_batch' && 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && part.output.status === 'batch_transfer_ready')
             return (
               <MotionMessage
                 key={message.id}
                 className={`bank-message ${message.role === 'user' ? 'is-user' : 'is-assistant'}`}
               >
                 {message.role !== 'user' && <AgentAvatar small />}
-                <AgentInteractionContext.Provider value={{ send, enabled: true, busy: busy || sending, snapshot: interactionSnapshot(messages, messageIndex), memory: interactionMemory.current }}><div className="bank-message-content"><AgentInteractionGroup active={message.role === 'assistant' && !processing} securityConfirmation={message.parts.some((part) => 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && ['needs_confirmation', 'needs_handoff', 'plan'].includes(String(part.output.status)))}>
+                <AgentInteractionContext.Provider value={{ send, enabled: true, busy: busy || sending, snapshot: interactionSnapshot(messages, messageIndex), memory: interactionMemory.current }}><div className="bank-message-content"><AgentInteractionGroup active={message.role === 'assistant' && !processing} securityConfirmation={securityConfirmation}>
                   {message.parts.map((part, index) => {
                     const key = `${message.id}-${index}`
                     if (part.type === 'text')
@@ -197,7 +199,7 @@ export default function ChatView({
                           {part.text}
                         </p>
                       ) : (
-                        <AssistantText key={key} text={part.text} tables={tables} processing={processing} />
+                        <AssistantText key={key} text={part.text} tables={tables} processing={processing} batchSelection={batchSelection} />
                       )
                     if (part.type === 'data-confirmation') {
                       const receipt = part.data
@@ -273,7 +275,6 @@ export default function ChatView({
           <ReceiptText size={20} />
         </span>
         <Input
-          data-autofocus
           aria-label="发送给文财的消息"
           value={input}
           onChange={(event) => setInput(event.target.value)}

@@ -1,11 +1,13 @@
 import type { WencaiUIMessage } from '#/server/agent/messages'
+import { isResolvedInteractionTemplate, renderInteractionTemplate, type ResolvedInteractionTemplate, type InteractionField } from '#/lib/agent-interaction-template'
 
 export type ChoiceKind = 'card' | 'account' | 'product' | 'recipient' | 'subscription' | 'option'
 export interface AgentChoice {
   id: string; kind: ChoiceKind; label: string; details: { label: string; value: string }[]; slot?: string
+  stepId?: string
   card?: { cardId?: string; name: string; last4?: string; kind?: string; status?: string; balance?: number }
 }
-export interface InteractionSnapshot { requests: string[]; selections: string[]; taskKey?: string; cardRole?: 'source' | 'target' }
+export interface InteractionSnapshot { requests: string[]; selections: string[]; taskKey?: string; cardRole?: 'source' | 'target'; template?: ResolvedInteractionTemplate }
 export interface AgentMessageOptions { verificationActionId?: string; cancelActionId?: string; confirmedActionId?: string }
 const REQUEST = '【办理需求】', SELECTED = '【已选条件】', END = '【交互说明】'
 const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim()
@@ -20,7 +22,7 @@ export function interactionSnapshot(messages: WencaiUIMessage[], end: number): I
     if (message.parts.some((part) => part.type === 'data-confirmation' && ['completed', 'cancelled', 'failed'].includes(part.data.status))) { requests = []; selections = []; taskKey = undefined }
     if (message.role !== 'user') continue
     const text = textOf(message).trim()
-    if (!text || /^我已核对并确认/.test(text)) continue
+    if (!text || /^(?:我已核对并确认|请核对以下操作并打开|请核对以下操作的服务端结果|请取消以下确认单)/.test(text)) continue
     const start = text.indexOf(REQUEST), selected = text.indexOf(SELECTED), finish = text.indexOf(END)
     if (start >= 0 && selected > start && finish > selected) {
       requests = text.slice(start + REQUEST.length, selected).trim().split('\n').filter(Boolean)
@@ -38,7 +40,27 @@ export function interactionSnapshot(messages: WencaiUIMessage[], end: number): I
   }
   const question = textOf(messages[end] ?? { role: 'assistant', parts: [] } as unknown as WencaiUIMessage).split(/[。！？\n]/).reverse().find((line) => /请选择|哪张|从哪|选择.*银行卡/.test(line)) ?? ''
   const source = /付款|扣款|转出|从哪/.test(question), target = /收款卡|转入|目标卡/.test(question)
-  return { requests, selections, taskKey, ...(source && !target ? { cardRole: 'source' as const } : target && !source ? { cardRole: 'target' as const } : {}) }
+  const template = messageInteractionTemplate(messages[end])
+  return { requests, selections, taskKey, ...(template ? { template } : {}), ...(source && !target ? { cardRole: 'source' as const } : target && !source ? { cardRole: 'target' as const } : {}) }
+}
+
+/** Only this assistant reply may define this interface; never borrow a later or older task's template. */
+export function messageInteractionTemplate(message?: WencaiUIMessage): ResolvedInteractionTemplate | undefined {
+  if (message?.role !== 'assistant') return undefined
+  let template: ResolvedInteractionTemplate | undefined
+  let batch: ResolvedInteractionTemplate | undefined
+  for (const part of message.parts) {
+    if (!('output' in part) || !('state' in part) || part.state !== 'output-available' || !part.output || typeof part.output !== 'object') continue
+    const output = part.output as { status?: string; interaction?: ResolvedInteractionTemplate; spec?: { interaction?: ResolvedInteractionTemplate } }
+    const candidate = part.type === 'tool-prepare_transfer_batch' && output.status === 'batch_transfer_ready' ? output.interaction
+      : part.type === 'tool-prepare_interaction' && output.status === 'interaction_ready' ? output.interaction
+      : part.type === 'tool-show_view' && output.status === 'view' ? output.spec?.interaction : undefined
+    if (isResolvedInteractionTemplate(candidate)) {
+      template = candidate
+      if (candidate.intent === 'batch_transfer') batch = candidate
+    }
+  }
+  return batch ?? template
 }
 
 /** A task's pickers share this store; old tasks stay separate from newly started work. */
@@ -54,10 +76,9 @@ export class InteractionMemory {
     return latest ? { ...base, requests: latest.requests, selections: latest.selections } : base
   }
   afterChoice(base: InteractionSnapshot, choice: AgentChoice, cancel = false) {
-    const current = this.resolve(base), text = choiceMessage(choice, current, cancel)
-    const updated = interactionSnapshot([{ id: base.taskKey ?? 'choice', role: 'user', parts: [{ type: 'text', text }] } as WencaiUIMessage], 0)
-    this.remember({ ...updated, taskKey: base.taskKey })
-    return text
+    const current = this.resolve(base)
+    this.remember(cancel ? current : selectionSnapshot(current, choice))
+    return choiceMessage(choice, current, cancel)
   }
 }
 
@@ -94,29 +115,54 @@ export class SelectionDraft {
   }
 }
 export function confirmationMessage(snapshot: InteractionSnapshot, choices: AgentChoice[], prompt?: string) {
-  const selected = choices.reduce(selectionSnapshot, snapshot)
-  return [prompt ? `我确认：${clean(prompt)}` : '我已确认以下办理需求与选择，请继续办理。', REQUEST,
-    ...(selected.requests.length ? selected.requests : ['请说明所选项目可办理的业务，缺少必要信息时先询问。']), SELECTED, ...selected.selections,
-    END, '以本次选择为准，重新查询当前状态；交易仍须独立安全验证，不得重复执行已完成的操作。'].join('\n')
+  if (snapshot.template?.intent === 'batch_transfer') {
+    const steps: Record<string, Partial<Record<InteractionField, string>>> = {}
+    for (const step of snapshot.template.steps ?? []) {
+      const selected = choices.filter((choice) => choice.stepId === step.id && choice.kind === 'recipient' && step.recipientIds.includes(choice.id))
+      steps[step.id] = templateSelections(selected, snapshot.template)
+    }
+    return renderInteractionTemplate(snapshot.template, templateSelections(choices.filter((choice) => !choice.stepId), snapshot.template), steps)
+  }
+  if (snapshot.template) return renderInteractionTemplate(snapshot.template, templateSelections(choices, snapshot.template))
+  // Old/unprepared interfaces may state chosen facts, but must not replay an unrelated compound request.
+  const facts = choices.map(templateChoiceDescription)
+  return [`我已选择${facts.length ? `：${facts.join('；')}` : '当前项目'}。`,
+    prompt ? `本次请求：${clean(prompt).slice(0, 300)}。` : '请先询问本次要办理的具体业务及缺少的必要信息。',
+    '请重新查询当前状态；交易仍须独立安全验证，不得重复执行已完成的操作。'].join('')
+}
+
+function templateChoiceDescription(choice: AgentChoice) {
+  const display = (value: string) => clean(value).replace(/\d[\d -]{10,}\d/g, (number) => `**** ${number.replace(/\D/g, '').slice(-4)}`)
+  if (choice.kind === 'card') return `${display(choice.label)}（${choice.card?.kind === 'credit' ? '信用卡' : '储蓄卡'}，尾号${display(choice.card?.last4 ?? choice.id)}）`
+  const fields = choice.kind === 'recipient' ? choice.details.filter((field) => ['银行', '收款账号'].includes(field.label)) : []
+  return `${display(choice.label)}（${fields.length ? fields.map((field) => `${display(field.label)}：${display(field.value)}`).join('；') : `编号：${display(choice.id)}`}）`
+}
+
+export function templateSelections(choices: AgentChoice[], template?: ResolvedInteractionTemplate): Partial<Record<InteractionField, string>> {
+  const selections: Partial<Record<InteractionField, string>> = {}
+  for (const choice of choices) {
+    const field: InteractionField = choice.kind === 'recipient' ? 'recipient' : choice.kind === 'product' ? 'product' : choice.kind === 'subscription' ? 'subscription'
+      : choice.kind === 'card' && (template?.intent === 'query' || (template?.intent === 'card_action' && (template.fields.action !== 'repay' || choice.card?.kind === 'credit'))) ? 'card'
+      : choice.kind === 'account' && template?.intent === 'redeem' ? 'target'
+      : choice.slot === '收款卡' ? 'target' : choice.slot === '付款卡' || choice.kind === 'account' ? 'source' : 'card'
+    selections[field] = templateChoiceDescription(choice)
+  }
+  return selections
 }
 export function choiceMessage(choice: AgentChoice, snapshot: InteractionSnapshot, cancel = false): string {
-  const description = choiceDescription(choice)
-  const selection = `${choice.slot ? `${choice.slot}：` : ''}${description}${choice.details.length ? `（${choice.details.map((field) => `${clean(field.label)}：${clean(field.value)}`).join('；')}）` : ''}`
-  const previous = choice.slot ? snapshot.selections.filter((line) => !line.startsWith(`${choice.slot}：`) && !(['付款卡', '收款卡'].includes(choice.slot!) && line.startsWith('银行卡：'))) : snapshot.selections
-  return [
-    cancel ? `我暂不选择${description}，请先不要执行本次操作。` : `我选择${description}${choice.slot && ['付款卡', '收款卡'].includes(choice.slot) ? `作为${choice.slot}` : ''}，请结合以下完整需求继续办理，缺少必要信息时请先询问。`,
-    REQUEST, ...(snapshot.requests.length ? snapshot.requests : ['请就当前所选项目向我说明可办理的业务；不要直接执行交易。']),
-    SELECTED, ...unique([...(cancel ? snapshot.selections : previous), ...(cancel ? [] : [selection])]),
-    END, '以上历史需求只用于恢复本次选择的上下文，以当前选择及最后补充为准；不要重复执行已完成的操作。选择不代表交易验证通过，涉及交易仍须生成确认单并由我验证。',
-  ].join('\n')
+  return cancel ? `我暂不选择${templateChoiceDescription(choice)}，请先不要执行本次操作。` : confirmationMessage(snapshot, [choice])
 }
 export function followUpMessage(prompt: string, snapshot: InteractionSnapshot): string {
-  return [prompt, REQUEST, ...snapshot.requests, SELECTED, ...snapshot.selections, END, '请按当前请求继续；以上条件是上下文，不代表任何操作已经通过安全验证。'].join('\n')
+  return confirmationMessage(snapshot, [], prompt)
 }
 export function operationMessage(summary: { title: string; fields: { label: string; value: string }[] }, snapshot: InteractionSnapshot, action: 'verify' | 'cancel' | 'repeat' | 'receipt'): string {
+  void snapshot // Kept for old callers; a bank confirmation's summary is its complete immutable context.
   const details = summary.fields.map((field) => `${field.label}：${field.value}`).join('；')
-  const verb = action === 'cancel' ? '请取消这次操作，不要继续执行' : action === 'receipt' ? '请仅核对本次服务端结果，不要重新执行' : action === 'repeat' ? '我重新选择办理以下操作，请重新查询当前数据并生成新的确认单' : '我选择办理以下操作，请核对并打开独立安全验证页'
-  return followUpMessage(`${verb}。${summary.title}（${details}）。以本次卡片明细为准，任何交易仍须我完成安全验证。`, snapshot)
+  const description = `${summary.title}（${details}）`
+  if (action === 'receipt') return `请核对以下操作的服务端结果：${description}。仅查询回执，不要再次执行。`
+  if (action === 'cancel') return `请取消以下确认单：${description}。不要继续执行。`
+  if (action === 'repeat') return `请重新办理：${description}。请重新查询当前数据并生成新的银行确认单，交易仍须独立安全验证。`
+  return `请核对以下操作并打开独立安全验证页：${description}。验证通过前不要执行。`
 }
 
 type Row = Record<string, unknown>

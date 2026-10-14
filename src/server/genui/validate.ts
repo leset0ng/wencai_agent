@@ -1,6 +1,7 @@
 import { catalog } from '#/genui/catalog'
 import type { GenUISpec } from '#/genui/catalog'
 import { collectEvidence, verifyNumbers } from '#/server/verify/numbers'
+import { checkInteractionTemplate } from './interaction-template'
 
 export type SpecCheck = { ok: true; spec: GenUISpec } | { ok: false; errors: string[] }
 
@@ -11,8 +12,10 @@ export type SpecCheck = { ok: true; spec: GenUISpec } | { ok: false; errors: str
  * 3. 文本类 props 中的金额必须有数据出处
  * 4. 丢弃模型自带的 state，由服务端注入
  */
-export function checkSpec(input: unknown, state: Record<string, unknown>): SpecCheck {
-  const { state: _ignored, ...rest } = (input ?? {}) as Record<string, unknown>
+export function checkSpec(input: unknown, state: Record<string, unknown>, requestText = '', currentTools: ReadonlySet<string> = new Set()): SpecCheck {
+  const { state: _ignored, interaction, ...rest } = (input ?? {}) as Record<string, unknown>
+  const templateCheck = interaction === undefined ? undefined : checkInteractionTemplate(interaction, state, requestText, currentTools)
+  if (templateCheck && !templateCheck.ok) return { ok: false, errors: templateCheck.errors }
   // 模型常省略叶子节点的 children，补齐为空数组
   if (rest.elements && typeof rest.elements === 'object') {
     rest.elements = Object.fromEntries(
@@ -44,7 +47,7 @@ export function checkSpec(input: unknown, state: Record<string, unknown>): SpecC
       }
     }
   }
-  return errors.length ? { ok: false, errors } : { ok: true, spec }
+  return errors.length ? { ok: false, errors } : { ok: true, spec: { ...spec, ...(templateCheck?.ok ? { interaction: templateCheck.interaction } : {}) } }
 }
 
 function containsNumber(v: unknown): boolean {

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireSession, UnauthorizedError } from '#/server/session'
 import { createSecureRequest, secureRequestInfo, submitSecureRequest, consumeSecureResult, cancelSecureRequest } from '#/server/security/operation'
 import { StepUpSchema } from '#/server/auth/step-up'
+import { validRequestOrigin } from '#/server/security/request-origin'
 const bodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create'), purpose: z.enum(['confirm_action', 'view_card', 'change_card_password']), cardId: z.string().max(200).optional(), actionId: z.string().max(200).optional() }),
   z.object({ action: z.literal('submit'), id: z.string().max(100), password: z.string().regex(/^\d{6}$/).optional(), method: z.enum(['password', 'sms', 'fingerprint', 'face']).optional(), stepUp: StepUpSchema.optional() }),
@@ -13,8 +14,7 @@ export const Route = createFileRoute('/api/secure-operation')({ server: { handle
 } } })
 async function handle(request: Request) {
   const headers = { 'cache-control': 'private, no-store', pragma: 'no-cache' }
-  const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ message: '请求来源无效' }, { status: 403, headers })
+  if (!validRequestOrigin(request)) return Response.json({ message: '请求来源无效' }, { status: 403, headers })
   try {
     const session = await requireSession(request), ctx = { ...session, channel: 'web' as const }
     if (request.method === 'GET') return Response.json(await secureRequestInfo(ctx, new URL(request.url).searchParams.get('id') ?? ''), { headers })

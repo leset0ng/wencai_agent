@@ -17,7 +17,7 @@ import ConfirmCard from '#/components/chat/ConfirmCard'
 const user = (text: string) => ({ id: text, role: 'user', parts: [{ type: 'text', text }] }) as WencaiUIMessage
 const assistant = (text = '请选择付款银行卡') => ({ id: 'assistant', role: 'assistant', parts: [{ type: 'text', text }] }) as WencaiUIMessage
 const card = (tail = '8823'): AgentChoice => ({ id: `card_${tail}`, kind: 'card', label: '工资卡', slot: '付款卡', details: [{ label: '尾号', value: tail }], card: { cardId: `card_${tail}`, name: '工资卡', last4: tail, kind: 'debit', balance: 5000 } })
-const initial = [user('给妈妈李秀兰转账500元，从工资卡扣款'), assistant()]
+const initial = [user('给妈妈李秀兰转账500元，从工资卡扣款'), { ...assistant(), parts: [...assistant().parts, { type: 'tool-prepare_interaction', toolCallId: 'template', state: 'output-available', output: { status: 'interaction_ready', interaction: { version: '1', intent: 'transfer', fields: { source: '工资卡（尾号1111）', recipient: '李秀兰（工商银行，尾号2233）', amount: '500' } } } }] } as WencaiUIMessage]
 const products = [{ id: 'p_cash', name: '活期宝A', riskRating: 'R1', expectedYieldPct: 1.65, minAmount: 1, termDays: 0 }]
 
 describe('可复用 Agent 消息交互', () => {
@@ -48,10 +48,10 @@ describe('可复用 Agent 消息交互', () => {
     draft.select(card('8823')); draft.select(recipient)
     expect(base.selections).toEqual([])
     const current = draft.snapshot(base, [draft.selected([card('8823'),card('4267')],base)!, draft.selected([recipient],base)!])
-    const text = confirmationMessage(current, [])
+    const text = confirmationMessage(current, [card('8823'), recipient])
     expect(text).toContain('8823'); expect(text).toContain('李秀兰'); expect(text).toContain('500元'); expect(text).toContain('工商银行')
-    expect(text).toContain('交易仍须独立安全验证')
-    expect(interactionSnapshot([user(text),assistant()],1).selections).toHaveLength(2)
+    expect(text).toContain('独立安全页面完成验证')
+    expect(current.selections).toHaveLength(2)
   })
   it('唯一对象自动确定；多对象可重选或取消草稿而不丢失其他条件', () => {
     const draft = new SelectionDraft(), base = {requests:['转500元'],selections:[]}
@@ -93,14 +93,14 @@ describe('可复用 Agent 消息交互', () => {
     expect(query.requests).toEqual(['帮我分析本月账单'])
   })
   it('重选同类产品替换旧选择，保留付款卡与金额', () => {
-    const memory = new InteractionMemory(), base = interactionSnapshot(initial, 1)
+    const memory = new InteractionMemory(), base = { ...interactionSnapshot(initial, 1), template: { version: '1' as const, intent: 'purchase' as const, fields: { source: '工资卡尾号8823', amount: '500', product: '活期宝A' } } }
     memory.afterChoice(base, card())
     memory.afterChoice(base, choiceFromRow(products[0])!)
     const text = memory.afterChoice(base, choiceFromRow({ ...products[0], id: 'p_new', name: '新方案' })!)
     expect(text).not.toContain('活期宝A'); expect(text).toContain('新方案'); expect(text).toContain('8823'); expect(text).toContain('500元')
   })
   it('同一旧回复的产品按钮会带上后来刚选的卡，不混入另一任务的选择', () => {
-    const base = interactionSnapshot(initial, 1), memory = new InteractionMemory()
+    const base = { ...interactionSnapshot(initial, 1), template: { version: '1' as const, intent: 'purchase' as const, fields: { source: '工资卡尾号8823', amount: '500', product: '活期宝A' } } }, memory = new InteractionMemory()
     memory.remember(base)
     memory.afterChoice(base, card('8823'))
     const other = { taskKey: 'another-task', requests: ['给王建国转900元'], selections: [] }
@@ -112,14 +112,15 @@ describe('可复用 Agent 消息交互', () => {
   it('卡片选择消息独立包含尾号、用途、原目标与金额，不依赖之前的对话', () => {
     const context = interactionSnapshot(initial, 1), text = choiceMessage(card(), context)
     expect(context.cardRole).toBe('source')
-    expect(text).toContain('我选择尾号8823')
-    expect(text).toContain('作为付款卡')
-    expect(text).toContain('妈妈李秀兰转账500元')
-    expect(text).toContain('选择不代表交易验证通过')
+    expect(text).toContain('尾号8823')
+    expect(text).toContain('从')
+    expect(text).toContain('李秀兰'); expect(text).toContain('转账500元')
+    expect(text).toContain('独立安全页面完成验证')
+    expect(text).not.toContain('【办理需求】')
   })
   it('旧按钮使用它所属的需求快照，不混入后面另一笔操作', () => {
     const text = choiceMessage(card(), interactionSnapshot([...initial, user('给王建国转900元')], 1))
-    expect(text).toContain('李秀兰转账500元')
+    expect(text).toContain('李秀兰'); expect(text).toContain('转账500元')
     expect(text).not.toContain('王建国')
   })
   it('反复点击不消费、不改变原始快照，消息保持完整', () => {
@@ -129,20 +130,20 @@ describe('可复用 Agent 消息交互', () => {
     expect(context).toEqual(saved)
   })
   it('重选付款卡覆盖旧付款条件，同时保留已选收款卡与原金额', () => {
-    const context = { requests: ['从付款卡向收款卡转500元'], selections: ['付款卡：尾号1111的银行卡', '收款卡：尾号2222的银行卡'] }
+    const context = { requests: ['从付款卡向收款卡转500元'], selections: ['付款卡：尾号1111的银行卡', '收款卡：尾号2222的银行卡'], template: { version: '1' as const, intent: 'transfer' as const, fields: { source: '尾号1111的银行卡', target: '尾号2222的银行卡', amount: '500' } } }
     const text = choiceMessage(card('3333'), context)
     expect(text).not.toContain('1111')
     expect(text).toContain('2222')
     expect(text).toContain('3333')
     expect(text).toContain('500元')
   })
-  it('连续选择产品与卡片后仍携带原始任务，格式不会递归膨胀', () => {
+  it('模板只发送当前步骤的业务字段，不把其他类型的选择或产品收益复制进转账', () => {
     const product = choiceFromRow(products[0])!
     const a = choiceMessage(product, interactionSnapshot(initial, 1))
-    const b = choiceMessage(card(), interactionSnapshot([...initial, user(a), assistant()], 3))
-    expect(b.match(/给妈妈李秀兰转账500元/g)).toHaveLength(1)
-    expect(b).toContain('活期宝A')
-    expect(b).toContain('1.65%')
+    const b = choiceMessage(card(), interactionSnapshot([...initial, user(a), initial[1]], 3))
+    expect(b.match(/转账500元/g)).toHaveLength(1)
+    expect(b).not.toContain('活期宝A')
+    expect(b).not.toContain('1.65%')
     expect(b).toContain('8823')
   })
   it('追问、取消、核对消息都包含完整办理参数，而不是“用这个”', () => {
@@ -164,7 +165,8 @@ describe('可复用 Agent 消息交互', () => {
     const rows = [{ id: 'future-service', name: '未来服务方案', cycle: '每月', budget: 80 }]
     const choice = choiceFromRow(rows[0])!
     expect(choice.kind).toBe('option')
-    expect(choiceMessage(choice, { requests: ['帮我安排每月服务'], selections: [] })).toContain('budget：80')
+    expect(choiceMessage(choice, { requests: ['帮我安排每月服务'], selections: [] })).toContain('未来服务方案')
+    expect(choiceMessage(choice, { requests: ['帮我安排每月服务'], selections: [] })).not.toContain('budget：80')
     const html = renderToStaticMarkup(createElement(AgentSelectableTable, { rows, columns: [{ key: 'name', label: '方案' }] }))
     expect(html).toContain('aria-label="已选择未来服务方案"')
     expect(renderToStaticMarkup(createElement(AgentChoiceList, { choices: [choice] }))).toContain('已确定')

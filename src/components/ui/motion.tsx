@@ -10,7 +10,8 @@ export const motionStyle = (values: Record<`--${string}`, string | number>) => v
 /** Shared viewport trigger for home, tool receipts and generated Agent views. */
 export function useReveal<T extends Element>() {
   const ref = useRef<T>(null)
-  const visible = useInView(ref, { once: true, amount: .12 })
+  // Tall statements can exceed several screens; a percentage threshold could keep them invisible forever.
+  const visible = useInView(ref, { once: true, amount: 'some' })
   const reduce = useReducedMotion()
   return { ref, 'data-visible': visible || !!reduce }
 }

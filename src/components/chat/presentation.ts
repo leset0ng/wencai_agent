@@ -138,6 +138,14 @@ export function toolPresentations(parts: WencaiUIMessage['parts'], processing = 
     }
   })
   if (processing) return modes
+  // A prepared batch owns the complete set of scoped recipients and shared payment cards.
+  const batch = parts.reduce((last, part, index) => part.type === 'tool-prepare_transfer_batch' && 'output' in part && record(part.output).status === 'batch_transfer_ready' ? index : last, -1)
+  if (batch >= 0) {
+    parts.forEach((part, index) => {
+      if (index === batch) return
+      if (part.type === 'tool-prepare_transfer_batch' || (/^tool-(?:find_payee|list_cards|get_accounts|resolve_my_cards)$/.test(part.type) && 'output' in part && record(part.output).status === 'done')) modes[index] = 'hidden'
+    })
+  }
 
   // 后一次完整视图替代同一数据的早期版本，独立账期与不同结果仍可并存。
   const finalViews = views.filter((view, i) => !view.sources.length ||

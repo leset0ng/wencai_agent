@@ -112,10 +112,12 @@ function MarkdownTable({ node, children, ...props }: ComponentProps<'table'> & E
 }
 const COMPONENTS: Components = { table: MarkdownTable }
 
-export default function AssistantText({ text, tables = [], processing = false }: {
-  text: string; tables?: PresentedTable[]; processing?: boolean
+export default function AssistantText({ text, tables = [], processing = false, batchSelection = false }: {
+  text: string; tables?: PresentedTable[]; processing?: boolean; batchSelection?: boolean
 }) {
   const interaction = useContext(AgentChoiceContext)
+  // The batch component includes every amount/candidate; model prose must not preselect a candidate or repeat a second table.
+  if (batchSelection) return null
   // The guarded prose stays blocked; authoritative choice/operation components already provide the result.
   if ((interaction?.hasChoices || interaction?.securityConfirmation) && text.trim() === '部分内容未通过银行数据核对，已停止展示。请以已显示的账户数据和操作卡片为准。') return null
   return (

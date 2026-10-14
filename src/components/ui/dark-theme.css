@@ -1,0 +1,161 @@
+/* Shared bank theme: charcoal surfaces and soft blue actions, including portalled UI. */
+html:root.dark {
+  --background:#202225; --foreground:#f5f6f8;
+  --card:#292c30; --card-foreground:#f5f6f8; --popover:#2b2e33; --popover-foreground:#f5f6f8;
+  --primary:#93bdff; --primary-foreground:#0a192d;
+  --secondary:#30343a; --secondary-foreground:#c0c8d4;
+  --muted:#2b2f34; --muted-foreground:#b3bbc8; --accent:#303f55; --accent-foreground:#a7cbff;
+  --border:#42474f; --input:#484f5b; --ring:#93bdff; --destructive:#ff9ba8;
+  --sea-ink:var(--foreground); --sea-ink-soft:var(--muted-foreground);
+  --lagoon:var(--primary); --lagoon-deep:var(--primary); --palm:#89d6be;
+  --sand:#202225; --foam:#242629; --bg-base:#1b1d20;
+  --surface:#292c30; --surface-strong:var(--card); --line:var(--border);
+  --chip-bg:var(--secondary); --chip-line:var(--border); --header-bg:#23262a;
+  --link-bg-hover:#343a43; --inset-glint:#ffffff0a; --kicker:#a7cbff;
+  --hero-a:#96bfff08; --hero-b:#96bfff04;
+  --bank-dark-panel:linear-gradient(145deg,#2d3034,#26292d);
+  --bank-dark-action:linear-gradient(115deg,#a1c8ff,#85b3fb);
+}
+html.dark body { background:#1b1d20; color:var(--foreground); }
+html.dark body::before,html.dark body::after { opacity:.025; }
+html.dark a:hover { color:#c5ddff; }
+html.dark :is(.bank-shell,.bank-confirm-card,.bank-payment-approval) {
+  --sea-ink:var(--foreground); --sea-ink-soft:var(--muted-foreground);
+  --lagoon:var(--primary); --lagoon-deep:var(--primary); --line:var(--border);
+  --surface-strong:var(--card); --chip-bg:var(--secondary); --chip-line:var(--border);
+  color:var(--foreground); color-scheme:dark;
+}
+html.dark .bank-stage { background:radial-gradient(ellipse at 20% 10%,#32394366,transparent 60%),#181a1d; }
+html.dark .bank-shell { background:var(--background); border-color:var(--border); box-shadow:0 28px 100px #0005; }
+html.dark .bank-home-scroll { background:radial-gradient(ellipse at 75% 0,#a7bfff04,transparent 55%),var(--background); }
+html.dark .bank-assets::before,html.dark .bank-assets::after { background:transparent; border-color:#ffffff09; }
+html.dark .bank-user-avatar { background:var(--bank-dark-action); color:var(--primary-foreground); border-color:#b2cfff33; box-shadow:none; }
+html.dark .bank-header-actions { color:var(--muted-foreground); }
+html.dark .bank-bell i { border-color:var(--background); }
+html.dark :is(.bank-assets-link,.bank-section-heading button,.bank-account-tile > span:not(.bank-card-stack),.bank-income-lines b,.bank-transaction-row > b.is-income) { color:var(--primary); }
+html.dark :is(.bank-home-tile,.bank-analysis-tile,.bank-life-actions button,.bank-profile-links > *,.bank-account-summary > div,.bank-financial-report,.bank-trend-panel,.bank-gen-panel,.bank-agent-choice,.bank-agent-options-table,.bank-auth-panel,.bank-settings-body > section,.bank-security-dialog,.bank-cash-account,.bank-subscription) {
+  background:var(--bank-dark-panel); border-color:var(--border); color:var(--foreground); box-shadow:0 8px 24px #0000000a;
+}
+html.dark .bank-quick-actions > button > span { background:var(--secondary); border-color:var(--border); color:var(--primary); box-shadow:inset 0 1px #ffffff05; }
+html.dark .bank-quick-actions > button:hover > span { background:var(--accent); box-shadow:0 8px 18px #0002; }
+html.dark .bank-analysis-tile::before,html.dark .bank-analysis-tile::after { opacity:.08; }
+html.dark :is(.bank-analysis-arrow,.bank-transaction-icon,.bank-receive-icon,.bank-security-symbol) { color:var(--primary); background:var(--secondary); border-color:var(--border); }
+html.dark :is(.bank-life-actions button > svg,.bank-profile-links > * > svg:first-child) { color:var(--primary); }
+html.dark .bank-transaction-icon.is-income { color:var(--primary); background:var(--secondary); box-shadow:none; }
+html.dark :is(.bank-transaction-row,.bank-subscription,.bank-profile-links > *,.bank-card-security-row) { border-color:var(--border); }
+html.dark :is(.bank-service-note,.bank-page-note,.bank-card-count,.bank-account-summary span,.bank-subscription-row small,.bank-life-grid small,.bank-profile-card p,.bank-profile-menu small) { color:var(--muted-foreground); }
+html.dark .bank-bottom-nav { background:#2a2d31ed; border-color:var(--border); box-shadow:0 -5px 22px #0001; }
+html.dark .bank-bottom-nav button { color:var(--muted-foreground); }
+html.dark .bank-bottom-nav .is-active { color:var(--primary-foreground); background:var(--bank-dark-action); box-shadow:inset 0 0 0 1px #b3d1ff20; }
+html.dark :is(.bank-agent-fab,.bank-agent-avatar) { background:linear-gradient(140deg,#343b45,#252a32); border-color:#7d899b; box-shadow:inset 0 0 0 3px #a5b4cc22,0 4px 16px #0002; }
+html.dark .bank-floating-anchor.is-dragging .bank-agent-fab { box-shadow:0 9px 24px #0005,inset 0 0 0 3px #a5b4cc22; }
+html.dark .bank-agent-avatar::after { color:var(--primary); }
+html.dark .bank-robot-face { border-color:#b4bfd0; background:#171b22; box-shadow:none; }
+html.dark .bank-robot-face i { background:#77adff; }
+html.dark .bank-fab-label { color:var(--primary-foreground); background:var(--bank-dark-action); box-shadow:0 4px 10px #0002; }
+html.dark .bank-fab-label::after { border-top-color:#93bdff; }
+html.dark .bank-physical-card { background:linear-gradient(120deg,#608fcf,#3c66a0 62%,#284c82); border-color:#a2c4f184; box-shadow:0 16px 30px #0002; }
+html.dark .bank-physical-card.is-credit { background:linear-gradient(120deg,#626c98,#434d75 62%,#303b5a); border-color:#8996b7; }
+html.dark .bank-card-eye { color:#b7c1d0; }
+html.dark .bank-card-eye:hover { color:#fff; background:#ffffff10; }
+html.dark :is(.bank-card-dots span,.bank-agent-choice-dots span) { background:#666e7a; }
+html.dark :is(.bank-card-dots [aria-current='true'] span,.bank-agent-choice-dots [aria-current='true'] span) { background:var(--primary); }
+html.dark .bank-card-viewport { background:#ffffff02; }
+html.dark :is(.bank-sheet,.bank-sheet.is-agent) { background:linear-gradient(145deg,#292c30,#202225); border-color:#565b65; box-shadow:0 -14px 50px #0004; }
+html.dark .bank-sheet-backdrop,html.dark .bank-secure-backdrop,html.dark .dialog-overlay { background:#070b116b; }
+html.dark :is(.bank-sheet-handle,.bank-sheet-grip span,.bank-secure-grip span) { background:#737984; }
+html.dark :is(.bank-sheet-header,.bank-agent-heading) { border-color:var(--border); background:transparent; }
+html.dark .bank-agent-heading small { color:var(--muted-foreground); }
+html.dark :is(.bank-agent-suggestions button,.bank-follow-up,.bank-notice,.bank-payment-secondary,.bank-detail-pill,.bank-chart-switch,.bank-profile-task,.bank-task-link) { background:var(--secondary); color:var(--primary); border-color:var(--border); }
+html.dark .bank-agent-suggestions svg { color:var(--primary); }
+html.dark .bank-user-bubble { color:var(--primary-foreground); background:var(--bank-dark-action); box-shadow:none; }
+html.dark .bank-chat-scroll { scrollbar-color:#606979 transparent; }
+html.dark .bank-chat-composer { background:var(--card); border-color:var(--border); box-shadow:none; }
+html.dark .bank-chat-composer:focus-within { border-color:var(--primary); box-shadow:0 0 0 3px #93bdff12; }
+html.dark .bank-composer-mark { color:var(--muted-foreground); background:var(--secondary); }
+html.dark :is(.bank-chat-composer input::placeholder,.bank-agent-disclaimer,.bank-selection-confirm > p,.bank-agent-choice-row p,.bank-agent-choice-hint,.bank-choice-empty) { color:var(--muted-foreground); }
+html.dark :is(.bank-send,.bank-primary,.bank-primary-button,.bank-choice-button:not(.is-secondary):not(.is-selected),.bank-confirm-submit,.ui-button-primary) { background:var(--bank-dark-action); border-color:var(--primary); color:var(--primary-foreground); box-shadow:0 4px 12px #0001; }
+html.dark .bank-send:disabled { background:#4c6588; color:#adbdd6; }
+html.dark :is(.bank-choice-button.is-secondary,.bank-confirm-cancel,.ui-button-outline) { background:transparent; color:var(--primary); border-color:var(--primary); }
+html.dark :is(.bank-agent-card-prev,.bank-agent-card-next) { color:var(--primary); background:var(--secondary); border-color:#586374; }
+html.dark .bank-agent-choice-list.is-fixed { background:#2c2f34; border-color:var(--border); }
+html.dark :is(.bank-agent-choice-row.is-selected,.bank-agent-options-table tr.is-selected td) { color:#c0c8d4; background:#34383f; }
+html.dark .bank-choice-button.is-selected:disabled { color:var(--primary); border-color:#586374; background:#363c45; }
+html.dark :is(.bank-selection-confirm,.bank-agent-choice-row,.bank-gen-table th,.bank-gen-table td,.bank-chat-table th,.bank-chat-table td) { border-color:var(--border); }
+html.dark :is(.bank-agent-options-table thead,.bank-choice-table-action,.bank-chat-table) { background:var(--card); }
+html.dark :is(.bank-chart,.bank-agent-choice,.bank-confirm-card,.bank-secure-page) { color:var(--foreground); }
+html.dark :is(.bank-chart-caption,.bank-chart-empty,.bank-report-total > span:first-child,.bank-chart-legend,.bank-gen-table th) { color:var(--muted-foreground); }
+html.dark .bank-chart-legend strong { color:var(--foreground); }
+html.dark .bank-chart svg text { fill:var(--muted-foreground); }
+html.dark .bank-chart svg line { stroke:var(--border); }
+html.dark .bank-donut svg > circle:not([data-arc]) { stroke:var(--secondary); }
+html.dark :is(.bank-chart-legend li[data-active='true'],.bank-gen-table tbody tr:hover,.bank-chart-switch .is-active,.bank-chart-switch [data-active]) { background:var(--accent); color:var(--primary); }
+html.dark :is(.bank-confirm-card,.bank-confirm-card.is-strong,.bank-confirm-card.is-success,.bank-confirm-card.is-cancelled,.bank-confirm-card.is-failed) { background:var(--bank-dark-panel); border-color:var(--border); color:var(--foreground); box-shadow:none; }
+html.dark .bank-confirm-card.is-strong { border-color:#826273; }
+html.dark .bank-confirm-card.is-success { border-color:#517e75; }
+html.dark .bank-confirm-badge { color:var(--primary); background:#33435b; }
+html.dark .is-strong > div > .bank-confirm-badge { background:#523340; color:#ffb0c0; }
+html.dark .is-success > div > .bank-confirm-badge { background:#28473f; color:#90dcc6; }
+html.dark .bank-confirm-status,html.dark .bank-verification-success { color:#90dcc6; }
+html.dark .is-failed > .bank-confirm-status { color:#ffb0c0; }
+html.dark :is(.bank-chat-error,.bank-verification-note) { background:#3c3430; border-color:#6a5141; color:#e4c5a8; }
+html.dark :is(.bank-payment-tabs,.bank-payment-switch,.bank-setup-action) { background:var(--secondary); color:var(--muted-foreground); }
+html.dark :is(.bank-payment-tabs button,.bank-payment-switch button) { color:var(--muted-foreground); }
+html.dark :is(.bank-payment-tabs .is-active,.bank-payment-switch .is-active) { background:var(--accent); color:var(--primary); box-shadow:none; }
+html.dark :is(.bank-payment-candidate,.bank-payment-payee,.bank-payment-address) { background:var(--card); border-color:var(--border); color:var(--foreground); }
+html.dark .bank-payment-candidate.is-selected { background:var(--accent); border-color:var(--primary); }
+html.dark :is(.bank-payment-form > label,.bank-payment-amount > div > span,.bank-payment-payee > svg) { color:var(--primary); }
+html.dark :is(.bank-payment-caption,.bank-payment-balance,.bank-payment-form small,.bank-payment-candidates legend,.bank-payment-payee small,.bank-payment-address small,.bank-payment-address p,.bank-payment-receipt p,.bank-payment-receipt > small) { color:var(--muted-foreground); }
+html.dark .bank-payment-amount > div { border-color:var(--border); }
+html.dark :is(.bank-auth-input,.bank-payment-form input:not([type=radio]),.bank-payment-form select,.bank-payment-form .ui-select-trigger,.bank-settings-body .demo-input,.bank-confirm-card input,.bank-payment-approval input,.ui-input,.ui-select-trigger) { color:var(--foreground); background:var(--secondary); border-color:var(--input); }
+html.dark :is(.bank-auth-input::placeholder,.ui-input::placeholder) { color:#a3adbd; }
+html.dark .bank-payment-form .bank-payment-amount input { background:transparent; }
+html.dark :is(.bank-auth-input:focus,.bank-payment-form input:focus,.bank-payment-form .ui-select-trigger:focus-visible) { border-color:var(--primary); background:var(--secondary); box-shadow:0 0 0 3px #93bdff12; }
+html.dark .bank-auth-shell { background:linear-gradient(155deg,#2c3139,#202225 65%); color:var(--foreground); }
+html.dark :is(.bank-auth-hero p,.bank-auth-panel > p,.bank-auth-footer,.bank-auth-hint,.bank-settings-heading p,.bank-settings-body .demo-muted,.bank-security-dialog > p,.bank-security-form label,.bank-text-button) { color:var(--muted-foreground); }
+html.dark :is(.bank-auth-eyebrow,.bank-auth-decoration,.bank-auth-tabs a.is-active,.bank-text-button:hover) { color:var(--primary); }
+html.dark .bank-assets .bank-text-button { color:var(--primary); }
+html.dark .bank-card-security-row { background:var(--secondary); }
+html.dark .bank-card-security-row small { color:var(--muted-foreground); }
+html.dark .bank-account-summary .is-income { color:var(--primary); }
+html.dark .bank-auth-tabs { border-color:var(--border); }
+html.dark .bank-auth-tabs a.is-active { border-color:var(--primary); }
+html.dark :is(.bank-settings-body > section > h2,.bank-settings-body .text-\[var\(--sea-ink\)\]) { color:var(--foreground); }
+html.dark :is(.bank-auth-error,.bank-error) { color:#ffa9b5; }
+html.dark :is(.bank-secure-frame,.bank-secure-frame iframe,.bank-secure-page) { background:var(--background); color:var(--foreground); border-color:var(--border); }
+html.dark .bank-secure-frame-error { background:#4b3039; color:#ffbac5; }
+html.dark .bank-secure-summary { background:#303b4b; color:var(--foreground); }
+html.dark :is(.bank-secure-summary p,.bank-secure-summary dt,.bank-secure-details,.bank-secure-details dl,.bank-secure-factor-hint,.bank-secure-help,.bank-verification-note) { color:var(--muted-foreground); }
+html.dark :is(.bank-secure-amount dd,.bank-secure-method) { color:var(--primary); }
+html.dark .bank-secure-password-field label { color:var(--foreground); }
+html.dark .bank-secure-password-control { color:var(--primary); background:var(--secondary); border-color:#657e9e; }
+html.dark .bank-secure-password-control input { color:var(--foreground); }
+html.dark .bank-secure-password-control input::placeholder { color:var(--muted-foreground); }
+html.dark :is(.bank-secure-eye,.bank-secure-close) { color:var(--muted-foreground); }
+html.dark .bank-secure-close:hover { background:var(--secondary); }
+html.dark .bank-verification-method { color:var(--muted-foreground); background:var(--secondary); border-color:var(--border); }
+html.dark .bank-verification-method.is-selected { color:var(--primary); border-color:var(--primary); background:var(--accent); }
+html.dark .bank-secure-loading > div { background:linear-gradient(110deg,#2c3036,#353b44); }
+html.dark .bank-secure-keypad { background:#292e36; }
+html.dark .bank-secure-key { background:#3b424d; color:var(--foreground); box-shadow:0 2px 1px #0003; }
+html.dark .bank-secure-key:active { background:#4d5d74; }
+html.dark :is(.ui-card,.dialog-content,.ui-select-content) { background:var(--popover); color:var(--foreground); border-color:var(--border); }
+html.dark .ui-badge { background:var(--accent); color:var(--primary); }
+html.dark .ui-select-item[data-highlighted] { background:var(--accent); color:var(--primary); }
+html.dark .ui-checkbox { background:var(--secondary); border-color:var(--input); }
+html.dark .ui-checkbox[data-checked] { color:var(--primary-foreground); background:var(--primary); border-color:var(--primary); }
+html.dark .bank-message-content [class*='bg-blue-50'] { background:var(--accent); border-color:var(--border); color:var(--foreground); }
+html.dark .bank-session-loading { background:var(--background); color:var(--muted-foreground); }
+html.dark .bank-empty-card { background:var(--bank-dark-panel); border-color:var(--border); }
+html.dark .bank-empty-card > span { background:var(--secondary); color:var(--primary); }
+html.dark .bank-empty-card strong { color:var(--foreground); }
+html.dark .bank-empty-card p { color:var(--muted-foreground); }
+
+.bank-theme-toggle { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--chip-line); background:var(--chip-bg); color:var(--sea-ink); border-radius:999px; font-size:11px; padding:7px 10px; }
+.bank-theme-selector { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:14px; }
+.bank-theme-selector button { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; padding:14px 2px; min-width:0; border:1px solid var(--border); border-radius:14px; background:var(--secondary); color:var(--muted-foreground); font-size:11px; }
+.bank-theme-selector button[aria-pressed='true'] { color:var(--accent-foreground); border-color:var(--primary); background:var(--accent); box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 25%,transparent); }
+html.dark .bank-theme-selector button[aria-pressed='true'] { background:var(--bank-dark-action); color:var(--primary-foreground); }
+@media(prefers-reduced-motion:no-preference) {
+  .bank-theme-selector button,.bank-theme-toggle { transition:background-color .18s,color .18s,border-color .18s; }
+}

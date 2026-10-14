@@ -1,82 +1,20 @@
+import { Sun, Moon, Monitor } from 'lucide-react'
 import { Button } from '#/components/ui/button'
-import { useEffect, useState } from 'react'
+import { useThemeMode } from '#/components/ui/ThemeProvider'
+import { setThemeMode, type ThemeMode } from '#/lib/theme'
 
-type ThemeMode = 'light' | 'dark' | 'auto'
-
-function getInitialMode(): ThemeMode {
-  if (typeof window === 'undefined') {
-    return 'auto'
-  }
-
-  const stored = window.localStorage.getItem('theme')
-  if (stored === 'light' || stored === 'dark' || stored === 'auto') {
-    return stored
-  }
-
-  return 'auto'
+const modes = [
+  { value: 'light', label: '白天模式', icon: Sun },
+  { value: 'dark', label: '黑夜模式', icon: Moon },
+  { value: 'auto', label: '跟随系统', icon: Monitor },
+] as const
+export function ThemeSelector() {
+  const mode = useThemeMode()
+  return <div className="bank-theme-selector" role="group" aria-label="外观模式">{modes.map(({ value, label, icon: Icon }) =>
+    <Button key={value} className="bank-theme-option" type="button" aria-pressed={mode === value} onClick={() => setThemeMode(value)}><Icon size={21} /><span>{label}</span></Button>)}</div>
 }
-
-function applyThemeMode(mode: ThemeMode) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode
-
-  document.documentElement.classList.remove('light', 'dark')
-  document.documentElement.classList.add(resolved)
-
-  if (mode === 'auto') {
-    document.documentElement.removeAttribute('data-theme')
-  } else {
-    document.documentElement.setAttribute('data-theme', mode)
-  }
-
-  document.documentElement.style.colorScheme = resolved
-}
-
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<ThemeMode>('auto')
-
-  useEffect(() => {
-    const initialMode = getInitialMode()
-    setMode(initialMode)
-    applyThemeMode(initialMode)
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'auto') {
-      return
-    }
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => applyThemeMode('auto')
-
-    media.addEventListener('change', onChange)
-    return () => {
-      media.removeEventListener('change', onChange)
-    }
-  }, [mode])
-
-  function toggleMode() {
-    const nextMode: ThemeMode =
-      mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
-    setMode(nextMode)
-    applyThemeMode(nextMode)
-    window.localStorage.setItem('theme', nextMode)
-  }
-
-  const label =
-    mode === 'auto'
-      ? 'Theme mode: auto (system). Click to switch to light mode.'
-      : `Theme mode: ${mode}. Click to switch mode.`
-
-  return (
-    <Button
-      type="button"
-      onClick={toggleMode}
-      aria-label={label}
-      title={label}
-      className="rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--sea-ink)] shadow-[0_8px_22px_rgba(30,90,72,0.08)] transition hover:-translate-y-0.5"
-    >
-      {mode === 'auto' ? 'Auto' : mode === 'dark' ? 'Dark' : 'Light'}
-    </Button>
-  )
+  const mode = useThemeMode(), current = modes.find((item) => item.value === mode)!, Icon = current.icon
+  const next: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
+  return <Button type="button" className="bank-theme-toggle" aria-label={`当前${current.label}，切换为${modes.find((item) => item.value === next)!.label}`} onClick={() => setThemeMode(next)}><Icon size={16} /><span>{current.label}</span></Button>
 }

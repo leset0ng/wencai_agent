@@ -51,3 +51,12 @@
 .bank-agent-options-table h3 { margin:0 0 12px; font-size:15px; }
 .bank-agent-options-table table { font-size:11px; }
 .bank-agent-options-table .bank-choice-button { padding:5px 9px; min-height:29px; border-radius:9px; font-size:11px; }
+.bank-batch-transfer {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.bank-batch-transfer > h3 {
+  font-size: 16px;
+  margin: 0;
+}

@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
 import { requireSession, UnauthorizedError } from '#/server/session'
 import { revealCardNumber } from '#/server/cards/numbers'
+import { validRequestOrigin } from '#/server/security/request-origin'
 export const Route = createFileRoute('/api/card-number')({ server: { handlers: {
   POST: async ({ request }) => {
     // Explicit same-origin check: passwords never accepted through cross-site forms.
-    const origin = request.headers.get('origin')
-    if (origin && origin !== new URL(request.url).origin) return Response.json({ message: '请求来源无效' }, { status: 403 })
+    if (!validRequestOrigin(request)) return Response.json({ message: '请求来源无效' }, { status: 403 })
     try {
       const session = await requireSession(request)
       const { cardId, password } = z.object({ cardId: z.string().min(1).max(200), password: z.string().regex(/^\d{6}$/) }).parse(await request.json())

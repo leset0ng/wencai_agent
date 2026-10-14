@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireSession, UnauthorizedError } from '#/server/session'
 import { hasTxPassword } from '#/server/auth/tx-password'
 import { initializePassword } from '#/server/auth/onboarding'
+import { validRequestOrigin } from '#/server/security/request-origin'
 
 export const Route = createFileRoute('/api/onboarding')({ server: { handlers: {
   GET: async ({ request }) => {
@@ -12,8 +13,7 @@ export const Route = createFileRoute('/api/onboarding')({ server: { handlers: {
     } catch { return Response.json({ message: '请先登录' }, { status: 401 }) }
   },
   POST: async ({ request }) => {
-    const origin = request.headers.get('origin')
-    if (origin && origin !== new URL(request.url).origin) return Response.json({ message: '请求来源无效' }, { status: 403 })
+    if (!validRequestOrigin(request)) return Response.json({ message: '请求来源无效' }, { status: 403 })
     try {
       const session = await requireSession(request)
       const { password } = z.object({ password: z.string().regex(/^\d{6}$/) }).parse(await request.json())

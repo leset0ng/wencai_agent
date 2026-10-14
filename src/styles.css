@@ -2,6 +2,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @import "./components/ui/primitives.css";
+@import "./components/ui/dark-theme.css";
 @source "../node_modules/streamdown/dist/*.js";
 @plugin "@tailwindcss/typography";
 
@@ -103,7 +104,7 @@ body {
 }
 
 /* Critical first-paint skin: the independent security document never inherits the legacy green theme. */
-html[data-secure-document], html[data-secure-document] body { background:#fff; color:#10214c; color-scheme:light !important; }
+html[data-secure-document], html[data-secure-document] body { background:var(--background); color:var(--foreground); }
 html[data-secure-document] body::before, html[data-secure-document] body::after { display:none; }
 
 body::before {

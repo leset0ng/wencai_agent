@@ -11,6 +11,10 @@ import type { BankToolDef } from '#/server/tools/define'
 import type { AgentContext } from './context'
 import { getSessionData, putSessionData } from './session'
 import { modelToolSchema } from './tool-schema'
+import { InteractionTemplateSchema } from '#/lib/agent-interaction-template'
+import { checkInteractionTemplate } from '#/server/genui/interaction-template'
+import { BatchTransferRequestSchema } from '#/lib/batch-transfer'
+import { prepareTransferBatch } from './batch-transfer'
 
 /** 按渠道裁剪工具白名单：MCP 只暴露只读工具 */
 export function availableBankTools(ctx: AgentContext): BankToolDef[] {
@@ -19,9 +23,10 @@ export function availableBankTools(ctx: AgentContext): BankToolDef[] {
 }
 
 /** 构建本次请求的 AI SDK 工具集。ctx 通过闭包注入，模型无法篡改身份。 */
-export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean } = {}): ToolSet {
+export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean; requestText?: string } = {}): ToolSet {
   const bankTools = availableBankTools(ctx).filter((tool) => !options.readOnly || tool.kind === 'read')
   const tools: ToolSet = {}
+  const currentTools = new Set<string>()
 
   for (const def of bankTools) {
     tools[def.name] = tool({
@@ -29,7 +34,10 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
       inputSchema: modelToolSchema(def.inputSchema),
       execute: async (args) => {
         const outcome = await runBankTool(def, args, ctx)
-        if (outcome.status === 'done') putSessionData(ctx.sessionId, def.name, outcome.data)
+        if (outcome.status === 'done') {
+          putSessionData(ctx.sessionId, def.name, outcome.data)
+          currentTools.add(def.name)
+        }
         return outcome
       },
       toModelOutput: ({ output }) => ({ type: 'json', value: quarantineForModel(output) as never }),
@@ -37,6 +45,30 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
   }
 
   if (ctx.channel !== 'mcp') {
+    tools.prepare_transfer_batch = tool({
+      description: '为同一用户请求中的2至8笔转账准备一个可复用交互：逐笔填写原文中的收款人称呼和元金额，自动查询每笔独立收款候选及共用付款卡。支持“给妈妈转400再给王芳转200”。仅查询和准备界面，不生成交易、不执行、不代表验证通过。缺少参数时返回具体待补充项。',
+      inputSchema: BatchTransferRequestSchema,
+      execute: async (input) => {
+        const result = await prepareTransferBatch(input, options.requestText ?? '', async (name, args) => {
+          const def = bankTools.find((tool) => tool.name === name)!
+          return runBankTool(def, args, ctx)
+        })
+        if (result.status === 'batch_transfer_ready') putSessionData(ctx.sessionId, 'prepare_transfer_batch', structuredClone(result))
+        return result
+      },
+      toModelOutput: ({ output }) => ({ type: 'json', value: quarantineForModel(output) as never }),
+    })
+    tools.prepare_interaction = tool({
+      description: '为当前选择界面声明一个稳定的语义消息模板；只描述当前一个办理步骤。确认按钮按模板和用户选择生成消息，不复制历史原文。不能授权、执行或声明安全验证通过。',
+      inputSchema: InteractionTemplateSchema,
+      execute: async (input) => {
+        const check = checkInteractionTemplate(input, getSessionData(ctx.sessionId), options.requestText, currentTools)
+        return check.ok
+          ? { status: 'interaction_ready' as const, interaction: check.interaction }
+          : { status: 'invalid_interaction' as const, errors: check.errors }
+      },
+      toModelOutput: ({ output }) => ({ type: 'json', value: output as never }),
+    })
     const allowed = new Set(bankTools.map((t) => t.name))
     if (!options.readOnly) tools.plan_task = tool({
       description:
@@ -57,7 +89,7 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
       inputSchema: z.object({ spec: z.record(z.string(), z.unknown()) }),
       execute: async ({ spec }) => {
         const state = getSessionData(ctx.sessionId)
-        const check = checkSpec(spec, state)
+        const check = checkSpec(spec, state, options.requestText, currentTools)
         if (!check.ok) return { status: 'invalid_view' as const, errors: check.errors }
         return { status: 'view' as const, spec: { ...check.spec, state: structuredClone(state) } }
       },

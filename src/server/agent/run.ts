@@ -41,7 +41,7 @@ export async function runAgent(params: {
     ? await getConfirmationResult(ctx.userId, params.confirmedActionId)
     : undefined
   // 确认回报、按钮核对/取消这一轮只读，消息本身不能再次发起写操作或计划。
-  const tools = buildAgentTools(ctx, { readOnly: !!params.confirmedActionId })
+  const tools = buildAgentTools(ctx, { readOnly: !!params.confirmedActionId, requestText: currentUserRequest(params.messages) })
   const messages = isUIMessages(params.messages)
     ? await convertToModelMessages(params.messages, { tools, ignoreIncompleteToolCalls: true })
     : params.messages
@@ -84,4 +84,13 @@ export async function runAgent(params: {
 
 function isUIMessages(messages: UIMessage[] | ModelMessage[]): messages is UIMessage[] {
   return messages.length > 0 && 'parts' in messages[0]
+}
+
+/** Template amounts/notes are scoped to the current request, never an earlier task's numbers. */
+export function currentUserRequest(messages: UIMessage[] | ModelMessage[]): string {
+  const last = [...messages].reverse().find((message) => message.role === 'user')
+  if (!last) return ''
+  if ('parts' in last) return last.parts.filter((part) => part.type === 'text').map((part) => part.text).join('\n')
+  if (typeof last.content === 'string') return last.content
+  return last.content.filter((part) => part.type === 'text').map((part) => part.text).join('\n')
 }

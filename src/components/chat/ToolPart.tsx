@@ -15,6 +15,8 @@ import { AgentCardPicker, AgentChoiceList, AgentSelectableTable, AgentInteractio
 import { selectionView } from './interaction-layout'
 import { choiceFromRow, operationMessage, type ChoiceKind } from './interaction-message'
 import { useContext } from 'react'
+import { BatchTransferView } from './BatchTransferView'
+import type { BatchTransferReady } from '#/lib/batch-transfer'
 
 export interface ToolUIPart {
   type: `tool-${string}`
@@ -83,6 +85,9 @@ export default function ToolPart({
   const tool = part.type.slice('tool-'.length)
   const label = TOOL_LABEL[tool] ?? tool
 
+  // A template is message metadata for the shared confirmation, not another visible control.
+  if (tool === 'prepare_interaction') return null
+
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     return <Chip>⏳ {label}…</Chip>
   }
@@ -92,6 +97,10 @@ export default function ToolPart({
         ⚠️ {label}失败：{part.errorText}
       </Chip>
     )
+  }
+  if (tool === 'prepare_transfer_batch') {
+    const output = part.output as BatchTransferReady | { status: 'needs_information'; errors: string[] }
+    return output.status === 'batch_transfer_ready' ? <BatchTransferView data={output} /> : <Chip>请补充：{output.errors?.join('；') ?? '本次转账的收款人和金额'}</Chip>
   }
 
   if (tool === 'show_view') {

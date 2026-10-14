@@ -726,6 +726,20 @@
   flex-direction: column;
   min-height: 0;
 }
+/* Only the conversation's available space changes; the panel/header stay anchored. */
+.bank-shell.bank-agent-viewport {
+  position: fixed;
+  top: var(--agent-shell-top);
+  left: var(--agent-shell-left);
+  width: var(--agent-shell-width);
+  height: var(--agent-shell-height);
+}
+.bank-agent-keyboard .bank-agent-conversation {
+  padding-bottom: calc(var(--agent-keyboard-inset) + 8px);
+}
+.bank-agent-keyboard .bank-agent-conversation > .bank-agent-disclaimer {
+  display: none;
+}
 .bank-chat-scroll {
   flex: 1;
   min-height: 0;
@@ -1395,6 +1409,12 @@
     min-height: 0;
     border: 0;
     border-radius: 0;
+  }
+}
+@media (max-width: 519px), (pointer: coarse) {
+  .bank-chat-composer input {
+    /* Prevent iOS focus zoom from panning the entire panel, including landscape. */
+    font-size: 16px;
   }
 }
 @media (max-width: 370px) {

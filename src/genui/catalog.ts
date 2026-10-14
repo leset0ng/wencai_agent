@@ -1,6 +1,7 @@
 import { defineCatalog } from '@json-render/core'
 import { schema } from '@json-render/react/schema'
 import { z } from 'zod'
+import { interactionTemplatePrompt, type ResolvedInteractionTemplate } from '#/lib/agent-interaction-template'
 
 /**
  * 展示类生成式 UI 的组件目录（见 ARCHITECTURE.md §6）。
@@ -59,7 +60,7 @@ export const catalog = defineCatalog(schema, {
   actions: {},
 })
 
-export type GenUISpec = typeof catalog._specType
+export type GenUISpec = typeof catalog._specType & { interaction?: ResolvedInteractionTemplate }
 
 /** 给模型的组件说明（不使用默认的 JSONL 流式提示，spec 通过 show_view 工具整体提交） */
 export function catalogPrompt(): string {
@@ -67,12 +68,13 @@ export function catalogPrompt(): string {
     ([name, c]) => `- ${name}: ${(c as { description: string }).description}`,
   )
   return [
-    'show_view 的 spec 格式：{ root: string, elements: { [key]: { type, props, children?: string[] } } }',
+    'show_view 的 spec 格式：{ root: string, elements: { [key]: { type, props, children?: string[] } }, interaction?: 当前步骤的语义消息模板 }',
     '可用组件：',
     ...lines,
     '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}]}；CardPicker {title,data: 数组引用,role?: "source"|"target"|"general"}；ChoiceList {title,data: 数组引用,kind: "card"|"account"|"product"|"recipient"|"subscription"|"option"|null}；Note {text}；Confirm {prompt}；旧FollowUp {label,prompt}。选择仅暂存，整套交互的确认才发送。',
     '月度分类图示例（先查询 get_spending_report）：{"root":"p","elements":{"p":{"type":"Panel","props":{"title":"本月支出","subtitle":null},"children":["m","c"]},"m":{"type":"Metric","props":{"label":"总支出","value":{"$state":"/get_spending_report/expense"},"unit":"元"}},"c":{"type":"PieChart","props":{"title":"支出分类","data":{"$state":"/get_spending_report/byCategory"},"labelKey":"category","valueKey":"total"}}}}',
     '数据型 props 必须写成 {"$state": "/工具名/字段路径"}，例如 {"$state": "/analyze_spending/result/byCategory"}；',
-    '路径只能指向本会话已调用工具的返回结果。禁止在 spec 中写入任何金额数字，禁止提供 state 字段。',
+    '路径只能指向本会话已调用工具的返回结果。禁止在展示组件 props 中写入任何金额数字，禁止提供 state 字段。interaction只描述当前步骤，另行按模板协议校验，不是自由正文。',
+    interactionTemplatePrompt(),
   ].join('\n')
 }

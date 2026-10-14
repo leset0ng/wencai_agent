@@ -38,7 +38,7 @@ export function AgentInteractionGroup({ children, active = true, securityConfirm
   const confirm = (prompt?: string) => {
     if (!active || interaction.busy || securityConfirmation || (groups.length > 0 && !ready)) return
     const snapshot = draft.snapshot(base, chosen.filter((choice): choice is AgentChoice => !!choice))
-    if (interaction.send(confirmationMessage(snapshot, [], prompt)) !== false) {
+    if (interaction.send(confirmationMessage(snapshot, chosen.filter((choice): choice is AgentChoice => !!choice), prompt)) !== false) {
       chosen.filter((choice): choice is AgentChoice => !!choice).forEach((choice) => draft.select(choice))
       interaction.memory?.remember(snapshot)
       setCancelled(false)
@@ -102,7 +102,9 @@ export function AgentActionButton({ label, choice, prompt, cancel = false, class
 export function AgentCardPicker({ choices: inputChoices, title = '我的银行卡', role }: { choices: AgentChoice[]; title?: string; role?: 'source' | 'target' | 'general' }) {
   const [index, setIndex] = useState(0), { snapshot } = useContext(AgentInteractionContext)
   const group = useContext(AgentChoiceContext)
-  const purpose = role ?? snapshot.cardRole ?? (/(?:转账|转.{0,12}(?:元|块)|申购|投资|理财|付款|还款)/.test(snapshot.requests.join(' ')) ? 'source' : undefined)
+  const purpose = role ?? snapshot.cardRole ?? (snapshot.template
+    ? ['transfer', 'purchase', 'batch_transfer'].includes(snapshot.template.intent) ? 'source' : snapshot.template.intent === 'redeem' ? 'target' : undefined
+    : /(?:转账|转.{0,12}(?:元|块)|申购|投资|理财|付款|还款)/.test(snapshot.requests.join(' ')) ? 'source' : undefined)
   const normalized = inputChoices.map((choice) => ({ ...choice, slot: purpose === 'source' ? '付款卡' : purpose === 'target' ? '收款卡' : choice.slot ?? '银行卡' }))
   const choices = normalized.length ? group?.groups.find((item) => item.choices[0]?.kind === 'card' && item.choices[0]?.slot === normalized[0]?.slot)?.choices ?? normalized : normalized
   const choice = choices[Math.min(index, choices.length - 1)]
