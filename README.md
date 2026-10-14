@@ -36,6 +36,8 @@ pnpm dev
 
 ## 常用命令
 
+Google VM 的 HTTPS 演示部署、生产启动与日志操作见 [部署说明](docs/GOOGLEVM.md)。本机双击 `open-googlevm-logs.bat` 可查看云端文财项目实时日志；关闭日志窗口不会停止云端项目。
+
 | 命令 | 说明 |
 |---|---|
 | `pnpm dev` | 启动 Web/H5、后台任务与实时日志 |

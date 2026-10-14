@@ -6,6 +6,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test:deployment": "node --test tests/demo-sms.test.mjs",
     "dev": "node scripts/start-local.mjs",
     "dev:web": "vite dev --port 3000",
     "worker": "node --import=tsx scripts/worker.ts",
@@ -26,6 +28,7 @@
     "@ai-sdk/react": "^4.0.140",
     "@base-ui/react": "^1.9.0",
     "@chat-adapter/state-memory": "^4.41.1",
+    "@hono/node-server": "^2.1.4",
     "@json-render/core": "^0.21.0",
     "@json-render/react": "^0.21.0",
     "@larksuite/vercel-chat-adapter": "^0.3.0",
@@ -48,6 +51,7 @@
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "embla-carousel-react": "^8.6.0",
+    "hono": "^4.13.13",
     "libphonenumber-js": "^1.13.15",
     "lucide-react": "^0.577.0",
     "motion": "^14.1.0",

@@ -23,6 +23,9 @@ importers:
       '@chat-adapter/state-memory':
         specifier: ^4.41.1
         version: 4.41.1(ai@7.0.137(zod@4.6.5))(zod@4.6.5)
+      '@hono/node-server':
+        specifier: ^2.1.4
+        version: 2.1.4(hono@4.13.13)
       '@json-render/core':
         specifier: ^0.21.0
         version: 0.21.0(zod@4.6.5)
@@ -89,6 +92,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.3.0)
+      hono:
+        specifier: ^4.13.13
+        version: 4.13.13
       libphonenumber-js:
         specifier: ^1.13.15
         version: 1.13.15

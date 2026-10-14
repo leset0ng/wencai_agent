@@ -1,0 +1,46 @@
+name: wencai
+x-app: &app
+  image: wencai-agent:${APP_REVISION:-latest}
+  restart: unless-stopped
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '3'
+services:
+  web:
+    <<: *app
+    build: .
+    env_file: .env.production
+    volumes:
+      - ./data:/app/data
+    networks:
+      default:
+      edge:
+        aliases: [wencai-web]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+  worker:
+    <<: *app
+    command: [node, --import=tsx, scripts/worker.ts]
+    env_file: .env.production
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      web:
+        condition: service_healthy
+  demo-sms:
+    <<: *app
+    command: [node, scripts/demo-sms.mjs]
+    environment:
+      AUTH_DEMO_MODE: ${AUTH_DEMO_MODE:-false}
+      SMS_DELIVERY_TOKEN: ${SMS_DELIVERY_TOKEN:?Configure a private demo delivery token}
+networks:
+  edge:
+    external: true
+    name: fundamentals-lab_default
