@@ -1,13 +1,13 @@
 export type LifeProduct = { id:string; name:string; description:string; price:number; kind:'goods'|'subscription'; art:'cup'|'umbrella'|'organizer'|'gift'|'video'|'music'|'cloud'|'book'; cycle?:'月'|'年'; detail:string }
 export const LIFE_PRODUCTS: LifeProduct[] = [
-  {id:'cup',name:'简约保温杯',description:'随身饮水好搭档',price:59,kind:'goods',art:'cup',detail:'轻巧随行，简约配色。此商品用于展示商城浏览与演示订单流程。'},
-  {id:'umbrella',name:'轻便折叠伞',description:'晴雨出行随身带',price:39,kind:'goods',art:'umbrella',detail:'便携折叠设计，适合日常通勤。尺寸、材质和库存均为演示设定。'},
-  {id:'organizer',name:'桌面收纳盒',description:'整理桌面小物',price:29,kind:'goods',art:'organizer',detail:'分区收纳文具与随手小物，为桌面留出更多空间。仅用于商城演示。'},
-  {id:'gift',name:'生活礼品卡',description:'送给在意的人',price:100,kind:'goods',art:'gift',detail:'一份心意，更多选择。演示礼品卡不具有储值、支付或兑换功能。'},
-  {id:'video',name:'影音会员月卡',description:'畅享影视内容',price:25,kind:'subscription',art:'video',cycle:'月',detail:'影音服务展示方案，供比较周期和价格。未对接真实平台，不会开通会员或自动扣费。'},
-  {id:'music',name:'音乐会员月卡',description:'聆听喜欢的音乐',price:15,kind:'subscription',art:'music',cycle:'月',detail:'音乐服务展示方案。可在“我的订阅”管理账户里已有的订阅与模拟代扣。'},
-  {id:'cloud',name:'云盘扩容年卡',description:'存储重要文件',price:298,kind:'subscription',art:'cloud',cycle:'年',detail:'云存储服务展示方案，未接入真实云盘，商品展示不代表已签约。'},
-  {id:'book',name:'阅读会员月卡',description:'发现更多好书',price:19,kind:'subscription',art:'book',cycle:'月',detail:'阅读服务展示方案。价格和服务内容为测试数据，暂不支持实际开通。'},
+  {id:'cup',name:'简约保温杯',description:'随身饮水好搭档',price:59,kind:'goods',art:'cup',detail:'轻巧随行，简约配色。支持购买、预约配送及符合期限的退货退款。'},
+  {id:'umbrella',name:'轻便折叠伞',description:'晴雨出行随身带',price:39,kind:'goods',art:'umbrella',detail:'便携折叠设计，适合日常通勤。下单扣款并记录模拟物流，支持预约送达。'},
+  {id:'organizer',name:'桌面收纳盒',description:'整理桌面小物',price:29,kind:'goods',art:'organizer',detail:'分区收纳文具与随手小物，为桌面留出更多空间。可购买并安排配送。'},
+  {id:'gift',name:'生活礼品卡',description:'送给在意的人',price:100,kind:'goods',art:'gift',detail:'一份心意，更多选择。沙箱礼品卡可安排礼物配送，不具有真实储值或外部兑换功能。'},
+  {id:'video',name:'影音会员月卡',description:'畅享影视内容',price:25,kind:'subscription',art:'video',cycle:'月',detail:'开通文财影音沙箱会员，首期立即扣费，有效期一个月；可选择有次数上限的自动续费。'},
+  {id:'music',name:'音乐会员月卡',description:'聆听喜欢的音乐',price:15,kind:'subscription',art:'music',cycle:'月',detail:'开通文财音乐沙箱会员，按月计费，可查询有效期及取消后续扣费。'},
+  {id:'cloud',name:'云盘扩容年卡',description:'存储重要文件',price:298,kind:'subscription',art:'cloud',cycle:'年',detail:'开通文财云盘沙箱年卡，首次扣费后有效一年；自动续费需单独授权。'},
+  {id:'book',name:'阅读会员月卡',description:'发现更多好书',price:19,kind:'subscription',art:'book',cycle:'月',detail:'开通文财阅读沙箱会员，有效期一个月，支持本人或Agent发起订阅与取消。'},
 ]
 export function filterLifeProducts(kind:LifeProduct['kind'], search:string) {
   const query=search.normalize('NFKC').trim().toLocaleLowerCase()

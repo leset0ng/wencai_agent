@@ -1,6 +1,7 @@
 import { Table } from '#/components/ui/table'
 import { createContext, useContext } from 'react'
 import { Streamdown } from 'streamdown'
+import { cjk } from '@streamdown/cjk'
 import type { Components, ExtraProps } from 'streamdown'
 import type { ComponentProps } from 'react'
 import type { WencaiUIMessage } from '#/server/agent/messages'
@@ -110,7 +111,12 @@ function MarkdownTable({ node, children, ...props }: ComponentProps<'table'> & E
   if (processing || (node && tables.some((shown) => duplicatesTable(markdownTable(node), shown)))) return null
   return <div className="bank-gen-table bank-chat-table"><Table {...props}>{children}</Table></div>
 }
-const COMPONENTS: Components = { table: MarkdownTable }
+const COMPONENTS: Components = { table: MarkdownTable, strong: ({ node: _node, ...props }) => <strong {...props} /> }
+
+export function cleanAssistantMarkdown(text: string) {
+  const markers = text.match(/(?<!\*)\*\*(?!\*)/g) ?? []
+  return markers.length % 2 === 1 && (text.match(/^```/gm)?.length ?? 0) % 2 === 0 ? text.replace(/([。！？])\s+\*\*\s*$/, '$1') : text
+}
 
 export default function AssistantText({ text, tables = [], processing = false, batchSelection = false }: {
   text: string; tables?: PresentedTable[]; processing?: boolean; batchSelection?: boolean
@@ -123,7 +129,7 @@ export default function AssistantText({ text, tables = [], processing = false, b
   return (
     <TableContext.Provider value={{ tables, processing }}>
       <div className="bank-assistant-text">
-        <Streamdown components={COMPONENTS} controls={{ table: false }} isAnimating={processing}>{text}</Streamdown>
+        <Streamdown components={COMPONENTS} plugins={{ cjk }} mode={processing ? 'streaming' : 'static'} controls={{ table: false }} isAnimating={processing}>{processing ? text : cleanAssistantMarkdown(text)}</Streamdown>
       </div>
     </TableContext.Provider>
   )

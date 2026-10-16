@@ -35,6 +35,12 @@ export function checkSpec(input: unknown, state: Record<string, unknown>, reques
 
   const elements = (spec as { elements: Record<string, { type: string; props: Record<string, unknown> }> }).elements
   for (const [key, el] of Object.entries(elements)) {
+    if (el.type === 'CardDisplay' && Array.isArray(el.props.cardIds)) {
+      const ref = el.props.data as { $state: string }
+      const rows = getByPointer(state, ref.$state)
+      const ids = new Set(Array.isArray(rows) ? rows.map(row => row && typeof row === 'object' ? String(row.cardId ?? row.id) : '') : [])
+      if (el.props.cardIds.some(id => !ids.has(String(id)))) errors.push(`${key}.cardIds: 不能显示数据中不存在的银行卡`)
+    }
     for (const [prop, value] of Object.entries(el.props ?? {})) {
       if (value && typeof value === 'object' && '$state' in value) {
         const path = (value as { $state: string }).$state

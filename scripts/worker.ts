@@ -4,6 +4,7 @@ import { detectSubscriptions, notify, runAutomaticTransfers, sendSubscriptionRem
 import { runDueMandates } from '../src/server/automation/mandates'
 import { simNow } from '../src/server/tools/jobs'
 import { runRiskAnalysisPass } from '../src/server/risk/accounts'
+import { runLifeAutomation } from '../src/server/life/service'
 
 let stopping = false
 let riskPass: Promise<unknown> | undefined
@@ -16,6 +17,7 @@ async function tick() {
     if (stopping) break
     await runAutomaticTransfers(user.id, now)
     await runDueMandates(user.id, now)
+    await runLifeAutomation(user.id, now)
     await sendSubscriptionReminders(user.id, now)
     for (const candidate of await detectSubscriptions(user.id)) {
       await notify(user.id, 'subscription_detected', '识别到疑似订阅扣费', `${candidate.merchant}，周期${candidate.cycle === 'monthly' ? '每月' : '每年'}，金额 ${candidate.amount.toFixed(2)} 元。可让 Agent 核对并设置提醒。`, `detected-subscription:${candidate.candidateId}`)

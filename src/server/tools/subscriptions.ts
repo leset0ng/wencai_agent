@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db, schema } from '#/server/db/client'
 import { detectSubscriptions, notifications } from '#/server/automation/service'
 import { defineBankTool } from './define'
+import { cancelLifeSubscription } from '#/server/life/service'
 
 export const detectRecurring = defineBankTool({
   name: 'detect_subscriptions', kind: 'read', baseRisk: 'green',
@@ -19,7 +20,7 @@ export const saveDetectedSubscription = defineBankTool({
     if (!c) throw new Error('订阅候选已失效')
     const id = `sub_detected_${c.candidateId}`
     const [known] = await db.select().from(schema.subscriptions).where(and(eq(schema.subscriptions.userId, ctx.userId), eq(schema.subscriptions.merchant, c.merchant), eq(schema.subscriptions.amountCents, Math.round(c.amount * 100))))
-    if (known) { if (a.cancel) await db.update(schema.subscriptions).set({ status: 'cancelled' }).where(eq(schema.subscriptions.id, known.id)); return { subscriptionId: known.id, status: a.cancel ? 'cancelled' : known.status } }
+    if (known) { if (a.cancel) await cancelLifeSubscription(ctx,known.id); return { subscriptionId: known.id, status: a.cancel ? 'cancelled' : known.status } }
     await db.insert(schema.subscriptions).values({ id, userId: ctx.userId, merchant: c.merchant, amountCents: Math.round(c.amount * 100), cycle: c.cycle as 'monthly' | 'yearly', status: a.cancel ? 'cancelled' : 'active', lastChargedAt: new Date(c.lastChargedAt), remindDays: 3 }).onConflictDoNothing()
     return { subscriptionId: id, merchant: c.merchant, status: a.cancel ? 'cancelled' : 'active' }
   },

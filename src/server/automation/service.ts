@@ -43,9 +43,12 @@ export function nextSubscriptionCharge(last: Date, cycle: string) {
 }
 export async function sendSubscriptionReminders(userId: string, now: Date) {
   const subscriptions = await db.select().from(schema.subscriptions).where(and(eq(schema.subscriptions.userId, userId), eq(schema.subscriptions.status, 'active')))
+  const lifeSubscriptions=await (await import('#/server/life/service')).listLifeSubscriptions(userId,now)
   for (const sub of subscriptions) {
+    const life=lifeSubscriptions.find(s=>s.id===sub.id)
+    if(life?.productId&&!life.nextChargeAt)continue
     if (!sub.lastChargedAt) continue
-    const due = nextSubscriptionCharge(sub.lastChargedAt, sub.cycle)
+    const due = life?.nextChargeAt ? new Date(life.nextChargeAt) : nextSubscriptionCharge(sub.lastChargedAt, sub.cycle)
     if (due.getTime() - sub.remindDays * 86400_000 > now.getTime()) continue
     await notify(userId, 'subscription', due < now ? '订阅已到预计续费日' : '订阅即将续费', `${sub.merchant}，预计 ${(sub.amountCents / 100).toFixed(2)} 元，续费日 ${due.toISOString().slice(0, 10)}。可在 Agent 中核对或取消。`, `subscription:${sub.id}:${due.toISOString()}`)
   }

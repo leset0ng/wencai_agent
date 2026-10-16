@@ -2,6 +2,7 @@ import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlit
 export { bankCardNumbers } from './card-schema'
 export { bankInitialEnrollments } from './enrollment-schema'
 export { bankCardPasswords, bankSecureRequests } from './security-operation-schema'
+export { bankLifeOrders, bankLifeSubscriptions } from './life-schema'
 
 // 金额统一以「分」为单位存储，避免浮点误差
 

@@ -9,6 +9,8 @@ import { MANDATE_TOOLS } from './mandates'
 import { listTransactions } from './transaction-query'
 import { businessDate } from '#/lib/dashboard'
 import { simNow } from './jobs'
+import { LIFE_TOOLS } from './life'
+import { cancelLifeSubscription, lifeSubscriptionChangeSummary, listLifeSubscriptions } from '#/server/life/service'
 export { listTransactions } from './transaction-query'
 import { ownProfile, userCards } from '#/server/cards/service'
 import { paymentAccounts } from '#/server/payments/service'
@@ -100,6 +102,17 @@ export const listCards = defineBankTool({
   },
 })
 
+export const displayBankCards = defineBankTool({
+  name: 'display_bank_cards', kind: 'read', baseRisk: 'green',
+  description: '展示本人银行卡只读轮播，无选择/确认/取消/卡号眼睛按钮。用于查余额和状态。cardIds指定一张或多张真实卡ID，省略展示全部；limit限制数量。先用list_cards确定ID，重名不可默认第一张。',
+  inputSchema: z.object({ cardIds: z.array(z.string().min(1)).min(1).max(20).optional(), limit: z.number().int().min(1).max(20).optional() }),
+  execute: async (a, ctx) => {
+    const rows = await listCards.execute({}, ctx)
+    if (a.cardIds?.some(id => !rows.some(row => row.id === id))) throw new Error('指定银行卡不存在或不属于你')
+    return rows.filter(row => !a.cardIds || a.cardIds.includes(row.id)).slice(0, a.limit ?? rows.length)
+  },
+})
+
 export const listSubscriptions = defineBankTool({
   name: 'list_subscriptions',
   description: '识别用户的订阅与自动扣费',
@@ -107,8 +120,7 @@ export const listSubscriptions = defineBankTool({
   kind: 'read',
   inputSchema: z.object({}),
   execute: async (_args, ctx) => {
-    const rows = await db.select().from(schema.subscriptions).where(eq(schema.subscriptions.userId, ctx.userId))
-    return rows.map((s) => ({ id: s.id, merchant: s.merchant, amount: yuan(s.amountCents), cycle: s.cycle, status: s.status }))
+    return listLifeSubscriptions(ctx.userId,await simNow())
   },
 })
 
@@ -277,26 +289,9 @@ export const cancelSubscription = defineBankTool({
   baseRisk: 'yellow',
   kind: 'write',
   inputSchema: z.object({ subscriptionId: z.string() }),
-  summarize: async (a, ctx) => {
-    const [s] = await db
-      .select()
-      .from(schema.subscriptions)
-      .where(and(eq(schema.subscriptions.id, a.subscriptionId), eq(schema.subscriptions.userId, ctx.userId)))
-    if (!s) throw new Error('订阅不存在')
-    return {
-      title: '确认取消订阅',
-      fields: [
-        { label: '商户', value: s.merchant },
-        { label: '扣费', value: `${fmt(s.amountCents)} / ${s.cycle === 'monthly' ? '月' : '年'}` },
-      ],
-    }
-  },
+  summarize: async (a, ctx) => lifeSubscriptionChangeSummary(ctx.userId,a.subscriptionId,'cancel'),
   execute: async (a, ctx) => {
-    await db
-      .update(schema.subscriptions)
-      .set({ status: 'cancelled' })
-      .where(and(eq(schema.subscriptions.id, a.subscriptionId), eq(schema.subscriptions.userId, ctx.userId)))
-    return { subscriptionId: a.subscriptionId, status: 'cancelled' }
+    return cancelLifeSubscription(ctx,a.subscriptionId)
   },
 })
 
@@ -308,6 +303,7 @@ export const BANK_TOOLS: BankToolDef[] = [
   listTransactions,
   findPayee,
   listCards,
+  displayBankCards,
   listSubscriptions,
   listProducts,
   analyzeSpending,
@@ -327,6 +323,7 @@ export const BANK_TOOLS: BankToolDef[] = [
   ...BIRTHDAY_TOOLS,
   ...SECURITY_TOOLS,
   ...MANDATE_TOOLS,
+  ...LIFE_TOOLS,
 ]
 
 const byName = new Map<string, BankToolDef>(BANK_TOOLS.map((t) => [t.name, t]))

@@ -108,7 +108,7 @@ describe('可复用数据视图', () => {
     expect(html).toContain('交通：70.00元')
     expect(html).not.toContain('NaN')
   })
-  it('Agent 固定报表直接渲染工具金额和共享图表，未关联卡片的账户保留余额与选择入口', () => {
+  it('Agent 固定报表直接渲染工具金额和共享图表，未关联卡片的账户只读展示余额', () => {
     const report = renderToStaticMarkup(
       createElement(ToolPart, {
         part: {
@@ -138,7 +138,8 @@ describe('可复用数据视图', () => {
       }),
     )
     expect(account).toContain('工资账户')
-    expect(account).toContain('选择工资账户')
+    expect(account).not.toContain('选择工资账户')
+    expect(account).not.toContain('<button')
     expect(account).not.toContain('bank-physical-card')
     expect(account).toContain('¥ 123.45')
   })

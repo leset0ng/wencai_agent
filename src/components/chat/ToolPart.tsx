@@ -9,13 +9,18 @@ import { BankCard } from '#/components/ui/BankCard'
 import { Reveal } from '#/components/ui/motion'
 import { normalizeChartData } from '#/components/ui/charts'
 import { FinancialReport } from '#/components/banking/FinancialReport'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
 import { AgentCardPicker, AgentChoiceList, AgentSelectableTable, AgentInteractionContext, AgentChoiceContext } from './AgentInteraction'
 import { selectionView } from './interaction-layout'
 import { choiceFromRow, operationMessage, type ChoiceKind } from './interaction-message'
 import { useContext } from 'react'
 import { BatchTransferView } from './BatchTransferView'
+import { AgentCardDisplay } from './AgentCardDisplay'
+import { AgentQuestionnaire } from './AgentQuestionnaire'
+import { displayPurpose } from './display-purpose'
+import type { QuestionnaireData } from '#/lib/questionnaire'
+import { formatAmount } from '#/lib/dashboard'
 import type { BatchTransferReady } from '#/lib/batch-transfer'
 
 export interface ToolUIPart {
@@ -31,6 +36,10 @@ const TOOL_LABEL: Record<string, string> = {
   list_transactions: '查询交易',
   find_payee: '查找收款人',
   list_cards: '查询卡片',
+  display_bank_cards: '银行卡信息',
+  get_risk_questionnaire: '风险测评问卷',
+  ask_questions: '选择题问卷',
+  assess_risk_profile: '试算风险等级',
   show_bank_card: '查看银行卡',
   card_password_settings: '银行卡密码设置',
   list_subscriptions: '识别订阅',
@@ -88,6 +97,11 @@ export default function ToolPart({
   // A template is message metadata for the shared confirmation, not another visible control.
   if (tool === 'prepare_interaction') return null
 
+  if (tool === 'ask_questions' && part.state === 'output-available') {
+    const out = part.output as { status: string; questionnaire?: QuestionnaireData; errors?: string[] }
+    return out.status === 'questionnaire' && out.questionnaire ? <AgentQuestionnaire data={out.questionnaire} /> : <Chip>问卷未生成：{out.errors?.join('；')}</Chip>
+  }
+
   if (part.state === 'input-streaming' || part.state === 'input-available') {
     return <Chip>⏳ {label}…</Chip>
   }
@@ -144,6 +158,7 @@ function PendingControl({
 }) {
   const confirm = useConfirmAction(outcome.actionId)
   const cancel = useCancelAction(outcome.actionId)
+  const queryClient = useQueryClient()
   const interaction = useContext(AgentInteractionContext)
   const pending = useQuery({ queryKey: ['confirm', outcome.actionId], queryFn: async () => {
     const response = await fetch(`/api/confirm?actionId=${encodeURIComponent(outcome.actionId)}`)
@@ -177,6 +192,10 @@ function PendingControl({
               : undefined
       }
       doneState={succeeded ? 'success' : cancelled ? 'cancelled' : 'failed'}
+      onCompleted={() => {
+        queryClient.setQueryData(['confirm', outcome.actionId], (previous: Record<string, unknown> | undefined) => ({ ...previous, status: 'completed' }))
+        void queryClient.invalidateQueries({ queryKey: ['confirm', outcome.actionId] })
+      }}
       onAgentAction={interaction.enabled ? (action) => {
         if (interaction.busy) return false
         // A bank confirmation is immutable: a draft on another picker cannot change its payload.
@@ -237,12 +256,18 @@ function choicesOf(data: unknown, kind?: ChoiceKind) {
   })
 }
 function Accounts({ data }: { data: Record<string, unknown>[] }) {
+  const interaction = useContext(AgentInteractionContext)
   const cards = choicesOf(data.filter((row) => row.cardId && row.last4), 'card')
   const accounts = choicesOf(data.filter((row) => !row.cardId || !row.last4), 'account')
-  return <>{!!cards.length && <AgentCardPicker choices={cards} />}{!!accounts.length && <AgentChoiceList choices={accounts} title="选择资金账户" />}{!data.length && <Chip>暂无账户</Chip>}</>
+  const selecting = displayPurpose(interaction.snapshot) === 'selection'
+  return <>{!!cards.length && (selecting ? <AgentCardPicker choices={cards} /> : <AgentCardDisplay choices={cards} />)}{!!accounts.length && (selecting ? <AgentChoiceList choices={accounts} title="选择资金账户" /> : <AgentSelectableTable selectable={false} rows={data.filter(row => !row.cardId || !row.last4).map(row => ({ ...row, balance: typeof row.balance === 'number' ? `¥ ${formatAmount(row.balance)}` : row.balance }))} columns={[{key:'name',label:'账户'},{key:'balance',label:'余额'}]} />)}{!data.length && <Chip>暂无账户</Chip>}</>
 }
 
 function CompletedResult({ label, tool, data }: { label: string; tool: string; data: unknown }) {
+  const interaction = useContext(AgentInteractionContext)
+  const purpose = displayPurpose(interaction.snapshot), selecting = purpose === 'selection'
+  if (tool === 'get_risk_questionnaire' && data && typeof data === 'object') return <AgentQuestionnaire data={(data as { questionnaire: QuestionnaireData }).questionnaire} />
+  if (tool === 'display_bank_cards' && Array.isArray(data)) return <AgentCardDisplay choices={choicesOf(data, 'card')} />
   if (tool === 'card_password_settings' && data && typeof data === 'object') return <CardPasswordAction {...data as { cardId: string; last4: string }} />
   if (tool === 'show_bank_card' && data && typeof data === 'object') {
     const card = data as { cardId: string; name: string; last4: string; kind: string; status: string }
@@ -267,16 +292,17 @@ function CompletedResult({ label, tool, data }: { label: string; tool: string; d
   }
   if (tool === 'get_accounts' && Array.isArray(data)) return <Accounts data={data} />
   if (tool === 'list_cards' && Array.isArray(data))
-    return <AgentCardPicker choices={choicesOf(data, 'card')} />
+    return selecting ? <AgentCardPicker choices={choicesOf(data, 'card')} /> : <AgentCardDisplay choices={choicesOf(data, 'card')} />
   if (['list_payees', 'list_subscriptions'].includes(tool) && Array.isArray(data))
     return <AgentChoiceList choices={choicesOf(data, tool === 'list_payees' ? 'recipient' : 'subscription')} title={tool === 'list_payees' ? '选择收款人' : '选择订阅'} />
   if (['resolve_my_cards', 'resolve_card'].includes(tool) && data && typeof data === 'object') {
     const out = data as { candidates?: unknown[]; found?: boolean }
-    if (Array.isArray(out.candidates)) return <AgentCardPicker choices={choicesOf(out.candidates, 'card')} />
+    if (Array.isArray(out.candidates)) return selecting ? <AgentCardPicker choices={choicesOf(out.candidates, 'card')} /> : <AgentCardDisplay choices={choicesOf(out.candidates, 'card')} />
   }
   if ((tool === 'list_products' && Array.isArray(data)) || (tool === 'get_recommendations' && data && typeof data === 'object')) {
     const rows = Array.isArray(data) ? data : (data as { products?: Record<string, unknown>[] }).products ?? []
-    return <AgentSelectableTable title="理财可选方案" rows={rows} columns={[{ key: 'name', label: '产品' }, { key: 'riskRating', label: '风险' }, { key: 'expectedYieldPct', label: '预期年化/%' }, { key: 'minAmount', label: '起购/元' }, { key: 'termDays', label: '期限/天' }]} />
+    if (purpose === 'assessment') return <Chip>✓ 理财信息已查询，请先完成风险测评</Chip>
+    return <AgentSelectableTable selectable={selecting} title={selecting ? '理财可选方案' : '理财产品信息'} rows={rows} columns={[{ key: 'name', label: '产品' }, { key: 'riskRating', label: '风险' }, { key: 'expectedYieldPct', label: '预期年化/%' }, { key: 'minAmount', label: '起购/元' }, { key: 'termDays', label: '期限/天' }]} />
   }
   if (['find_payee', 'resolve_recipient', 'resolve_product', 'resolve_subscription', 'search_bank_accounts'].includes(tool) && data && typeof data === 'object') {
     const out = data as { candidates?: unknown[] }

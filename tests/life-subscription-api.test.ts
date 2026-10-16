@@ -7,6 +7,7 @@ const {session}=vi.hoisted(()=>({session:vi.fn()}))
 vi.mock('#/server/session',async(importOriginal)=>({...await importOriginal<typeof import('#/server/session')>(),requireSession:session}))
 const owner='u_life_api',other='u_life_other'
 const handler=(Route.options.server!.handlers as {POST:(c:{request:Request})=>Promise<Response>}).POST
+const getHandler=(Route.options.server!.handlers as {GET:(c:{request:Request})=>Promise<Response>}).GET
 const request=(subscriptionId:string)=>new Request('http://localhost/api/payments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({tool:'cancel_subscription',args:{subscriptionId}})})
 beforeAll(async()=>{
   await db.insert(schema.users).values([owner,other].map(id=>({id,name:id})))
@@ -18,6 +19,20 @@ afterAll(async()=>{
   await db.delete(schema.users).where(inArray(schema.users.id,[owner,other]))
 })
 describe('生活页原生订阅管理入口',()=>{
+  it('订单与订阅查询只采用登录身份，不能用查询参数越权',async()=>{
+    session.mockResolvedValue({userId:owner,userName:owner,sessionId:'life-api'})
+    const res=await getHandler({request:new Request(`http://localhost/api/payments?view=life&userId=${other}`)})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    const out=await res.json()
+    expect(out.orders).toEqual([])
+    expect(out.subscriptions.map((s:{id:string})=>s.id)).toEqual(['life_own_sub'])
+    expect(JSON.stringify(out)).not.toContain('其他用户私密订阅')
+  })
+  it('未登录无法读取生活订单及订阅',async()=>{
+    session.mockRejectedValue(new UnauthorizedError())
+    expect((await getHandler({request:new Request('http://localhost/api/payments?view=life')})).status).toBe(401)
+  })
   it('点击取消只创建本人确认单，不直接改变订阅',async()=>{
     session.mockResolvedValue({userId:owner,userName:owner,sessionId:'life-api'})
     const res=await handler({request:request('life_own_sub')})

@@ -18,6 +18,7 @@ import type { AgentContext } from '#/server/agent/context'
 import { runDueJobs, simNow } from './jobs'
 import { assertDebitAccount } from '#/server/cards/service'
 import { rollbackInvestment } from '#/server/payments/investment-rollback'
+import { cancelLifeSubscription, lifeSubscriptionChangeSummary } from '#/server/life/service'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -678,33 +679,14 @@ export const previewSubscriptionChange = defineBankTool({
     action: z.enum(['cancel', 'set_reminder']),
     remindDays: z.number().int().min(1).max(30).optional(),
   }),
-  summarize: async ({ subscriptionId, action, remindDays }, ctx) => {
-    const [s] = await db
-      .select()
-      .from(schema.subscriptions)
-      .where(and(eq(schema.subscriptions.id, subscriptionId), eq(schema.subscriptions.userId, ctx.userId)))
-    if (!s) throw new Error('订阅不存在')
-    return {
-      title: action === 'cancel' ? '确认取消订阅' : '确认设置提醒',
-      fields: [
-        { label: '商户', value: s.merchant },
-        { label: '金额', value: `${fmt(s.amountCents)} / ${s.cycle === 'monthly' ? '月' : '年'}` },
-        ...(action === 'set_reminder' && remindDays
-          ? [{ label: '提前提醒', value: `${remindDays} 天` }]
-          : []),
-      ],
-    }
-  },
+  summarize: async ({ subscriptionId, action, remindDays }, ctx) => lifeSubscriptionChangeSummary(ctx.userId,subscriptionId,action,remindDays),
   execute: async ({ subscriptionId, action, remindDays }, ctx) => {
     const [s] = await db
       .select()
       .from(schema.subscriptions)
       .where(and(eq(schema.subscriptions.id, subscriptionId), eq(schema.subscriptions.userId, ctx.userId)))
     if (!s) throw new Error('订阅不存在')
-    const summary = {
-      title: action === 'cancel' ? '确认取消订阅' : '确认设置提醒',
-      fields: [{ label: '商户', value: s.merchant }],
-    }
+    const summary = await lifeSubscriptionChangeSummary(ctx.userId,subscriptionId,action,remindDays)
     return issueToken(ctx, 'subscription_change', { subscriptionId, action, remindDays: remindDays ?? null }, summary)
   },
 })
@@ -896,15 +878,12 @@ export const commitSubscriptionChange = defineBankTool({
     action: z.enum(['cancel', 'set_reminder']),
     remindDays: z.number().int().optional(),
   }),
-  summarize: async ({ subscriptionId, action }) => ({
-    title: action === 'cancel' ? '取消订阅' : '设置提醒',
-    fields: [{ label: '订阅', value: subscriptionId }],
-  }),
+  summarize: async ({ subscriptionId, action, remindDays },ctx) => lifeSubscriptionChangeSummary(ctx.userId,subscriptionId,action,remindDays),
   execute: async ({ confirmationToken, subscriptionId, action, remindDays }, ctx) => {
     await consumeToken(ctx, confirmationToken, 'subscription_change', { subscriptionId, action, remindDays: remindDays ?? null })
     const where = and(eq(schema.subscriptions.id, subscriptionId), eq(schema.subscriptions.userId, ctx.userId))
     if (action === 'cancel') {
-      await db.update(schema.subscriptions).set({ status: 'cancelled' }).where(where)
+      await cancelLifeSubscription(ctx,subscriptionId)
     } else {
       if (!remindDays) throw new Error('设置提醒需提供 remindDays')
       await db.update(schema.subscriptions).set({ remindDays }).where(where)

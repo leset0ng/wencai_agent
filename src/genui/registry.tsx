@@ -5,6 +5,12 @@ import { AnimatedBarChart, AnimatedDonutChart, normalizeChartData } from '#/comp
 import { AnimatedAmount, Reveal } from '#/components/ui/motion'
 import { catalog } from './catalog'
 import { Card } from '#/components/ui/card'
+import { AgentCardDisplay } from '#/components/chat/AgentCardDisplay'
+import { useContext } from 'react'
+import { AgentInteractionContext } from '#/components/chat/AgentInteraction'
+import { displayPurpose } from '#/components/chat/display-purpose'
+
+function useSelecting() { return displayPurpose(useContext(AgentInteractionContext).snapshot) === 'selection' }
 
 type Row = Record<string, unknown>
 const asRows = (value: unknown): Row[] =>
@@ -48,11 +54,12 @@ export const { registry } = defineRegistry(catalog, {
         data={normalizeChartData(props.data, props.labelKey, props.valueKey)}
       />
     ),
-    Table: ({ props }) => <AgentSelectableTable rows={asRows(props.rows)} columns={props.columns} />,
-    ChoiceList: ({ props }) => <AgentChoiceList title={props.title} choices={asRows(props.data).flatMap((row) => { const choice = choiceFromRow(row, props.kind ?? undefined); return choice ? [choice] : [] })} />,
-    CardPicker: ({ props }) => <AgentCardPicker title={props.title} role={props.role} choices={asRows(props.data).flatMap((row) => { const choice = choiceFromRow(row, 'card'); return choice ? [choice] : [] })} />,
+    Table: ({ props }) => { const selecting = useSelecting(); return <AgentSelectableTable rows={asRows(props.rows)} columns={props.columns} selectable={selecting && props.selectable === true} /> },
+    CardDisplay: ({ props }) => <AgentCardDisplay title={props.title} cardIds={props.cardIds} choices={asRows(props.data).flatMap(row => { const choice = choiceFromRow(row, 'card'); return choice ? [choice] : [] })} />,
+    ChoiceList: ({ props }) => { const selecting = useSelecting(); const rows = asRows(props.data); return selecting ? <AgentChoiceList title={props.title} choices={rows.flatMap(row => { const choice = choiceFromRow(row, props.kind ?? undefined); return choice ? [choice] : [] })} /> : <AgentSelectableTable title={props.title} selectable={false} rows={rows} columns={[{key:'name',label:'名称'},{key:'remark',label:'备注'},{key:'status',label:'状态'}]} /> },
+    CardPicker: ({ props }) => { const selecting = useSelecting(); const choices = asRows(props.data).flatMap(row => { const choice = choiceFromRow(row, 'card'); return choice ? [choice] : [] }); return selecting ? <AgentCardPicker title={props.title} role={props.role} choices={choices} /> : <AgentCardDisplay title={props.title} choices={choices} /> },
     Note: ({ props }) => <p className="bank-gen-note">{props.text}</p>,
-    FollowUp: ({ props }) => <AgentActionButton label={props.label} prompt={props.prompt} className="bank-follow-up bank-lift" />,
-    Confirm: ({ props }) => <AgentActionButton label="确认" prompt={props.prompt} />,
+    FollowUp: ({ props }) => { const selecting = useSelecting(); return selecting ? <AgentActionButton label={props.label} prompt={props.prompt} className="bank-follow-up bank-lift" /> : null },
+    Confirm: ({ props }) => { const selecting = useSelecting(); return selecting ? <AgentActionButton label="确认" prompt={props.prompt} /> : null },
   },
 })

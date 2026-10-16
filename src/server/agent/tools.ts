@@ -15,6 +15,7 @@ import { InteractionTemplateSchema } from '#/lib/agent-interaction-template'
 import { checkInteractionTemplate } from '#/server/genui/interaction-template'
 import { BatchTransferRequestSchema } from '#/lib/batch-transfer'
 import { prepareTransferBatch } from './batch-transfer'
+import { QuestionnaireSchema } from '#/lib/questionnaire'
 
 /** 按渠道裁剪工具白名单：MCP 只暴露只读工具 */
 export function availableBankTools(ctx: AgentContext): BankToolDef[] {
@@ -45,6 +46,14 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
   }
 
   if (ctx.channel !== 'mcp') {
+    if (!options.readOnly) tools.ask_questions = tool({
+      description: '为当前业务设计1至12道单选题，每题2至6个选项。逐题选择，最后提交才发送全部题目和答案，途中不发送。只收集业务偏好，不收集密码、验证码、完整卡号或身份证号。风险测评改用get_risk_questionnaire标准问卷，不改题或评分。答案不执行交易、不代替安全确认。',
+      inputSchema: z.object({ questionnaire: QuestionnaireSchema }),
+      execute: async ({ questionnaire }) => questionnaire.purpose === 'risk_assessment' || /风险.{0,4}(?:测评|评估|评定)/.test(questionnaire.title)
+        ? { status: 'invalid_questionnaire' as const, errors: ['风险测评请使用get_risk_questionnaire标准问卷'] }
+        : { status: 'questionnaire' as const, questionnaire },
+      toModelOutput: ({ output }) => ({ type: 'json', value: output as never }),
+    })
     tools.prepare_transfer_batch = tool({
       description: '为同一用户请求中的2至8笔转账准备一个可复用交互：逐笔填写原文中的收款人称呼和元金额，自动查询每笔独立收款候选及共用付款卡。支持“给妈妈转400再给王芳转200”。仅查询和准备界面，不生成交易、不执行、不代表验证通过。缺少参数时返回具体待补充项。',
       inputSchema: BatchTransferRequestSchema,

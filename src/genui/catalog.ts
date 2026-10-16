@@ -32,8 +32,9 @@ export const catalog = defineCatalog(schema, {
       props: z.object({
         rows: DataRef,
         columns: z.array(z.object({ key: z.string(), label: z.string().max(12) })).min(1).max(6),
+        selectable: z.boolean().optional(),
       }),
-      description: '表格；rows 指向对象数组',
+      description: '只读表格；rows 指向对象数组，默认没有操作按钮。仅确实需要选择业务对象时设置selectable=true。风险测评时不得展示产品选择。',
     },
     Note: {
       props: z.object({ text: z.string().max(120) }),
@@ -46,6 +47,10 @@ export const catalog = defineCatalog(schema, {
     CardPicker: {
       props: z.object({ title: z.string().max(30), data: DataRef, role: z.enum(['source', 'target', 'general']).optional() }),
       description: '银行卡轮播；单卡、滑动、方向按钮、页码。当前显示的卡即待确认卡，只保留取消和确认，不提供选择按钮；统一确认后才收集本套所有条件发完整消息。不要再生成按尾号付款的FollowUp。',
+    },
+    CardDisplay: {
+      props: z.object({ title: z.string().max(30), data: DataRef, cardIds: z.array(z.string().min(1).max(100)).max(20).optional() }),
+      description: '只读银行卡展示框，无选择、确认、取消或卡号查看按钮。左右滑动浏览余额和状态；cardIds指定数据中要显示的卡片ID，可一张、多张或省略显示全部。查询优先用display_bank_cards。',
     },
     Confirm: {
       props: z.object({ prompt: z.string().max(300) }),
@@ -71,7 +76,7 @@ export function catalogPrompt(): string {
     'show_view 的 spec 格式：{ root: string, elements: { [key]: { type, props, children?: string[] } }, interaction?: 当前步骤的语义消息模板 }',
     '可用组件：',
     ...lines,
-    '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}]}；CardPicker {title,data: 数组引用,role?: "source"|"target"|"general"}；ChoiceList {title,data: 数组引用,kind: "card"|"account"|"product"|"recipient"|"subscription"|"option"|null}；Note {text}；Confirm {prompt}；旧FollowUp {label,prompt}。选择仅暂存，整套交互的确认才发送。',
+    '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}],selectable?:boolean}；CardDisplay {title,data:数组引用,cardIds?:string[]}；CardPicker {title,data: 数组引用,role?: "source"|"target"|"general"}；ChoiceList {title,data: 数组引用,kind: "card"|"account"|"product"|"recipient"|"subscription"|"option"|null}；Note {text}；Confirm {prompt}；旧FollowUp {label,prompt}。选择仅暂存，整套交互的确认才发送。',
     '月度分类图示例（先查询 get_spending_report）：{"root":"p","elements":{"p":{"type":"Panel","props":{"title":"本月支出","subtitle":null},"children":["m","c"]},"m":{"type":"Metric","props":{"label":"总支出","value":{"$state":"/get_spending_report/expense"},"unit":"元"}},"c":{"type":"PieChart","props":{"title":"支出分类","data":{"$state":"/get_spending_report/byCategory"},"labelKey":"category","valueKey":"total"}}}}',
     '数据型 props 必须写成 {"$state": "/工具名/字段路径"}，例如 {"$state": "/analyze_spending/result/byCategory"}；',
     '路径只能指向本会话已调用工具的返回结果。禁止在展示组件 props 中写入任何金额数字，禁止提供 state 字段。interaction只描述当前步骤，另行按模板协议校验，不是自由正文。',

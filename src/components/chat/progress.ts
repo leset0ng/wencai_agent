@@ -5,6 +5,10 @@ export type AgentStage = { key: string; title: string; description: string }
 const stages: Record<string, [string, string]> = {
   get_accounts: ['正在查询账户余额', '正在读取你的账户与可用余额…'],
   list_cards: ['正在查询银行卡', '正在读取卡片状态、备注和账户信息…'],
+  display_bank_cards: ['正在整理银行卡信息', '正在按本次查询范围准备只读银行卡展示…'],
+  get_risk_questionnaire: ['正在准备风险测评', '正在载入标准五题问卷，提交答案后先试算…'],
+  ask_questions: ['正在设计选择题', '正在整理需要确认的业务偏好与选项…'],
+  assess_risk_profile: ['正在试算风险等级', '正在根据已提交答案试算，尚未登记到账户…'],
   resolve_my_cards: ['正在查找对应银行卡', '正在核对卡片备注和尾号…'],
   list_transactions: ['正在查询交易记录', '正在按查询条件读取真实银行流水…'],
   get_spending_report: ['正在汇总支出分类', '正在整理指定账期的交易分类数据…'],

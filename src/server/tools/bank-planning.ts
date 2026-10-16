@@ -7,6 +7,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema } from '#/server/db/client'
 import { defineBankTool } from './define'
+import { RISK_QUESTIONNAIRE } from '#/lib/questionnaire'
 import {
   DAY,
   advanceSimulationClock,
@@ -18,6 +19,7 @@ import {
   yuan,
 } from './bank-extended'
 import { runDueJobs, scoreRisk, simNow } from './jobs'
+import { listLifeSubscriptions } from '#/server/life/service'
 import type { AgentContext } from '#/server/agent/context'
 import { ensureAutomationSchema } from '#/server/automation/service'
 import { createSplitRequests } from '#/server/payments/splits'
@@ -178,13 +180,15 @@ export const getSubscriptionTerms = defineBankTool({
   inputSchema: z.object({ subscriptionId: z.string() }),
   execute: async ({ subscriptionId }, ctx) => {
     const s = await ownSubscriptionOrThrow(ctx, subscriptionId)
+    const life=(await listLifeSubscriptions(ctx.userId,await simNow())).find(item=>item.id===s.id)
     return {
       subscriptionId: s.id,
       merchant: s.merchant,
       amount: yuan(s.amountCents),
       cycle: s.cycle,
       status: s.status,
-      nextChargeAt: nextChargeAt(s),
+      nextChargeAt: life?.productId ? life.nextChargeAt : nextChargeAt(s),
+      ...(life?.productId?{periodEnd:life.periodEnd,serviceStatus:life.serviceStatus,renewalsLeft:life.renewalsLeft,renewalStatus:life.renewalStatus,cardLast4:life.cardLast4}:{}),
       remindDays: s.remindDays,
       yearlyCost: yuan(s.cycle === 'monthly' ? s.amountCents * 12 : s.amountCents),
       cancellable: s.status === 'active',
@@ -194,6 +198,12 @@ export const getSubscriptionTerms = defineBankTool({
 })
 
 const answersSchema = z.array(z.number().int().min(1).max(5)).length(5).describe('五项答案，1 最低 / 5 最高')
+
+export const getRiskQuestionnaire = defineBankTool({
+  name: 'get_risk_questionnaire', kind: 'read', baseRisk: 'green',
+  description: '开始或重新风险测评时调用。显示银行标准5题单选问卷，上一题/下一题切换，最后统一提交完整答案给Agent；不登记、不交易。不要提前查询理财推荐或展示产品选择。收到答案先assess_risk_profile试算，再征求登记同意。',
+  inputSchema: z.object({}), execute: async () => ({ questionnaire: structuredClone(RISK_QUESTIONNAIRE) }),
+})
 
 export const assessRiskProfile = defineBankTool({
   name: 'assess_risk_profile',
@@ -527,6 +537,7 @@ export const PLANNING_TOOLS = [
   checkScheduleWindow,
   getSubscriptionTerms,
   assessRiskProfile,
+  getRiskQuestionnaire,
   commitRiskAssessment,
   setSubscriptionReminder,
   previewScheduledTransfer,

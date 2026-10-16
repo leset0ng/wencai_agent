@@ -44,11 +44,11 @@ function SecurePage() {
   const data = info.data
   const title = data?.newPassword ? data.purpose === 'change_card_password' ? '设置此卡交易密码' : '为新卡设置交易密码' : '验证身份'
   const cardSuffix = data?.card ? `（尾号 ${data.card.last4}）` : ''
-  const amount = data?.summary?.fields.find((field) => field.label === '金额')
+  const amount = data?.summary?.fields.find((field) => field.label === '金额' || field.label === '退款金额')
   const recipient = data?.summary?.fields.find((field) => /^收款人/.test(field.label))
   const setActiveValue = (update: (value: string) => string) => { if (active === 'password') setPassword(update); if (active === 'repeat') setRepeat(update) }
   const hideKeyboard = () => { setActive(null); (document.activeElement as HTMLElement | null)?.blur() }
-  const alternatives = data && !strong && <div className="bank-secure-alternatives"><Button className="bank-text-button bank-secure-method" type="button" aria-expanded={methodsOpen} disabled={busy} onClick={() => { hideKeyboard(); setMethodsOpen(!methodsOpen) }}>使用其他方式验证<ChevronRight size={17} /></Button>
+  const alternatives = data && !strong && (data.passwordRequired || data.singleChoice) && <div className="bank-secure-alternatives"><Button className="bank-text-button bank-secure-method" type="button" aria-expanded={methodsOpen} disabled={busy} onClick={() => { hideKeyboard(); setMethodsOpen(!methodsOpen) }}>使用其他方式验证<ChevronRight size={17} /></Button>
     {(methodsOpen || (data.singleChoice && !data.passwordRequired)) && <div className="bank-secure-mfa">{data.singleChoice ? <>{verification.controls}{useAlternative && data.passwordRequired && <Button className="bank-text-button" onClick={() => { setAlternative(false); setMethodsOpen(false) }}>使用交易密码验证</Button>}</> : <p>查看卡号需验证此卡交易密码。忘记密码可返回安全中心重新设置。</p>}</div>}
   </div>
   return <main ref={content} className={`bank-secure-page${desktop ? ' bank-secure-desktop-page' : ''}`} onKeyDown={(event) => { if (event.key === 'Escape' && !busy) notify('wencai-secure-cancel') }} onFocusCapture={(event) => {
@@ -61,7 +61,7 @@ function SecurePage() {
       {data && <>
         <section className="bank-secure-summary" aria-label="本次操作摘要">
           {amount ? <dl><div className="bank-secure-amount"><dt>{data.summary?.title.includes('转账') ? '本次转账' : data.summary?.title}</dt><dd>{amount.value}</dd></div>{!desktop && recipient && <div><dt>收款人</dt><dd>{recipient.value}</dd></div>}{desktop && data.summary?.fields.filter(field => field !== amount).map((field,index) => <div key={`${field.label}-${index}`}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>
-            : <><h2>{data.summary?.title ?? (data.purpose === 'view_card' ? '查看完整卡号' : '银行卡密码设置')}</h2><p>{data.card ? `${data.card.kind === 'credit' ? '信用卡' : '储蓄卡'} · 尾号 ${data.card.last4}` : '新卡使用独立的 6 位交易密码'}</p></>}
+            : <><h2>{data.summary?.title ?? (data.purpose === 'view_card' ? '查看完整卡号' : '银行卡密码设置')}</h2><p>{data.card ? `${data.card.kind === 'credit' ? '信用卡' : '储蓄卡'} · 尾号 ${data.card.last4}` : data.newPassword ? '新卡使用独立的 6 位交易密码' : '请核对操作详情，确认后生效'}</p></>}
           {data.summary && !desktop && !(amount && recipient) && <details className="bank-secure-details"><summary>查看操作详情</summary><dl>{data.summary.fields.map((field) => <div key={field.label}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl></details>}
           {desktop && data.summary && !amount && <dl className="bank-secure-desktop-details">{data.summary.fields.map((field,index) => <div key={`${field.label}-${index}`}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl>}
           {desktop && <p className="bank-secure-summary-note"><LockKeyhole size={18} />请核对操作信息后继续验证</p>}
@@ -90,7 +90,7 @@ function SecurePage() {
           {desktop && alternatives}
           {error && <p role="alert" className="bank-auth-error">{error}</p>}
           </div>
-          <div className="bank-secure-actions">{desktop && <p><LockKeyhole size={22} />{data.newPassword ? '密码仅用于银行安全验证' : needsProof && !useAlternative && data.passwordRequired ? data.dualRequired ? '交易密码 + 指纹或人脸验证' : '交易密码 + 身份验证' : useAlternative ? '身份验证' : '银行卡交易密码验证'}</p>}<div>{desktop && <Button className="bank-secure-cancel" disabled={busy} onClick={() => notify('wencai-secure-cancel')}>取消</Button>}
+          <div className="bank-secure-actions">{desktop && <p><LockKeyhole size={22} />{data.newPassword ? '密码仅用于银行安全验证' : needsProof && !useAlternative && data.passwordRequired ? data.dualRequired ? '交易密码 + 指纹或人脸验证' : '交易密码 + 身份验证' : needsProof ? '身份验证' : data.passwordRequired ? '银行卡交易密码验证' : '操作核对确认'}</p>}<div>{desktop && <Button className="bank-secure-cancel" disabled={busy} onClick={() => notify('wencai-secure-cancel')}>取消</Button>}
           <Button className="bank-primary-button bank-secure-submit" type="submit" disabled={busy || (!useAlternative && (data.newPassword || data.passwordRequired) && password.length !== 6) || (data.newPassword && repeat.length !== 6) || (needsProof && !verification.ready)}>{busy ? '正在安全处理…' : data.newPassword ? data.purpose === 'change_card_password' ? '确认设置此卡密码' : '设置密码并确认申请' : '确认验证'}</Button>
           </div></div>
           {!desktop && alternatives}

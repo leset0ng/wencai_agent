@@ -1,6 +1,7 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+@source "../node_modules/@streamdown/cjk/dist/*.js";
 @import "./components/ui/primitives.css";
 @import "./components/ui/dark-theme.css";
 @source "../node_modules/streamdown/dist/*.js";

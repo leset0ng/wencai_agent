@@ -23,6 +23,7 @@ export function scoreRisk(answers: number[]): RiskRating {
 
 /** 执行 dueAt <= now 的待执行任务 */
 export async function runDueJobs(userId: string, now: Date): Promise<JobResult[]> {
+  await (await import('#/server/life/service')).runLifeAutomation(userId,now)
   const pending = await db
     .select()
     .from(schema.scheduledTasks)

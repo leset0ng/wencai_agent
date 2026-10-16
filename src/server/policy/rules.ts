@@ -31,6 +31,12 @@ const isTransfer = (i: PolicyInput) => ['transfer', 'commit_transfer', 'commit_s
 
 export const RULES: Rule[] = [
   {
+    id: 'life-payment-authorization',
+    applies: i => ['buy_life_product','subscribe_life_service'].includes(i.tool),
+    evaluate: i => amountCents(i)>LIMITS.singleLargeCents || i.args.autoRenew===true
+      ? {kind:'raise',to:'red',reason:i.args.autoRenew===true?'自动续费授权需要强验证并核对次数及金额上限':'大额商城付款需要强验证'} : null,
+  },
+  {
     id: 'recipient-account-risk',
     applies: isTransfer,
     evaluate: ({ facts }) => facts.payeeRiskFlag === 'confirmed'

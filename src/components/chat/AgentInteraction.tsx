@@ -141,7 +141,8 @@ function ChoiceList({ choices, title }: { choices: AgentChoice[]; title: string 
   </section>
 }
 
-export function AgentSelectableTable({ rows, columns, title }: { rows: Record<string, unknown>[]; columns: { key: string; label: string }[]; title?: string }) {
+export function AgentSelectableTable({ rows, columns, title, selectable = true }: { rows: Record<string, unknown>[]; columns: { key: string; label: string }[]; title?: string; selectable?: boolean }) {
+  if (!selectable) return <div className="bank-gen-table">{title && <h3>{title}</h3>}<Table><TableHeader><TableRow>{columns.map(c => <TableHead key={c.key}>{c.label}</TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((row, i) => <TableRow key={i}>{columns.map(c => <TableCell key={c.key}>{String(row[c.key] ?? '')}</TableCell>)}</TableRow>)}</TableBody></Table></div>
   const choices = rows.map((row) => choiceFromRow(row))
   if (choices.length && choices.every((choice) => choice?.kind === 'card')) return <AgentCardPicker choices={choices as AgentChoice[]} title={title ?? '我的银行卡'} />
   return <SelectableTable rows={rows} choices={choices} columns={columns} title={title} />

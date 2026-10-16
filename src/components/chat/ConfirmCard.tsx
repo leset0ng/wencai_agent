@@ -40,14 +40,15 @@ export default function ConfirmCard(props: ConfirmCardProps) {
   const [completed, setCompleted] = useState(false)
   const openSecure = useSecureOperation()
   const queries = useQueryClient()
-  const done = props.done ?? (completed ? '操作已完成' : undefined)
+  // A successful secure-page receipt takes precedence over stale parent query/error state.
+  const done = completed ? '操作已完成' : props.done
   const confirming = useRef(false)
   const [verifying, setVerifying] = useState(false)
   const [escalated, setEscalated] = useState(false)
   const [latestReasons, setLatestReasons] = useState<string[]>()
   const red = props.level === 'red' || escalated
   const submitting = props.submitting || verifying
-  const state = done ? (props.doneState ?? 'success') : 'pending'
+  const state = completed ? 'success' : done ? (props.doneState ?? 'success') : 'pending'
 
   async function confirm() {
     if (confirming.current || submitting || done) return
@@ -115,7 +116,7 @@ export default function ConfirmCard(props: ConfirmCardProps) {
               {submitting ? '处理中…' : done ? '重新办理' : '确认'}
             </Button>
           </div>
-          {(message ?? props.error) && <p className="m-0 text-center text-xs text-red-600">{message ?? props.error}</p>}
+          {state !== 'success' && (message ?? props.error) && <p className="m-0 text-center text-xs text-red-600">{message ?? props.error}</p>}
         </div>
       )}
     </div>

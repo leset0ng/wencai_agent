@@ -20,7 +20,7 @@ function stable(value: unknown): string {
 
 function source(tool: string, data: unknown): Source {
   const out = record(data)
-  if (['get_accounts', 'list_cards'].includes(tool) && Array.isArray(data) && data.length && data.every((row) => record(row).last4 && (tool === 'list_cards' || record(row).cardId))) {
+  if (['get_accounts', 'list_cards', 'display_bank_cards'].includes(tool) && Array.isArray(data) && data.length && data.every((row) => record(row).last4 && (tool !== 'get_accounts' || record(row).cardId))) {
     const cardRows = data.map((raw) => { const row = record(raw); return stable({ id: row.cardId ?? row.id, last4: row.last4, balance: row.balance ?? row.availableCredit }) }).sort()
     return { tool: 'cards', fingerprint: stable(cardRows), cardRows }
   }
@@ -95,11 +95,13 @@ function richResult(part: ToolUIPart) {
   if (out.status !== 'done') return false
   switch (part.type) {
     case 'tool-get_accounts':
+    case 'tool-display_bank_cards':
     case 'tool-list_cards':
     case 'tool-list_payees':
     case 'tool-list_subscriptions': return Array.isArray(out.data)
     case 'tool-list_products': return Array.isArray(out.data)
     case 'tool-get_recommendations': return Array.isArray(data.products)
+    case 'tool-get_risk_questionnaire': return !!data.questionnaire
     case 'tool-resolve_my_cards':
     case 'tool-resolve_card':
     case 'tool-find_payee':
@@ -138,6 +140,8 @@ export function toolPresentations(parts: WencaiUIMessage['parts'], processing = 
     }
   })
   if (processing) return modes
+  const explicitCards = parts.reduce((last, part, i) => part.type === 'tool-display_bank_cards' && 'output' in part && record(part.output).status === 'done' ? i : last, -1)
+  if (explicitCards >= 0) parts.forEach((part, i) => { if (i < explicitCards && /^tool-(?:get_accounts|list_cards|resolve_my_cards|resolve_card)$/.test(part.type)) modes[i] = 'status' })
   // A prepared batch owns the complete set of scoped recipients and shared payment cards.
   const batch = parts.reduce((last, part, index) => part.type === 'tool-prepare_transfer_batch' && 'output' in part && record(part.output).status === 'batch_transfer_ready' ? index : last, -1)
   if (batch >= 0) {
@@ -154,7 +158,7 @@ export function toolPresentations(parts: WencaiUIMessage['parts'], processing = 
   const finalFixed = fixed.filter((item, i) => {
     const covered = finalViews.some((view) => item.sources.every((s) => view.sources.some((t) => same(s, t))))
     // 全卡查询包含同一批储蓄账户时保留完整选卡区；余额变化或独立资金账户不合并。
-    const cardsCovered = fixed.some((other) => other !== item && item.sources.every((s) => s.cardRows && other.sources.some((t) => t.cardRows &&
+    const cardsCovered = item.index !== explicitCards && fixed.some((other) => other !== item && item.sources.every((s) => s.cardRows && other.sources.some((t) => t.cardRows &&
       (t.cardRows.length > s.cardRows!.length || t.cardRows.length === s.cardRows!.length && other.index > item.index) && s.cardRows!.every((row) => t.cardRows!.includes(row)))))
     const replaced = fixed.slice(i + 1).some((later) => item.sources.every((s) => later.sources.some((t) =>
       same(s, t) || (parts[item.index].type === parts[later.index].type && !/tool-(?:resolve_|find_payee|search_bank_accounts)/.test(parts[item.index].type) && s.period === t.period && s.days === t.days))))
