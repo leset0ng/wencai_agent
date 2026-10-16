@@ -8,15 +8,17 @@ import {
   ArrowUpRight,
   Bell,
   ChevronRight,
+  ChevronDown,
   CreditCard,
   Droplets,
   Eye,
   EyeOff,
-  Gift,
   Grid2X2,
   House,
   Loader2,
   LogOut,
+  Maximize2,
+  Minimize2,
   ReceiptText,
   ScanLine,
   Settings,
@@ -45,10 +47,16 @@ import { CardApplication, CardServices, type CardServiceMode } from './CardServi
 import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import { TaskCenter } from './TaskCenter'
 import { trackAgentKeyboard } from '#/lib/agent-keyboard'
+import { useDesktopLayout } from '#/lib/use-desktop-layout'
+import { DesktopDashboard } from './DesktopDashboard'
+import { DesktopAccounts } from './DesktopAccounts'
+import { LifeMarket } from './LifeMarket'
+import { DashboardConfirmation } from './DashboardConfirmation'
 import './banking.css'
+import './desktop.css'
 
 type Tab = 'home' | 'accounts' | 'life' | 'profile'
-type Detail = 'assets' | 'bill' | 'transactions' | 'receive' | 'notifications' | 'tasks' | null
+type Detail = 'assets' | 'bill' | 'transactions' | 'receive' | 'notifications' | 'tasks' | 'pending' | null
 const tabs = [
   { id: 'home', label: '首页', icon: House },
   { id: 'accounts', label: '账户', icon: CreditCard },
@@ -65,6 +73,7 @@ async function fetchDashboard(): Promise<DashboardData> {
 
 export default function BankingHome({ user }: { user: { id: string; name: string } }) {
   const reduce = useReducedMotion()
+  const desktop = useDesktopLayout()
   const queryClient = useQueryClient()
   const pageScroll = useRef<HTMLDivElement>(null)
   const shell = useRef<HTMLDivElement>(null)
@@ -78,6 +87,8 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   const [tab, setTab] = useState<Tab>('home')
   const [hidden, setHidden] = useState(false)
   const [agentOpen, setAgentOpen] = useState(false)
+  const [agentWide, setAgentWide] = useState(false)
+  const [pendingActionId, setPendingActionId] = useState<string>()
   useLayoutEffect(() => {
     if (agentOpen && shell.current) return trackAgentKeyboard(shell.current)
   }, [agentOpen])
@@ -89,7 +100,9 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   const [selectedCardId, setSelectedCardId] = useState<string>()
   const [paymentAccountId, setPaymentAccountId] = useState<string>()
   const [cardService, setCardService] = useState<{ id: string; mode: CardServiceMode } | null>(null)
+  const [lifeDialogOpen, setLifeDialogOpen] = useState(false)
   const data = query.data
+  const blocksPage = (!desktop && agentOpen) || !!detail || !!paymentView || !!cardService || lifeDialogOpen
   const selectedCard = data && (accountSlides(data).find((card) => card.id === selectedCardId) ?? accountSlides(data)[0])
   const selectedAccount = data?.accounts.find((account) => account.id === selectedCard?.accountId)
   const activity = selectedAccount && data?.accountActivity[selectedAccount.id]
@@ -108,6 +121,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
   const closePayment = () => { setPaymentView(null); void queryClient.invalidateQueries({ queryKey: ['dashboard', user.id] }) }
   const closeAgent = () => {
     setAgentOpen(false)
+    setAgentWide(false)
     void queryClient.invalidateQueries({ queryKey: ['dashboard', user.id] })
   }
   const selectTab = (next: Tab) => {
@@ -116,7 +130,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
     pageScroll.current?.scrollTo({ top: 0, behavior: 'instant' })
   }
   const title =
-    detail === 'tasks' ? '任务与人工处理' : detail === 'assets'
+    detail === 'pending' ? '待确认转账' : detail === 'tasks' ? '任务与人工处理' : detail === 'assets'
       ? '资产详情'
       : detail === 'bill'
         ? '智能账单分析'
@@ -143,10 +157,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
     }
   }
   return (
-    <div className="bank-stage">
-      <Tabs ref={shell} className="bank-shell" value={tab} onValueChange={(value) => selectTab(value as Tab)}>
-        <div className="bank-home-scroll" ref={pageScroll} inert={agentOpen || !!detail || !!paymentView || !!cardService}>
+    <div className="bank-stage bank-responsive">
+      <Tabs ref={shell} className={`bank-shell bank-workspace${agentOpen ? ' has-desktop-agent' : ''}${agentWide ? ' is-agent-wide' : ''}`} value={tab} onValueChange={(value) => selectTab(value as Tab)}>
+        <div className="bank-desktop-brand"><span>财</span><strong>文财银行</strong></div>
+        <p className="bank-desktop-note">文财银行 · 模拟银行服务</p>
+        <div className="bank-home-scroll" ref={pageScroll} inert={blocksPage}>
           <header className="bank-home-header">
+            <h1 className="bank-desktop-title">{tabs.find((item) => item.id === tab)?.label}</h1>
             <Button
               className="bank-profile bank-lift"
               onClick={() => selectTab('profile')}
@@ -157,6 +174,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                 <strong>{user.name}</strong>
                 <small>你好，美好的一天</small>
               </span>
+              <ChevronDown className="bank-desktop-profile-arrow" size={20} />
             </Button>
             <div className="bank-header-actions">
               <Button
@@ -198,9 +216,14 @@ export default function BankingHome({ user }: { user: { id: string; name: string
             </div>
           ) : (
             data && (
-              <TabsContent value={tab} key={tab} className="bank-page-content"
+              <TabsContent value={tab} key={tab} className={`bank-page-content${tab === 'home' ? ' is-home' : tab === 'accounts' ? ' is-accounts' : tab === 'life' ? ' is-life' : ''}`}
                 render={<motion.main initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : .5 }} />}>
-                {tab === 'home' && (
+                {tab === 'home' && desktop && <DesktopDashboard data={data} hidden={hidden} agentOpen={agentOpen}
+                  onToggleHidden={() => setHidden(!hidden)} onTransfer={() => openPayment('transfer')} onReceive={() => openPayment('receive')}
+                  onTransactions={() => setDetail('transactions')} onAssets={() => setDetail('assets')} onBill={() => setDetail('bill')} onMore={() => selectTab('life')}
+                  onCards={() => selectTab('accounts')} onCard={(id) => { setSelectedCardId(id); selectTab('accounts') }}
+                  onPending={(id) => { setPendingActionId(id); setAgentOpen(false); setDetail('pending') }} />}
+                {tab === 'home' && !desktop && (
                   <>
                     <section className="bank-assets">
                       <div className="bank-asset-label">
@@ -324,13 +347,16 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                 )}
                 {tab === 'accounts' && (
                   <>
+                    {desktop ? <DesktopAccounts data={data} card={selectedCard} hidden={hidden} active={!detail && !paymentView && !cardService}
+                      onSelect={setSelectedCardId} onApply={() => setCardService({ id: 'new', mode: 'apply' })}
+                      onTransfer={() => openPayment('transfer', selectedCard?.accountId)} onReceive={() => openPayment('receive', selectedCard?.accountId)} onService={openCardService} /> : <>
                     <div className="bank-section-heading">
                       <h1>我的账户</h1>
                       <span>{data.cards.length} 张银行卡</span>
                       <Button className="bank-text-button bank-lift" onClick={() => setCardService({ id: 'new', mode: 'apply' })} type="button">申请新卡</Button>
                     </div>
                     <p className="bank-page-note">每张卡独立记账，左右滑动查看对应账单。</p>
-                    <AccountCarousel data={data} selectedId={selectedCard?.id} onSelect={setSelectedCardId} hidden={hidden} active={!agentOpen && !detail && !paymentView && !cardService} />
+                    <AccountCarousel data={data} selectedId={selectedCard?.id} onSelect={setSelectedCardId} hidden={hidden} active={(!agentOpen || desktop) && !detail && !paymentView && !cardService} />
                     {selectedCard && <>
                       <div className="bank-card-actions">
                         {selectedCard.kind === 'debit' ? <>
@@ -362,6 +388,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                         </Reveal>
                       </div>
                     )}
+                    </>}
                     {data.accounts.some((account) => !data.cards.some((card) => card.accountId === account.id)) && <>
                     <div className="bank-section-heading">
                       <h2>其他资金账户</h2>
@@ -394,46 +421,8 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                   </>
                 )}
                 {tab === 'life' && (
-                  <>
-                    <Button className="bank-payment-secondary bank-full-width" onClick={() => setDetail('tasks')} type="button">任务中心 · 暂停 / 恢复 / 人工处理</Button>
-                    <h1 className="bank-page-title">生活服务</h1>
-                    <p className="bank-page-note">照顾日常，也为重要的日子做好准备。</p>
-                    <div className="bank-life-actions">
-                      <Button
-                        className="bank-lift"
-                        onClick={() => openAgent('帮我查看生日计划和联系人')} type="button"
-                      >
-                        <Gift size={26} />
-                        <strong>生日计划</strong>
-                        <span>
-                          为重要的人用心安排
-                          <ChevronRight size={14} />
-                        </span>
-                      </Button>
-                      <Button
-                        className="bank-lift"
-                        onClick={() => openAgent('我想发起一笔AA收款，请先帮我查看联系人')} type="button"
-                      >
-                        <UsersRound size={26} />
-                        <strong>AA 收款</strong>
-                        <span>
-                          和朋友轻松分账
-                          <ChevronRight size={14} />
-                        </span>
-                      </Button>
-                    </div>
-                    <div className="bank-section-heading">
-                      <h2>订阅与代扣</h2>
-                      <Button
-                        className="bank-text-button bank-lift"
-                        onClick={() => openAgent('帮我查看所有订阅与自动扣费')} type="button"
-                      >
-                        管理
-                        <ChevronRight size={14} />
-                      </Button>
-                    </div>
-                    <SubscriptionList subscriptions={data.subscriptions} hidden={hidden} />
-                  </>
+                  <LifeMarket data={data} userId={user.id} hidden={hidden} active={!agentOpen && !detail && !paymentView && !cardService}
+                    portalContainer={shell.current} onModalChange={setLifeDialogOpen} onAgent={openAgent} onTasks={() => setDetail('tasks')} />
                 )}
                 {tab === 'profile' && (
                   <>
@@ -489,7 +478,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
           )}
           <p className="bank-service-note">文财银行 · 模拟银行服务</p>
         </div>
-        <TabsList className="bank-bottom-nav" aria-label="底部导航" inert={agentOpen || !!detail || !!paymentView || !!cardService}>
+        <TabsList className="bank-bottom-nav" aria-label={desktop ? '主要导航' : '底部导航'} inert={blocksPage}>
           {tabs.map(({ id, label, icon: Icon }) => (
             <TabsTrigger
               key={id}
@@ -504,7 +493,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
           ))}
         </TabsList>
         <DraggableFloatingButton
-          hidden={agentOpen || !!detail || !!paymentView}
+          hidden={agentOpen || !!detail || !!paymentView || !!cardService || lifeDialogOpen}
           expanded={agentOpen}
           onActivate={() => openAgent()}
           label="打开文财 Agent"
@@ -518,6 +507,8 @@ export default function BankingHome({ user }: { user: { id: string; name: string
           onClose={closeAgent}
           title="文财 Agent"
           className="bank-agent-sheet"
+          responsiveSide
+          headerActions={<Button className="bank-icon-button bank-agent-expand" aria-label={agentWide ? '还原对话窗口' : '展开对话窗口'} onClick={() => setAgentWide(!agentWide)}>{agentWide ? <Minimize2 size={19} /> : <Maximize2 size={19} />}</Button>}
           header={
             <span className="bank-agent-heading">
               <AgentAvatar small />
@@ -530,13 +521,13 @@ export default function BankingHome({ user }: { user: { id: string; name: string
           }
         >
           <div id="bank-agent-conversation" className="bank-agent-conversation">
-            <ChatView request={request} active={agentOpen} userId={user.id} />
+            <ChatView request={request} active={agentOpen} userId={user.id} userName={user.name} />
           </div>
         </Sheet>
         <Sheet open={!!paymentView} onClose={closePayment} title="转账与收款" className="bank-payment-sheet">
           {paymentView && <PaymentCenter userId={user.id} initialView={paymentView} initialAccountId={paymentAccountId} />}
         </Sheet>
-        <Sheet open={!!cardService} onClose={() => setCardService(null)} title={cardService?.mode === 'apply' ? '申请新卡' : cardService?.mode === 'remark' ? '卡片备注' : cardService?.mode === 'repay' ? '信用卡还款' : '卡片管理'} className="bank-payment-sheet">
+        <Sheet open={!!cardService} onClose={() => setCardService(null)} title={cardService?.mode === 'apply' ? '申请新卡' : cardService?.mode === 'remark' ? '卡片备注' : cardService?.mode === 'repay' ? '信用卡还款' : cardService?.mode === 'limit' ? '调整额度 / 限额' : cardService?.mode === 'freeze' ? '冻结 / 解锁卡片' : cardService?.mode === 'lost' ? '挂失卡片' : '卡片管理'} className="bank-payment-sheet">
           {cardService?.mode === 'apply' ? <CardApplication /> : cardService && data && <CardServices key={`${cardService.id}-${cardService.mode}`} data={data} cardId={cardService.id} mode={cardService.mode} userId={user.id} />}
         </Sheet>
         <Sheet
@@ -546,6 +537,11 @@ export default function BankingHome({ user }: { user: { id: string; name: string
           className="bank-detail-sheet"
         >
           <div className="bank-detail-scroll">
+            {data && detail === 'pending' && <>
+              {pendingActionId && <Button className="bank-text-button" onClick={() => setPendingActionId(undefined)}>查看全部待确认转账</Button>}
+              {(data.pendingTransfers ?? []).filter((item) => !pendingActionId || item.actionId === pendingActionId).map((item) => <DashboardConfirmation key={item.actionId} item={item} />)}
+              {!(data.pendingTransfers ?? []).some((item) => !pendingActionId || item.actionId === pendingActionId) && <p className="bank-empty">暂无待确认转账</p>}
+            </>}
             {data && detail === 'bill' && (
               <>
                 <p className="bank-page-note">

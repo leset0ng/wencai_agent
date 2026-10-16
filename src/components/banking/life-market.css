@@ -1,0 +1,101 @@
+.bank-life-market,.bank-life-sheet { --life-text:var(--pc-text,var(--sea-ink)); --life-muted:var(--pc-muted,var(--sea-ink-soft)); --life-line:var(--pc-line,var(--line)); --life-accent:var(--pc-accent,var(--lagoon)); --life-panel:var(--pc-panel,var(--surface-strong)); --life-secondary:var(--pc-secondary,var(--chip-bg)); --life-action:var(--pc-action,linear-gradient(120deg,#167bff,#0756ee)); color:var(--life-text); }
+.bank-life-market { container-type:inline-size; }
+.bank-life-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px; margin-bottom:22px; }
+.bank-life-heading h1 { font-size:30px; font-weight:750; letter-spacing:-1px; }
+.bank-life-market .bank-life-heading p { color:var(--life-muted); margin-top:8px; font-size:15px; }
+.bank-life-toolbar { display:flex; align-items:center; gap:12px; width:100%; }
+.bank-life-search { display:flex; align-items:center; gap:12px; background:var(--life-secondary); border:1px solid var(--life-line); border-radius:14px; padding:0 14px; min-width:0; flex:1; color:var(--life-muted); }
+.bank-life-search svg { flex-shrink:0; }
+.bank-shell .bank-life-search input.ui-input { width:100%; min-width:0; border:0; box-shadow:none; border-radius:0; background:transparent; color:var(--life-text); min-height:44px; padding:10px 0; font-size:14px; }
+.bank-life-search:focus-within { outline:2px solid var(--life-accent); outline-offset:2px; }
+.bank-life-primary,.bank-life-secondary { display:inline-flex; align-items:center; justify-content:center; gap:10px; min-height:44px; padding:10px 20px; border-radius:12px; font-size:14px; font-weight:600; border:1px solid var(--life-line); white-space:nowrap; }
+.bank-shell .bank-life-primary { background:var(--life-action); border-color:color-mix(in srgb,var(--life-accent) 60%,transparent); color:#fff; }
+.bank-life-secondary { color:var(--life-text); background:var(--life-secondary); }
+.bank-life-link { color:var(--life-accent); border:0; padding:4px 0; background:none; font-size:13px; font-weight:600; }
+.bank-life-tabs { display:flex; padding:4px; gap:4px; border:1px solid var(--life-line); border-radius:40px; background:var(--life-panel); margin-bottom:22px; max-width:470px; }
+.bank-life-tabs > button { flex:1; display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 18px; border-radius:40px; font-size:17px; background:transparent; border:0; color:var(--life-muted); }
+.bank-shell .bank-life-tabs > button[aria-selected='true'] { color:#fff; background:var(--life-action); box-shadow:inset 0 1px 2px #ffffff30; }
+.bank-life-section-heading { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
+.bank-life-section-heading h2 { font-size:22px; font-weight:700; }
+.bank-life-section-heading > span { color:var(--life-muted); font-size:12px; }
+.bank-life-section-heading > button { margin-left:auto; }
+.bank-life-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.bank-life-products > * { min-width:0; }
+.bank-life-product { height:100%; overflow:hidden; border-radius:20px; border:1px solid var(--life-line); background:var(--life-panel); }
+.bank-life-art { display:block; width:100%; height:100%; object-fit:cover; }
+.bank-life-product > .bank-life-art { aspect-ratio:1.28; height:auto; }
+.bank-life-product-copy { position:relative; padding:42px 14px 14px; display:flex; flex-direction:column; }
+.bank-life-demo-tag { display:inline-flex; align-items:center; padding:5px 10px; border-radius:30px; border:1px solid color-mix(in srgb,var(--life-accent) 60%,transparent); color:var(--life-accent); background:var(--life-secondary); font-size:10px; font-weight:500; }
+.bank-life-product-copy > .bank-life-demo-tag { position:absolute; right:12px; top:10px; }
+.bank-life-product-copy h3 { font-size:16px; font-weight:700; }
+.bank-life-product-copy p { color:var(--life-muted); font-size:12px; line-height:1.6; margin-top:6px; }
+.bank-life-price { display:block; font-size:25px; font-weight:750; color:var(--life-accent); font-variant-numeric:tabular-nums; margin-top:10px; white-space:nowrap; }
+.bank-life-price small { font-size:.5em; font-weight:500; }
+.bank-life-product-copy > button { margin-top:14px; width:100%; min-height:38px; padding:9px 8px; font-size:13px; }
+.bank-life-shortcuts { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; padding-top:20px; border-top:1px solid var(--life-line); }
+.bank-life-shortcuts button { display:flex; align-items:center; gap:8px; padding:9px 12px; border:1px solid var(--life-line); border-radius:12px; color:var(--life-accent); background:var(--life-secondary); font-size:12px; }
+.bank-life-shortcuts span { font-size:10px; color:var(--life-muted); }
+.bank-shell .bank-life-disclaimer { color:var(--life-muted); font-size:11px; line-height:1.8; margin-top:18px; }
+.bank-life-empty { padding:45px 12px; display:flex; flex-direction:column; align-items:center; gap:12px; color:var(--life-muted); text-align:center; }
+.bank-life-dialog-content { flex:1; min-height:0; overflow:auto; padding:20px 22px 30px; overscroll-behavior:contain; }
+.bank-life-detail-art { width:100%; height:220px; border-radius:18px; overflow:hidden; margin-bottom:20px; background:#171b31; }
+.bank-life-detail-art .bank-life-art { object-fit:contain; }
+.bank-life-dialog-content h2 { font-size:25px; margin-top:14px; font-weight:700; }
+.bank-life-dialog-content > .bank-life-primary { width:100%; margin-top:22px; }
+.bank-life-detail-description { color:var(--life-muted); font-size:14px; line-height:1.8; margin-top:14px!important; }
+.bank-life-notice { padding:12px 14px; border:1px solid var(--life-line); border-radius:12px; color:var(--life-accent); font-size:13px; line-height:1.7; margin-top:16px!important; background:var(--life-secondary); }
+.bank-life-order { display:flex; gap:16px; border-bottom:1px solid var(--life-line); padding:20px 0; }
+.bank-life-order > .bank-life-art { width:100px; height:100px; flex-shrink:0; border-radius:13px; }
+.bank-life-order > div { flex:1; min-width:0; }
+.bank-life-order strong { font-size:16px; }
+.bank-life-order p,.bank-life-order small { display:block; color:var(--life-muted); font-size:12px; line-height:1.8; margin-top:5px; }
+.bank-life-sub-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:20px; }
+.bank-life-sub-summary > div { background:var(--life-secondary); border:1px solid var(--life-line); border-radius:14px; padding:14px 10px; }
+.bank-life-sub-summary small { color:var(--life-muted); font-size:11px; }
+.bank-life-sub-summary strong { display:block; margin-top:7px; font-size:16px; color:var(--life-accent); overflow-wrap:anywhere; }
+.bank-life-detect { width:100%; margin:14px 0; white-space:normal; }
+.bank-life-subscription-row { display:flex; align-items:center; gap:12px; padding:18px 0; border-bottom:1px solid var(--life-line); }
+.bank-life-subscription-row > div { flex:1; min-width:0; }
+.bank-life-subscription-row strong { font-size:15px; }
+.bank-life-subscription-row p { margin-top:5px; font-size:12px; color:var(--life-muted); }
+.bank-life-subscription-row b { display:block; margin-top:8px; font-size:16px; font-variant-numeric:tabular-nums; }
+.bank-life-subscription-row > button { font-size:12px; padding:9px 12px; }
+.bank-life-sub-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:50%; color:var(--life-accent); background:var(--life-secondary); flex-shrink:0; }
+@media (min-width:1024px) {
+  .bank-responsive .bank-workspace .bank-page-content.is-life:not(.is-home) { max-width:none; padding:0 0 30px; }
+  .bank-responsive .bank-workspace .bank-page-content.is-life .bank-life-heading h1 { font-size:42px; }
+  .bank-life-market .bank-life-heading p { font-size:19px; }
+  .bank-life-heading { margin-bottom:25px; }
+  .bank-life-toolbar { width:min(46%,570px); }
+  .bank-life-search { border-radius:14px; }
+  .bank-life-tabs { margin-bottom:28px; }
+  .bank-life-tabs > button { font-size:20px; padding:13px 22px; }
+  .bank-life-section-heading h2 { font-size:27px; }
+  .bank-life-section-heading > span { font-size:14px; }
+  .bank-life-products { gap:18px; }
+  .bank-life-product { display:grid; grid-template-columns:46% minmax(0,1fr); min-height:235px; }
+  .bank-life-product > .bank-life-art { aspect-ratio:auto; height:100%; min-height:235px; }
+  .bank-life-product-copy { justify-content:center; padding:44px 24px 22px; }
+  .bank-life-product-copy h3 { font-size:clamp(20px,1.6vw,28px); }
+  .bank-life-product-copy p { font-size:16px; margin-top:7px; }
+  .bank-life-price { font-size:34px; margin-top:12px; }
+  .bank-life-product-copy > button { min-height:45px; font-size:16px; margin-top:16px; }
+  .bank-life-product-copy > .bank-life-demo-tag { top:14px; right:16px; font-size:11px; }
+  .bank-life-shortcuts button { font-size:14px; }
+  .bank-life-disclaimer { font-size:12px; }
+  @container (max-width:1050px) {
+    .bank-life-products { grid-template-columns:minmax(0,1fr); }
+    .bank-life-product { grid-template-columns:38% minmax(0,1fr); }
+    .bank-life-product-copy { padding:38px 26px 22px; }
+    .bank-life-heading { align-items:flex-start; }
+    .bank-life-toolbar { width:100%; }
+  }
+  @container (max-width:540px) {
+    .bank-life-product { grid-template-columns:36% minmax(0,1fr); }
+    .bank-life-product-copy { padding:42px 15px 18px; }
+    .bank-life-product-copy h3 { font-size:19px; }
+    .bank-life-product-copy p { font-size:13px; }
+    .bank-life-price { font-size:28px; }
+  }
+}
+@media (max-width:370px) { .bank-life-toolbar { flex-wrap:wrap; } .bank-life-toolbar > label { flex-basis:100%; } .bank-life-sub-icon { display:none; } .bank-life-product-copy h3 { font-size:14px; } .bank-life-price { font-size:21px; } }

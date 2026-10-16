@@ -6,6 +6,7 @@ import { guard } from '#/server/guard'
 import type { GuardVerdict } from '#/server/guard'
 import { agentModel } from '#/server/llm/models'
 import { collectEvidence, verifyNumbers } from '#/server/verify/numbers'
+import { verifyTransactionReferences } from '#/server/verify/transactions'
 import type { NumberViolation } from '#/server/verify/numbers'
 import type { AgentContext } from './context'
 import { buildInstructions } from './instructions'
@@ -66,12 +67,12 @@ export async function runAgent(params: {
       console.info(`[agent:${runId}] 请求已取消；耗时=${Date.now() - startedAt}ms`)
     },
     onEnd: async ({ text, steps }) => {
-      const evidence = collectEvidence([
+      const rawEvidence = [
         ...trustedEvidence,
         ...(confirmation ? [confirmation] : []),
         ...steps.flatMap((s) => s.toolResults.map((r) => r.output)),
-      ])
-      const violations = verifyNumbers(text, evidence)
+      ]
+      const violations = [...verifyNumbers(text, collectEvidence(rawEvidence)), ...verifyTransactionReferences(text,rawEvidence)]
       if (violations.length) await audit(ctx, 'output_verification', { violations })
       params.onVerified?.(violations)
       console.info(

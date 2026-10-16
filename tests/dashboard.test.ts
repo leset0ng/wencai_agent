@@ -133,6 +133,23 @@ describe('用户首页数据', () => {
     expect(data.transactions).toHaveLength(5)
     expect(data.transactions.some((item) => item.counterparty === '乙交易')).toBe(false)
     expect(data.transactions[0].counterparty).toBe('购物')
+    expect(data.transactions[0]).toMatchObject({ accountId: 'dashboard_a1', memo: '' })
+  })
+  it('待确认区只返回本人未过期的转账摘要，不泄露参数、会话或其他用户确认单', async () => {
+    const items = [
+      { id: 'desktop_pending_a', userId: A, tool: 'transfer', status: 'pending' as const, expiresAt: new Date(Date.now() + 60_000) },
+      { id: 'desktop_pending_b', userId: B, tool: 'transfer', status: 'pending' as const, expiresAt: new Date(Date.now() + 60_000) },
+      { id: 'desktop_pending_expired', userId: A, tool: 'transfer', status: 'pending' as const, expiresAt: new Date(Date.now() - 1000) },
+      { id: 'desktop_pending_cancelled', userId: A, tool: 'transfer', status: 'cancelled' as const, expiresAt: new Date(Date.now() + 60_000) },
+      { id: 'desktop_pending_other_tool', userId: A, tool: 'lock_card', status: 'pending' as const, expiresAt: new Date(Date.now() + 60_000) },
+    ]
+    try {
+      await db.insert(schema.pendingActions).values(items.map((item) => ({ ...item, sessionId: 'private-session', argsJson: '{"private":"not-public"}', paramsHash: 'test-hash', integrity: 'test-integrity', level: 'yellow' as const, reasonsJson: '[]', summaryJson: JSON.stringify({ title: '确认转账', fields: [{ label: '金额', value: '¥200.00' }] }), createdAt: new Date() })))
+      const data = await getDashboard(A)
+      expect(data.pendingTransfers?.map((item) => item.actionId)).toEqual(['desktop_pending_a'])
+      expect(data.pendingTransfers?.[0].summary.fields).toEqual([{ label: '金额', value: '¥200.00' }])
+      expect(JSON.stringify(data.pendingTransfers)).not.toMatch(/private-session|not-public|test-integrity/)
+    } finally { await db.delete(schema.pendingActions).where(inArray(schema.pendingActions.id, items.map((item) => item.id))) }
   })
   it('账期采用 UTC+8，跨年趋势保留空月份，收入不会混入支出分类', async () => {
     const data = await getDashboard(A)

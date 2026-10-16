@@ -8,7 +8,7 @@ const CARD_TAIL_RE = /尾号\s*(\d{4})/g
 
 export interface NumberViolation {
   text: string
-  kind: 'amount' | 'card_tail'
+  kind: 'amount' | 'card_tail' | 'transaction_reference'
 }
 
 /** 把工具输出里的数字收集成可比对的集合（元为单位的字符串 + 原始数字） */

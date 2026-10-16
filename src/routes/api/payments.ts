@@ -6,7 +6,7 @@ import { resolveTool } from '#/server/tools/bank'
 import { runBankTool } from '#/server/tools/runner'
 
 const bodySchema = z.object({
-  tool: z.enum(['search_bank_accounts', 'add_payee', 'transfer', 'transfer_between_accounts', 'transfer_between_cards', 'repay_credit_card', 'set_card_remark', 'lock_card', 'unlock_card', 'report_card_lost', 'adjust_card_limit', 'apply_card', 'adjust_credit_limit']),
+  tool: z.enum(['search_bank_accounts', 'add_payee', 'transfer', 'transfer_between_accounts', 'transfer_between_cards', 'repay_credit_card', 'set_card_remark', 'lock_card', 'unlock_card', 'report_card_lost', 'adjust_card_limit', 'apply_card', 'adjust_credit_limit', 'cancel_subscription']),
   args: z.record(z.string(), z.unknown()),
 })
 

@@ -3,15 +3,16 @@ import { Delete, Eye, EyeOff, Keyboard, LockKeyhole } from 'lucide-react'
 import { Input } from './input'
 import { Button } from './button'
 
-export function CardPasswordInput({ id, label, value, onChange, onActivate, disabled, isNew = false }: {
-  id: string; label: string; value: string; onChange: (value: string) => void; onActivate: () => void; disabled: boolean; isNew?: boolean
+export function CardPasswordInput({ id, label, value, onChange, onActivate, disabled, isNew = false, segmented = false }: {
+  id: string; label: string; value: string; onChange: (value: string) => void; onActivate: () => void; disabled: boolean; isNew?: boolean; segmented?: boolean
 }) {
   const [visible, setVisible] = useState(false)
   return <div className="bank-secure-password-field">
     <label htmlFor={id}>{label}</label>
-    <div className="bank-secure-password-control">
+    <div className={`bank-secure-password-control${segmented ? ' is-segmented' : ''}`}>
       <LockKeyhole size={21} aria-hidden="true" />
-      <Input id={id} type={visible ? 'text' : 'password'} inputMode="none" autoComplete={isNew ? 'new-password' : 'off'} maxLength={6}
+      {segmented && <div className="bank-secure-password-slots" aria-hidden="true">{Array.from({ length: 6 }, (_, index) => <span key={index} className={index === Math.min(value.length, 5) ? 'is-current' : ''}>{value[index] ? visible ? value[index] : '•' : ''}</span>)}</div>}
+      <Input id={id} type={visible ? 'text' : 'password'} inputMode={segmented ? 'numeric' : 'none'} autoComplete={isNew ? 'new-password' : 'off'} maxLength={6}
         value={value} disabled={disabled} placeholder="6 位交易密码" onFocus={onActivate} onClick={onActivate}
         onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 6))} />
       <Button animated={false} className="bank-secure-eye" disabled={disabled} aria-label={visible ? '隐藏交易密码' : '显示交易密码'} aria-pressed={visible}

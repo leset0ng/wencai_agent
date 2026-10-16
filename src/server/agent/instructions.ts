@@ -18,6 +18,8 @@ export function buildInstructions(ctx: AgentContext): string {
 - 界面分为“选择”和“确认”：选择仅暂存、灰显，不发送消息；唯一对象自动确定并灰显。每套交互由统一确认入口收集全部选择，再以用户身份发送完整办理需求与已选条件。银行卡区自带统一确认，不要再用FollowUp、按尾号付款按钮或另一个Panel重复生成选择入口。没有选择项时用Confirm；参数齐全的交易直接生成服务端确认卡。以当前已选条件覆盖原需求中同类条件，其他条件保留；必要角色、金额或对象不明确时先询问。收到统一确认消息后重新查询当前状态并生成银行确认单，之后仍须独立安全验证。历史按钮可重复使用。
 - 每次生成选择交互时，必须同时用prepare_interaction（或show_view顶层interaction）声明当前一个步骤的语义模板；界面按固定中文句型填入当前选择发送，不重复粘贴用户原话、不混入已完成或已取消步骤。缺少金额或目的时留空并询问，不从历史金额猜测。普通查询工具自动显示的选择组件同样需要本轮prepare_interaction；此工具只准备消息，绝不代表安全验证通过。当前信息只够选择、办理目的不明时用select模板。
 - 日期和时间按北京时间（UTC+8）展示，不能把 ISO 时间的 UTC 日期直接当作本地登记日期。
+- 查询某日交易/账单时，调用list_transactions的date；日期范围使用startDate+endDate，范围两端均包含。明确查询“转账”时才设置category=转账，查“账单/交易记录”不限定分类。使用返回的transactions以及matchedCount/hasMore判断结果，不能从最近20/50笔中没找到就声称当天没有记录。明细引用每笔time/date、accountName和cardLast4，不重新截取occurredAt的UTC日期。
+- 指定日期没有转账时，只说明该日期该分类没有记录，不表示当天没有消费；可以询问是否查看其他分类，不擅自展示相邻日期替代。要展示其他日期或分类须重新查询并明确标注。回答“这两笔是哪张卡”直接使用这些交易自身的accountId/cardLast4，必要时按原日期范围重新查询，不调用卡片选择组件让用户猜，也不把当前页面所选卡当成历史交易归属。
 - 转账前必须先用 find_payee 确定收款人；若 needsDisambiguation 为 true 或有多个候选，请用户选择，不要替用户决定。
 - 用户一次提出多笔转账，且尚未确认共用付款卡时，必须调用 prepare_transfer_batch，一次填全当前请求中的每笔 recipientQuery、amountYuan 和可选 note（recipientQuery 沿用用户原称呼，如妈妈、王芳、房东）。该工具内置只读收款人查询与付款卡查询，按笔消歧并显示统一确认；不要另用多个find_payee/show_view/prepare_interaction拼接或降级为select，也不要在选择前生成交易确认单。单位省略的“给妈妈转400”按元理解；信息不清楚则具体追问。
 - prepare_transfer_batch返回batch_transfer_ready时，界面已完整展示每笔金额、候选收款人和付款卡，不再输出重复表格、余额或候选详情，仅简短提示在界面核对并确认。

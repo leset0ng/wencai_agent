@@ -153,7 +153,8 @@ describe('定时转账', () => {
 
   it('同一时刻的不同写法不影响令牌校验；改执行时间被拒', async () => {
     const when = await later(3)
-    const local = new Date(when).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace(' ', 'T') + '+08:00'
+    // 保留毫秒，否则仿真时钟带毫秒时并非同一时刻，令牌应当拒绝。
+    const local = new Date(new Date(when).getTime() + 8 * 3600_000).toISOString().replace('Z', '+08:00')
     const base = { fromAccountId: ACC, payeeId: PAYEE, amountCents: 5000 }
     const { confirmationToken } = (await previewScheduledTransfer.execute({ ...base, executeAt: when }, ctx)) as {
       confirmationToken: string

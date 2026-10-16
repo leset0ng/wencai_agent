@@ -6,9 +6,13 @@ import { SPLIT_TOOLS } from './splits'
 import { BIRTHDAY_TOOLS } from './birthdays'
 import { SECURITY_TOOLS } from './security'
 import { MANDATE_TOOLS } from './mandates'
+import { listTransactions } from './transaction-query'
+import { businessDate } from '#/lib/dashboard'
+import { simNow } from './jobs'
+export { listTransactions } from './transaction-query'
 import { ownProfile, userCards } from '#/server/cards/service'
 import { paymentAccounts } from '#/server/payments/service'
-import { and, desc, eq, gte, inArray } from 'drizzle-orm'
+import { and, eq, gte, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema } from '#/server/db/client'
 import { runInSandbox } from '#/server/sandbox/quickjs'
@@ -37,42 +41,6 @@ export const getAccounts = defineBankTool({
   execute: async (_args, ctx) => {
     const rows = await paymentAccounts(ctx.userId)
     return rows.map((a) => ({ id: a.id, name: a.cardLast4 ? `储蓄卡 · 尾号${a.cardLast4}` : a.name, remark: a.remark, cardId: a.cardId, last4: a.cardLast4, balance: yuan(a.balanceCents), currency: a.currency }))
-  },
-})
-
-export const listTransactions = defineBankTool({
-  name: 'list_transactions',
-  description: '查询最近的交易记录',
-  baseRisk: 'green',
-  kind: 'read',
-  inputSchema: z.object({
-    days: z.number().int().min(1).max(365).default(30),
-    category: z.string().optional().describe('如：餐饮、交通、购物、娱乐、生活缴费、转账'),
-    limit: z.number().int().min(1).max(50).default(20),
-  }),
-  execute: async ({ days, category, limit }, ctx) => {
-    const accs = await db.select({ id: schema.accounts.id }).from(schema.accounts).where(eq(schema.accounts.userId, ctx.userId))
-    const since = new Date(Date.now() - days * DAY)
-    const rows = await db
-      .select()
-      .from(schema.transactions)
-      .where(
-        and(
-          inArray(schema.transactions.accountId, accs.map((a) => a.id)),
-          gte(schema.transactions.occurredAt, since),
-          category ? eq(schema.transactions.category, category) : undefined,
-        ),
-      )
-      .orderBy(desc(schema.transactions.occurredAt))
-      .limit(limit)
-    return rows.map((t) => ({
-      id: t.id,
-      amount: yuan(t.amountCents),
-      counterparty: t.counterparty,
-      memo: t.memo,
-      category: t.category,
-      date: t.occurredAt.toISOString().slice(0, 10),
-    }))
   },
 })
 
@@ -176,6 +144,7 @@ export const analyzeSpending = defineBankTool({
     code: z.string().max(4000).optional(),
   }),
   execute: async ({ days, code }, ctx) => {
+    const now = await simNow()
     const accs = await db.select({ id: schema.accounts.id }).from(schema.accounts).where(eq(schema.accounts.userId, ctx.userId))
     const rows = await db
       .select()
@@ -183,14 +152,14 @@ export const analyzeSpending = defineBankTool({
       .where(
         and(
           inArray(schema.transactions.accountId, accs.map((a) => a.id)),
-          gte(schema.transactions.occurredAt, new Date(Date.now() - days * DAY)),
+          gte(schema.transactions.occurredAt, new Date(now.getTime() - days * DAY)),
         ),
       )
     const transactions = rows.filter((t) => t.category !== '信用卡还款').map((t) => ({
       amount: yuan(t.amountCents),
       category: t.category,
       counterparty: t.counterparty,
-      date: t.occurredAt.toISOString().slice(0, 10),
+      date: businessDate(t.occurredAt),
     }))
     const program =
       code ??

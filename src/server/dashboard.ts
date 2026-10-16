@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray } from 'drizzle-orm'
 import { db, schema } from '#/server/db/client'
 import { businessMonth } from '#/lib/dashboard'
 import type { DashboardData } from '#/lib/dashboard'
@@ -10,7 +10,7 @@ import { reservedFunds } from '#/server/automation/birthdays'
 /** 用户首页只接受已认证会话中的身份，所有业务数据按归属过滤。金额返回元。 */
 export async function getDashboard(userId: string): Promise<DashboardData> {
   const cards = await userCards(userId)
-  const [accounts, holdings, subscriptions, now] = await Promise.all([
+  const [accounts, holdings, subscriptions, now, pendingTransfers] = await Promise.all([
     db.select().from(schema.accounts).where(eq(schema.accounts.userId, userId)),
     db
       .select({ principal: schema.holdings.principalCents })
@@ -18,6 +18,10 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
       .where(eq(schema.holdings.userId, userId)),
     db.select().from(schema.subscriptions).where(eq(schema.subscriptions.userId, userId)),
     simNow(),
+    db.select({ actionId: schema.pendingActions.id, level: schema.pendingActions.level, summaryJson: schema.pendingActions.summaryJson, expiresAt: schema.pendingActions.expiresAt })
+      .from(schema.pendingActions).where(and(eq(schema.pendingActions.userId, userId), eq(schema.pendingActions.status, 'pending'), gt(schema.pendingActions.expiresAt, new Date()),
+        inArray(schema.pendingActions.tool, ['transfer', 'commit_transfer', 'transfer_between_cards', 'transfer_between_accounts', 'pay_split_request'])))
+      .orderBy(desc(schema.pendingActions.createdAt)),
   ])
   const rows = accounts.length
     ? await db
@@ -38,6 +42,8 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     counterparty: row.counterparty,
     category: row.category,
     occurredAt: row.occurredAt.toISOString(),
+    accountId: row.accountId,
+    memo: row.memo ?? '',
   }))
   // 每个账户独立统计完整账期，再截取明细；不从首页的 50 条记录里筛选。
   const accountActivity = Object.fromEntries(accounts.map((account) => {
@@ -85,6 +91,7 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     return { label: `${date.getUTCMonth() + 1}月`, value: total / 100 }
   })
   return {
+    pendingTransfers: pendingTransfers.map((item) => ({ actionId: item.actionId, level: item.level, summary: JSON.parse(item.summaryJson), expiresAt: item.expiresAt.getTime() })),
     notifications: (await notifications(userId)).map((n) => ({ id: n.id, title: n.title, body: n.body, actionId: n.actionId, read: !!n.readAt })),
     now: now.toISOString(),
     totalAssets: (availableCents + principalCents + reservedCents) / 100,

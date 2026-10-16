@@ -1,6 +1,7 @@
 export interface DashboardData {
   now: string
   notifications?: { id: string; title: string; body: string; actionId: string | null; read: boolean }[]
+  pendingTransfers?: { actionId: string; level: 'yellow' | 'red'; summary: { title: string; fields: { label: string; value: string }[] }; expiresAt: number }[]
   totalAssets: number
   reservedBalance?: number
   availableBalance: number
@@ -14,6 +15,8 @@ export interface DashboardData {
     counterparty: string
     category: string
     occurredAt: string
+    accountId?: string
+    memo?: string
   }[]
   subscriptions: { id: string; merchant: string; amount: number; cycle: string; status: string }[]
   monthly: {
@@ -31,3 +34,10 @@ export const formatAmount = (amount: number) =>
 /** 业务账期统一按 UTC+8 计算，不依赖浏览器/服务器的本地时区。 */
 export const businessMonth = (date: Date) =>
   new Date(date.getTime() + 8 * 3600_000).toISOString().slice(0, 7)
+
+/** 与账户页面一致的北京时间，禁止直接截取 UTC ISO 日期用于账单。 */
+export const businessDate = (date: Date) =>
+  new Date(date.getTime() + 8 * 3600_000).toISOString().slice(0, 10)
+
+export const businessDateTime = (date: Date) =>
+  new Date(date.getTime() + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ')

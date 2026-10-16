@@ -4,7 +4,8 @@ import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, Loader2, ReceiptText, Send, Square } from 'lucide-react'
+import { ArrowUp, ReceiptText, Send, Settings, Square, Wallet } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import type { WencaiUIMessage } from '#/server/agent/messages'
 import { AgentAvatar } from '#/components/banking/AgentAvatar'
 import ToolPart from './ToolPart'
@@ -12,23 +13,29 @@ import { toolPresentations } from './presentation'
 import AssistantText, { presentedTables } from './AssistantText'
 import { subscribeConfirmations } from '#/lib/confirmation-notices'
 import ConfirmCard from './ConfirmCard'
-import { MotionMessage, ThinkingDots } from '#/components/ui/motion'
+import { MotionMessage, bankEase } from '#/components/ui/motion'
+import { AgentProgress } from './AgentProgress'
+import { agentStage, progressOnlyTool } from './progress'
 import { AgentInteractionContext, AgentInteractionGroup } from './AgentInteraction'
 import { interactionSnapshot, InteractionMemory, operationMessage, type AgentMessageOptions } from './interaction-message'
 
 const SUGGESTIONS = [
-  { label: '查一下本月支出', prompt: '帮我分析本月支出并用图表展示分类', icon: ReceiptText },
-  { label: '给妈妈转 200 元', prompt: '给妈妈转200元', icon: Send },
+  { id: 'spending', label: '查一下本月支出', desktopLabel: '分析本月支出', prompt: '帮我分析本月支出并用图表展示分类', icon: ReceiptText, desktopOnly: false },
+  { id: 'transfer', label: '给妈妈转 200 元', desktopLabel: '给妈妈转账', prompt: '给妈妈转200元', icon: Send, desktopOnly: false },
+  { id: 'balance', label: '查账户余额', desktopLabel: '查账户余额', prompt: '帮我查看账户余额', icon: Wallet, desktopOnly: true },
+  { id: 'subscriptions', label: '管理订阅', desktopLabel: '管理订阅', prompt: '帮我查看所有订阅与自动扣费', icon: Settings, desktopOnly: true },
 ]
 
 export default function ChatView({
   request,
   active = true,
   userId,
+  userName,
 }: {
   request?: { id: number; text: string }
   active?: boolean
   userId?: string
+  userName?: string
 }) {
   const client = useQueryClient()
   const { messages, sendMessage, status, error, stop } = useChat<WencaiUIMessage>({
@@ -53,6 +60,8 @@ export default function ChatView({
   const [sending, setSending] = useState(false)
   const activeConfirmation = useRef<string | undefined>(undefined)
   const busy = status === 'submitted' || status === 'streaming'
+  const stage = agentStage(messages, busy)
+  const reduce = useReducedMotion()
   const [stoppedNotice, setStoppedNotice] = useState('')
   useEffect(() => { if (status === 'submitted') setStoppedNotice('') }, [status])
   /**
@@ -155,19 +164,20 @@ export default function ChatView({
         }}
       >
         <div className="bank-agent-welcome">
+          <div className="bank-desktop-agent-greeting"><AgentAvatar small /><div><strong>你好，{userName ?? '欢迎回来'}</strong><p>查账户、转账、看账单，我来帮你。</p></div></div>
           <span className="bank-agent-eyebrow">你的专属银行助手</span>
           <h2>说句话，就能办业务</h2>
           <p>查账户、转账、看账单，我来帮你</p>
           <div className="bank-agent-suggestions">
-            {SUGGESTIONS.map(({ label, prompt, icon: Icon }) => (
+            {SUGGESTIONS.map(({ id, label, desktopLabel, desktopOnly, prompt, icon: Icon }) => (
               <Button
                 key={label}
-                className="bank-lift"
+                className={`bank-lift bank-suggestion-${id}${desktopOnly ? ' bank-desktop-only' : ''}`}
                 disabled={busy}
                 onClick={() => send(prompt)} type="button"
               >
                 <Icon size={17} />
-                {label}
+                <span className="bank-suggestion-mobile-label">{label}</span><span className="bank-suggestion-desktop-label">{desktopLabel}</span>
               </Button>
             ))}
           </div>
@@ -181,6 +191,9 @@ export default function ChatView({
           {messages.map((message, messageIndex) => {
             const processing = busy && messageIndex === messages.length - 1
             const presentation = toolPresentations(message.parts, processing)
+            const visibleParts = message.parts.map((part,index) => part.type === 'text' ? !!part.text.trim()
+              : ['data-confirmation','data-verify','data-blocked'].includes(part.type) || (part.type.startsWith('tool-') && !progressOnlyTool(part,processing,presentation[index])))
+            if (message.role === 'assistant' && !visibleParts.some(Boolean)) return null
             const tables = presentedTables(message.parts, presentation)
             const securityConfirmation = message.parts.some((part) => 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && ['needs_confirmation', 'needs_handoff', 'plan'].includes(String(part.output.status)))
             const batchSelection = !securityConfirmation && message.parts.some((part) => part.type === 'tool-prepare_transfer_batch' && 'output' in part && !!part.output && typeof part.output === 'object' && 'status' in part.output && part.output.status === 'batch_transfer_ready')
@@ -192,6 +205,7 @@ export default function ChatView({
                 {message.role !== 'user' && <AgentAvatar small />}
                 <AgentInteractionContext.Provider value={{ send, enabled: true, busy: busy || sending, snapshot: interactionSnapshot(messages, messageIndex), memory: interactionMemory.current }}><div className="bank-message-content"><AgentInteractionGroup active={message.role === 'assistant' && !processing} securityConfirmation={securityConfirmation}>
                   {message.parts.map((part, index) => {
+                    if (!visibleParts[index]) return null
                     const key = `${message.id}-${index}`
                     if (part.type === 'text')
                       return message.role === 'user' ? (
@@ -228,28 +242,21 @@ export default function ChatView({
                       )
                     if (part.type.startsWith('tool-'))
                       return presentation[index] === 'hidden' ? null : (
-                        <div className="bank-tool-result" key={key}>
+                        <motion.div className="bank-tool-result" key={`${key}-${presentation[index]}`} initial={{opacity:reduce?1:0,y:reduce?0:18}} animate={{opacity:1,y:0}} transition={{duration:reduce?0:.36,ease:bankEase}}>
                           <ToolPart
                             part={part as never}
                             summarized={presentation[index] === 'status'}
                           />
-                        </div>
+                        </motion.div>
                       )
                     return null
                   })}
                 </AgentInteractionGroup></div></AgentInteractionContext.Provider>
+                {message.role === 'user' && <span className="bank-desktop-chat-user" aria-hidden="true">{userName?.slice(0, 1) ?? '我'}</span>}
               </MotionMessage>
             )
           })}
-          {status === 'submitted' && (
-            <div className="bank-thinking">
-              <AgentAvatar small />
-              <span>
-                文财正在思考
-                <ThinkingDots />
-              </span>
-            </div>
-          )}
+          <AnimatePresence>{stage && <AgentProgress key="current-progress" stage={stage} />}</AnimatePresence>
         </div>
         {stoppedNotice && !busy && <p className="bank-agent-disclaimer" role="status">{stoppedNotice}</p>}
         {(error || sendError) && (
@@ -289,11 +296,7 @@ export default function ChatView({
             aria-label="停止回答"
             onClick={() => void stopAndReport()}
           >
-            {status === 'submitted' ? (
-              <Loader2 size={20} className="bank-spin" />
-            ) : (
-              <Square size={18} />
-            )}
+            <Square size={18} />
           </Button>
         ) : (
           <Button
@@ -302,7 +305,7 @@ export default function ChatView({
             className="bank-send bank-lift"
             disabled={!input.trim()}
           >
-            <ArrowUp size={24} />
+            <ArrowUp size={24} className="bank-mobile-send-icon" /><Send size={22} className="bank-desktop-send-icon" />
           </Button>
         )}
       </form>

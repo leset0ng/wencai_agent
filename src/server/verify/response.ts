@@ -1,11 +1,12 @@
 import type { StreamTextTransform, ToolSet } from 'ai'
 import { collectEvidence, verifyNumbers } from './numbers'
+import { verifyTransactionReferences } from './transactions'
 import { audit } from '#/server/audit/log'
 import type { AgentContext } from '#/server/agent/context'
 
 const successClaim = /(?:已(?:经)?(?:成功)?(?:完成)?(?:转账|转出|扣款|付款|还款|申购|赎回|挂失|解锁|冻结|开卡|取消订阅)|(?:转账|还款|申购|赎回|挂失|解锁|冻结|开卡|取消订阅)(?:已)?(?:成功|完成)|(?:操作|业务|交易)已经?(?:完成|成功))/
 export function checkedResponse(text: string, evidence: unknown[], completed: boolean, pending: boolean) {
-  const violations = verifyNumbers(text, collectEvidence(evidence))
+  const violations = [...verifyNumbers(text, collectEvidence(evidence)), ...verifyTransactionReferences(text,evidence)]
   if (successClaim.test(text) && !completed) return { text: pending ? '操作尚未执行，请在确认卡上核对并确认。' : '目前没有可核对的执行成功回执，请先查询或发起对应操作。', violations, blocked: true }
   if (violations.length) return { text: '部分内容未通过银行数据核对，已停止展示。请以已显示的账户数据和操作卡片为准。', violations, blocked: true }
   return { text, violations, blocked: false }

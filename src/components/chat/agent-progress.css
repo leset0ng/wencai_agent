@@ -1,0 +1,22 @@
+.bank-agent-progress { display:flex; align-items:flex-start; gap:10px; margin:16px 0 22px; color:var(--sea-ink); }
+.bank-agent-progress > .bank-agent-avatar { flex-shrink:0; }
+.bank-agent-progress-body { flex:1; min-width:0; }
+.bank-agent-progress-caption { display:flex; align-items:center; gap:9px; min-height:31px; margin-bottom:10px; font-size:13px; color:var(--sea-ink-soft); }
+.bank-agent-progress-caption i { width:9px; height:9px; border-radius:50%; background:var(--lagoon); box-shadow:0 0 12px color-mix(in srgb,var(--lagoon) 25%,transparent); }
+.bank-agent-progress-card { display:flex; align-items:center; gap:16px; padding:18px; border:1px solid var(--line); border-radius:22px; background:var(--surface-strong); }
+.bank-agent-progress-spinner { flex-shrink:0; color:var(--lagoon); animation:bank-stage-spin 1s linear infinite; }
+.bank-agent-stage-viewport { position:relative; flex:1; min-width:0; overflow:hidden; min-height:76px; display:flex; align-items:center; }
+.bank-agent-stage-text { width:100%; }
+.bank-agent-stage-text strong { display:block; font-size:15px; line-height:1.5; font-weight:650; color:var(--lagoon); }
+.bank-agent-stage-text p { margin:6px 0 0; font-size:12px; line-height:1.6; color:var(--sea-ink-soft); }
+@keyframes bank-stage-spin { to { transform:rotate(360deg); } }
+@media (min-width:1024px) {
+  .bank-responsive .bank-workspace .bank-agent-progress { gap:14px; margin-top:20px; }
+  .bank-responsive .bank-workspace .bank-agent-progress-caption { font-size:15px; min-height:34px; margin-bottom:12px; color:var(--pc-text); }
+  .bank-responsive .bank-workspace .bank-agent-progress-caption i { background:var(--pc-action); }
+  .bank-responsive .bank-workspace .bank-agent-progress-card { padding:22px; gap:20px; border-color:var(--pc-line); background:var(--pc-panel); border-radius:24px; }
+  .bank-responsive .bank-workspace .bank-agent-progress-spinner,.bank-responsive .bank-workspace .bank-agent-stage-text strong { color:var(--pc-accent); }
+  .bank-responsive .bank-workspace .bank-agent-stage-text strong { font-size:18px; }
+  .bank-responsive .bank-workspace .bank-agent-stage-text p { font-size:14px; color:var(--pc-muted); }
+}
+@media (prefers-reduced-motion:reduce) { .bank-agent-progress-spinner { animation:none; } }

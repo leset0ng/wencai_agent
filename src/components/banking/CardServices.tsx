@@ -12,7 +12,7 @@ import { PaymentApproval } from './PaymentCenter'
 import { Reveal } from '#/components/ui/motion'
 import { CardPasswordAction } from '#/components/ui/CardPasswordAction'
 
-export type CardServiceMode = 'remark' | 'repay' | 'manage' | 'apply'
+export type CardServiceMode = 'remark' | 'repay' | 'manage' | 'apply' | 'limit' | 'freeze' | 'lost'
 export function CardServices({ data, cardId, mode, userId }: { data: DashboardData; cardId: string; mode: CardServiceMode; userId: string }) {
   const card = data.cards.find((c) => c.id === cardId)!
   const debit = data.cards.filter((c) => c.kind === 'debit' && c.status === 'active')
@@ -59,14 +59,14 @@ export function CardServices({ data, cardId, mode, userId }: { data: DashboardDa
         <Button className="bank-primary bank-lift" disabled={busy || !debit.length || card.outstanding <= 0} type="submit">{busy ? '正在准备…' : '下一步 · 核对还款'}</Button>
         <p className="bank-page-note">支持部分或全额还款，金额不能超过当前待还。到账后同步恢复可用额度。</p>
       </form>}
-      {mode === 'manage' && <div className="bank-payment-form">
-        <h2>卡片管理</h2>
-        <CardPasswordAction cardId={card.id} last4={card.last4} />
+      {['manage', 'limit', 'freeze', 'lost'].includes(mode) && <div className="bank-payment-form">
+        <h2>{mode === 'limit' ? '调整卡片额度 / 限额' : mode === 'freeze' ? card.status === 'locked' ? '解除临时冻结' : '临时冻结卡片' : mode === 'lost' ? '挂失卡片' : '卡片管理'}</h2>
+        {mode === 'manage' && <CardPasswordAction cardId={card.id} last4={card.last4} />}
         <p className="bank-page-note">{card.kind === 'credit' ? '信用卡用于消费和还款，信用额度不计入账户余额。' : '储蓄卡独立记账，可转账、收款和设置每日转出限额。'}已挂失的卡片不能解锁。</p>
-        {card.status === 'active' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('lock_card', { cardId })} type="button">临时冻结</Button>}
-        {card.status === 'locked' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('unlock_card', { cardId })} type="button">解锁卡片</Button>}
-        {card.status !== 'lost' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('report_card_lost', { cardId })} type="button">挂失卡片</Button>}
-        {card.status !== 'lost' && <form className="bank-payment-form" onSubmit={(e) => {
+        {['manage', 'freeze'].includes(mode) && card.status === 'active' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('lock_card', { cardId })} type="button">临时冻结</Button>}
+        {['manage', 'freeze'].includes(mode) && card.status === 'locked' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('unlock_card', { cardId })} type="button">解锁卡片</Button>}
+        {['manage', 'lost'].includes(mode) && card.status !== 'lost' && <Button className="bank-payment-secondary bank-lift" disabled={busy} onClick={() => void prepare('report_card_lost', { cardId })} type="button">挂失卡片</Button>}
+        {['manage', 'limit'].includes(mode) && card.status !== 'lost' && <form className="bank-payment-form" onSubmit={(e) => {
           e.preventDefault(); const cents = parsePaymentAmount(limit)
           if (cents === null) { setError('请输入有效限额'); return }
           void prepare(card.kind === 'credit' ? 'adjust_credit_limit' : 'adjust_card_limit', card.kind === 'credit' ? { cardId, creditLimit: cents / 100 } : { cardId, dailyLimit: cents / 100 })
