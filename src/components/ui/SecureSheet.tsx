@@ -33,7 +33,7 @@ export function SecureSheet({ open, height, frame, onCancel, children }: {
     <Dialog.Portal>
       <Dialog.Backdrop className={`bank-secure-backdrop${open ? ' is-open' : ''}`} render={<motion.div initial={false} animate={{ opacity: open ? 1 : 0 }} transition={{ duration: reduce ? 0 : .24 }} />} />
       <Dialog.Popup ref={panel} hidden={false} inert={!open} aria-hidden={!open} className={`bank-secure-frame${desktop ? ' bank-secure-desktop-frame' : ''}${open ? ' is-open' : ''}`}
-        initialFocus={() => frame.current} style={{ left: anchor.left, width: anchor.width, bottom: desktop ? '50%' : anchor.bottom }}
+        initialFocus={() => frame.current} style={{ left: anchor.left, width: anchor.width, maxWidth: 'none', bottom: desktop ? '50%' : anchor.bottom }}
         render={<motion.div initial={reduce ? false : { y: desktop ? 'calc(50% + 16px)' : '105%' }} animate={{ y: desktop ? open ? '50%' : 'calc(50% + 16px)' : open ? '0%' : '105%', opacity: open ? 1 : 0, height: Math.min(height + (desktop ? 2 : 24), anchor.maxHeight) }}
           style={{ x: '-50%' }} transition={{ duration: reduce ? 0 : .32, ease: [.22, 1, .36, 1] }}
           drag={desktop ? false : 'y'} dragListener={false} dragControls={controls} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0, bottom: .8 }} dragMomentum={false}

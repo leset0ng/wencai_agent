@@ -1,6 +1,6 @@
 .bank-chart {
   min-width: 0;
-  color: #0b1945;
+  color: var(--foreground);
 }
 .bank-chart h3 {
   margin: 0 0 12px;
@@ -24,13 +24,13 @@
 .bank-chart-caption {
   margin: 8px 0 0;
   min-height: 18px;
-  color: #7185aa;
+  color: var(--muted-foreground);
   font-size: 11px;
   text-align: center;
 }
 .bank-chart-empty {
   padding: 16px 0;
-  color: #8192af;
+  color: var(--muted-foreground);
   font-size: 12px;
 }
 .bank-donut-body {
@@ -76,7 +76,7 @@
 }
 .bank-chart-legend li[data-active='true'] {
   transform: translateX(3px);
-  background: #edf4ff;
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
 }
 .bank-chart-legend li > span:nth-child(2) {
   flex: 1;
@@ -94,7 +94,7 @@
 }
 .bank-chart g:focus-visible,
 .bank-chart circle:focus-visible {
-  outline: 2px solid #6da7fb;
+  outline: 2px solid color-mix(in oklab, var(--primary) 60%, transparent);
   outline-offset: 3px;
 }
 .bank-bars.is-compact svg {
@@ -109,7 +109,8 @@
   flex-basis: 100%;
 }
 .bank-donut.is-pie {
-  filter: drop-shadow(0 7px 0 #3275ee38) drop-shadow(0 10px 10px #2871cf20);
+  filter: drop-shadow(0 7px 0 color-mix(in oklab, var(--primary) 22%, transparent))
+    drop-shadow(0 10px 10px color-mix(in oklab, var(--primary) 13%, transparent));
 }
 .bank-donut.is-pie svg {
   transform: rotateX(28deg) rotateZ(-12deg);

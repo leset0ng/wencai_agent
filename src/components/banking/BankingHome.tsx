@@ -379,10 +379,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                             <h2>{selectedCard?.accountName} · {selectedCard?.last4} 账单</h2>
                             <span>{activity.monthly.period.replace('-', ' / ')}</span>
                           </div>
-                          <div className="bank-account-summary">
-                            <div><span>{selectedCard?.kind === 'credit' ? '本月还款' : '本月收入'}</span><strong className="is-income">{hidden ? '••••••' : `+${formatAmount(activity.monthly.income)}`}</strong></div>
-                            <div><span>{selectedCard?.kind === 'credit' ? '本月消费' : '本月支出'}</span><strong>{hidden ? '••••••' : `−${formatAmount(activity.monthly.expense)}`}</strong></div>
-                          </div>
+                          <AccountMonthlyTotals monthly={activity.monthly} hidden={hidden} credit={selectedCard?.kind === 'credit'} />
                           <div className="bank-section-heading"><h3>交易明细</h3><span>最近 {activity.transactions.length} 笔</span></div>
                           <TransactionList transactions={activity.transactions} hidden={hidden} />
                         </Reveal>
@@ -560,31 +557,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                 </Button>
               </>
             )}
-            {data && detail === 'assets' && (
-              <>
-                <div className="bank-detail-total">
-                  <span>账户总资产</span>
-                  <AnimatedAmount value={data.totalAssets} prefix="¥ " />
-                </div>
-                {[
-                  { label: '可用余额', value: data.availableBalance },
-                  { label: '理财持仓本金', value: data.investmentPrincipal },
-                  { label: '生日计划预留资金', value: data.reservedBalance ?? 0 },
-                ].map((item) => (
-                  <div key={item.label} className="bank-detail-row">
-                    <span>{item.label}</span>
-                    <strong>¥ {formatAmount(item.value)}</strong>
-                  </div>
-                ))}
-                <p className="bank-page-note">理财按持仓本金统计，不包含预计收益。</p>
-                {data.accounts.map((account) => (
-                  <div key={account.id} className="bank-detail-row">
-                    <span>{account.name}</span>
-                    <strong>¥ {formatAmount(account.balance)}</strong>
-                  </div>
-                ))}
-              </>
-            )}
+            {data && detail === 'assets' && <AssetDetails data={data} hidden={hidden} />}
             {data && detail === 'receive' && (
               <>
                 <div className="bank-receive-icon">
@@ -614,34 +587,47 @@ export default function BankingHome({ user }: { user: { id: string; name: string
             {data && detail === 'transactions' && (
               <TransactionList transactions={data.transactions} hidden={hidden} />
             )}
-            {data && detail === 'notifications' && (
-              <>
-                {data.notifications?.map((notice) => <article key={notice.id} className="bank-payment-address"><strong>{notice.title}</strong><p>{notice.body}</p>{notice.actionId && <a className="bank-text-button" href={`/confirm/${encodeURIComponent(notice.actionId)}`}>核对并确认</a>}</article>)}
-                <div className="bank-notice">
-                  <Bell size={20} />
-                  <span>
-                    订阅服务提醒<small>查看正在生效的订阅，提前安排支出。</small>
-                  </span>
-                </div>
-                <SubscriptionList
-                  subscriptions={data.subscriptions.filter((item) => item.status === 'active')}
-                  hidden={hidden}
-                />
-                <Button
-                  className="bank-primary bank-lift bank-full-width"
-                  onClick={() => openAgent('帮我查看订阅扣费时间和提醒设置')} type="button"
-                >
-                  管理订阅提醒
-                  <ChevronRight size={17} />
-                </Button>
-              </>
-            )}
+            {data && detail === 'notifications' && <NotificationDetails notifications={data.notifications} subscriptions={data.subscriptions} hidden={hidden} onManage={() => openAgent('帮我查看订阅扣费时间和提醒设置')} />}
             {detail === 'tasks' && <TaskCenter onFollowUp={openAgent} />}
           </div>
         </Sheet>
       </Tabs>
     </div>
   )
+}
+
+/** Keep the existing account skin while sharing the privacy contract. */
+export function AccountMonthlyTotals({ monthly, hidden, credit = false }: { monthly: DashboardData['monthly']; hidden: boolean; credit?: boolean }) {
+  return <div className="bank-account-summary">
+    <div><span>{credit ? '本月还款' : '本月收入'}</span><strong className="is-income">{hidden ? '••••••' : `+${formatAmount(monthly.income)}`}</strong></div>
+    <div><span>{credit ? '本月消费' : '本月支出'}</span><strong>{hidden ? '••••••' : `−${formatAmount(monthly.expense)}`}</strong></div>
+  </div>
+}
+
+export function AssetDetails({ data, hidden }: { data: DashboardData; hidden: boolean }) {
+  const amount = (value: number) => hidden ? '••••••' : `¥ ${formatAmount(value)}`
+  return <>
+    <div className="bank-detail-total"><span>账户总资产</span>{hidden ? <strong>••••••</strong> : <AnimatedAmount value={data.totalAssets} prefix="¥ " />}</div>
+    {[
+      { label: '可用余额', value: data.availableBalance },
+      { label: '理财持仓本金', value: data.investmentPrincipal },
+      { label: '生日计划预留资金', value: data.reservedBalance ?? 0 },
+    ].map(item => <div key={item.label} className="bank-detail-row"><span>{item.label}</span><strong>{amount(item.value)}</strong></div>)}
+    <p className="bank-page-note">理财按持仓本金统计，不包含预计收益。</p>
+    {data.accounts.map(account => <div key={account.id} className="bank-detail-row"><span>{account.name}</span><strong>{amount(account.balance)}</strong></div>)}
+  </>
+}
+
+export function NotificationDetails({ notifications, subscriptions, hidden, onManage }: {
+  notifications: DashboardData['notifications']; subscriptions: DashboardData['subscriptions']; hidden: boolean; onManage: () => void
+}) {
+  return <>
+    {notifications?.map(notice => <article key={notice.id} className="bank-payment-address"><strong>{notice.title}</strong><p>{notice.body}</p>{notice.actionId && <a className="bank-text-button" href={`/confirm/${encodeURIComponent(notice.actionId)}`}>核对并确认</a>}</article>)}
+    {!notifications?.length && <p className="bank-empty">暂无消息通知</p>}
+    <div className="bank-notice"><Bell size={20} /><span>订阅服务提醒<small>查看正在生效的订阅，提前安排支出。</small></span></div>
+    <SubscriptionList subscriptions={subscriptions.filter(item => item.status === 'active')} hidden={hidden} />
+    <Button className="bank-primary bank-lift bank-full-width" onClick={onManage} type="button">管理订阅提醒<ChevronRight size={17} /></Button>
+  </>
 }
 
 function TransactionList({
@@ -697,7 +683,7 @@ function TransactionList({
   )
 }
 
-function SubscriptionList({
+export function SubscriptionList({
   subscriptions,
   hidden,
 }: {
