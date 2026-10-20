@@ -1,22 +1,23 @@
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, isNotNull, lte, sql } from 'drizzle-orm'
 import { db, schema, type DB } from '#/server/db/client'
 import { LIFE_PRODUCTS } from '#/lib/life-market'
 import type { LifeDelivery, LifeOrder, LifeSubscription } from '#/lib/life-commerce'
 import type { AgentContext } from '#/server/agent/context'
-import { assertDebitAccount } from '#/server/cards/service'
-import { nextSubscriptionCharge, notify } from '#/server/automation/service'
+import { ensureAutomationSchema, nextSubscriptionCharge } from '#/server/automation/service'
 import { withUserExecutionLock } from '#/server/confirm/lock'
 import { auditInTransaction } from '#/server/audit/log'
 
 const DAY=86400_000
 export const lifePeriodEnd=(date:Date,cycle:string)=>new Date(nextSubscriptionCharge(new Date(date.getTime()+8*3600_000),cycle).getTime()-8*3600_000)
 type Tx=Parameters<Parameters<DB['transaction']>[0]>[0]
+class LifeDebitError extends Error {}
 let ready:Promise<void>|undefined
 export function ensureLifeSchema() {
   return ready??=(async()=>{
     await db.$client.execute(`CREATE TABLE IF NOT EXISTS bank_life_orders (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,action_id TEXT NOT NULL UNIQUE,product_id TEXT NOT NULL,quantity INTEGER NOT NULL,amount_cents INTEGER NOT NULL,account_id TEXT NOT NULL,transaction_id TEXT NOT NULL UNIQUE,delivery_json TEXT NOT NULL,status TEXT NOT NULL,created_at INTEGER NOT NULL,dispatch_at INTEGER NOT NULL,delivery_at INTEGER NOT NULL,refund_due_at INTEGER,refunded_at INTEGER,refund_reason TEXT)`)
     await db.$client.execute(`CREATE TABLE IF NOT EXISTS bank_life_subscriptions (id TEXT PRIMARY KEY,user_id TEXT NOT NULL,action_id TEXT NOT NULL UNIQUE,product_id TEXT NOT NULL,account_id TEXT NOT NULL,amount_cents INTEGER NOT NULL,period_end INTEGER NOT NULL,next_charge_at INTEGER,renewals_left INTEGER NOT NULL,renewal_status TEXT NOT NULL,created_at INTEGER NOT NULL,authorization_expires_at INTEGER NOT NULL)`)
+    await db.$client.execute('CREATE INDEX IF NOT EXISTS bank_life_due ON bank_life_subscriptions (renewal_status,next_charge_at,id)')
   })().catch(e=>{ready=undefined;throw e})
 }
 export function lifeProduct(id:string,kind?:'goods'|'subscription') {
@@ -31,17 +32,17 @@ export function deliveryDates(delivery:LifeDelivery,now:Date) {
 }
 function authorized(ctx:AgentContext) { if(!ctx.authorization)throw new Error('请先核对确认并完成安全验证'); return ctx.authorization.actionId }
 async function debit(tx:Tx,ctx:AgentContext,accountId:string,cents:number,id:string,counterparty:string,category:string,now:Date) {
-  if(!Number.isSafeInteger(cents)||cents<=0)throw new Error('扣款金额无效')
+  if(!Number.isSafeInteger(cents)||cents<=0)throw new LifeDebitError('扣款金额无效')
   const [user]=await tx.select().from(schema.users).where(eq(schema.users.id,ctx.userId))
-  if(!user||user.lockedUntil&&user.lockedUntil>new Date())throw new Error('账户当前不可扣款')
+  if(!user||user.lockedUntil&&user.lockedUntil>new Date())throw new LifeDebitError('账户当前不可扣款')
   const [card]=await tx.select().from(schema.cards).where(and(eq(schema.cards.accountId,accountId),eq(schema.cards.userId,ctx.userId)))
-  if(!card||card.kind!=='debit')throw new Error('请选择本人储蓄卡付款')
-  await assertDebitAccount(tx,accountId)
+  if(!card||card.kind!=='debit')throw new LifeDebitError('请选择本人储蓄卡付款')
+  if(card.status!=='active')throw new LifeDebitError(`尾号${card.last4}已冻结或挂失`)
   const start=new Date(Math.floor((now.getTime()+8*3600_000)/DAY)*DAY-8*3600_000)
   const spent=await tx.select().from(schema.transactions).where(and(eq(schema.transactions.accountId,accountId),gte(schema.transactions.occurredAt,start),sql`${schema.transactions.occurredAt}<${start.getTime()+DAY}`))
-  if(spent.reduce((sum,t)=>sum+Math.max(0,-t.amountCents),0)+cents>card.dailyLimitCents)throw new Error('本次扣款超过银行卡每日支出限额')
+  if(spent.reduce((sum,t)=>sum+Math.max(0,-t.amountCents),0)+cents>card.dailyLimitCents)throw new LifeDebitError('本次扣款超过银行卡每日支出限额')
   const [account]=await tx.update(schema.accounts).set({balanceCents:sql`${schema.accounts.balanceCents}-${cents}`}).where(and(eq(schema.accounts.id,accountId),eq(schema.accounts.userId,ctx.userId),gte(schema.accounts.balanceCents,cents))).returning()
-  if(!account)throw new Error('付款账户余额不足，未扣款')
+  if(!account)throw new LifeDebitError('付款账户余额不足，未扣款')
   await tx.insert(schema.transactions).values({id,accountId,amountCents:-cents,counterparty,category,occurredAt:now})
 }
 export async function buyLifeProduct(ctx:AgentContext,a:{productId:string;quantity:number;fromAccountId:string;delivery:LifeDelivery;deliveryAt:string;dispatchAt:string;amountCents:number},now:Date) {
@@ -127,36 +128,85 @@ export async function lifeSubscriptionChangeSummary(userId:string,id:string,acti
   if(!sub)throw new Error('订阅不存在')
   return {title:action==='cancel'?'确认取消订阅':'确认设置提醒',fields:[{label:'商户',value:sub.merchant},{label:'金额',value:`¥${sub.amount.toFixed(2)} / ${sub.cycle==='monthly'?'月':'年'}`},...(sub.periodEnd?[{label:'已付费有效期',value:sub.periodEnd}]:[]),...(action==='cancel'?[{label:'取消后',value:'停止后续扣费，已付费服务保留至有效期结束，不退当期费用'}]:remindDays?[{label:'提前提醒',value:`${remindDays} 天`}]:[])]}
 }
-/** Worker only: deterministic ledger IDs and one transaction protect retries and concurrent ticks. */
+type Renewal = typeof schema.bankLifeSubscriptions.$inferSelect
+
+/** A single subscription, always using the caller's transaction. Infrastructure errors propagate. */
+async function settleLifeRenewal(tx: Tx, s: Renewal, now: Date) {
+  if (s.renewalStatus !== 'active' || !s.nextChargeAt || s.nextChargeAt > now) return
+  const due = s.nextChargeAt
+  const ctx: AgentContext = { userId: s.userId, sessionId: 'life-worker', channel: 'web' }
+  const [base] = await tx.select().from(schema.subscriptions).where(and(eq(schema.subscriptions.id,s.id),eq(schema.subscriptions.userId,s.userId)))
+  // An orphan or cancelled base record must leave the queue, without blocking other users.
+  if (!base || base.status !== 'active') {
+    await tx.update(schema.bankLifeSubscriptions).set({renewalStatus:'stopped',nextChargeAt:null,renewalsLeft:0}).where(eq(schema.bankLifeSubscriptions.id,s.id))
+    await auditInTransaction(tx,ctx,'action_executed',{tool:'life_subscription_renewal',subscriptionId:s.id,status:'stopped',reason:base?'subscription_inactive':'subscription_missing'})
+    return
+  }
+  let reason: string | undefined
+  const product = LIFE_PRODUCTS.find(p=>p.id===s.productId && p.kind==='subscription')
+  const next = lifePeriodEnd(due,base.cycle)
+  if (!Number.isInteger(s.renewalsLeft) || s.renewalsLeft<1 || s.renewalsLeft>11 || now>s.authorizationExpiresAt || now.getTime()-due.getTime()>DAY) reason='续费授权已结束或错过扣费时限，请重新核对订阅'
+  else if (!product || s.amountCents!==Math.round(product.price*100)) reason='服务价格变化，需要重新确认续费授权'
+  else if (!Number.isFinite(next.getTime()) || next<=due) reason='续费周期无效，请联系人工处理'
+  if (!reason) {
+    try { await debit(tx,ctx,s.accountId,s.amountCents,`renew_${s.id}_${due.getTime()}`,product!.name,'订阅',now) }
+    catch (e) { if (!(e instanceof LifeDebitError)) throw e; reason=e.message }
+  }
+  if (reason) {
+    await tx.update(schema.bankLifeSubscriptions).set({renewalStatus:'past_due',nextChargeAt:null}).where(eq(schema.bankLifeSubscriptions.id,s.id))
+    await tx.insert(schema.bankNotifications).values({id:`notice_${randomUUID()}`,userId:s.userId,type:'subscription',title:'订阅续费已暂停',body:reason,dedupeKey:`life-renewal-failed:${s.id}:${due.getTime()}`,createdAt:now}).onConflictDoNothing()
+    await auditInTransaction(tx,ctx,'action_executed',{tool:'life_subscription_renewal',subscriptionId:s.id,status:'past_due',reason})
+    return
+  }
+  const left=s.renewalsLeft-1
+  await tx.update(schema.subscriptions).set({lastChargedAt:due}).where(eq(schema.subscriptions.id,s.id))
+  await tx.update(schema.bankLifeSubscriptions).set({periodEnd:next,nextChargeAt:left?next:null,renewalsLeft:left,renewalStatus:left?'active':'stopped'}).where(eq(schema.bankLifeSubscriptions.id,s.id))
+  await auditInTransaction(tx,ctx,'action_executed',{tool:'life_subscription_renewal',subscriptionId:s.id,amount:s.amountCents/100,due:due.toISOString()})
+}
+
+/** Worker: one transaction per due subscription; no historical catch-up after downtime. */
 export async function runLifeAutomation(userId:string,now:Date) {
-  await ensureLifeSchema()
+  await ensureLifeSchema(); await ensureAutomationSchema()
   return withUserExecutionLock(userId,async()=>{
     const ctx:AgentContext={userId,sessionId:'life-worker',channel:'web'}
     const orders=await db.select().from(schema.bankLifeOrders).where(eq(schema.bankLifeOrders.userId,userId))
     for(const order of orders)await db.transaction(async tx=>{
       const [current]=await tx.select().from(schema.bankLifeOrders).where(and(eq(schema.bankLifeOrders.id,order.id),eq(schema.bankLifeOrders.userId,userId)))
+      if(!current)return
       if(current.status==='return_requested'&&current.refundDueAt&&current.refundDueAt<=now){await refund(tx,current,now);await auditInTransaction(tx,ctx,'action_executed',{tool:'life_return_settlement',orderId:current.id,amount:current.amountCents/100})}
       else if(['paid','shipped'].includes(current.status))await tx.update(schema.bankLifeOrders).set({status:effectiveOrderStatus(current,now)}).where(eq(schema.bankLifeOrders.id,current.id))
     })
-    const subs=await db.select().from(schema.bankLifeSubscriptions).where(and(eq(schema.bankLifeSubscriptions.userId,userId),eq(schema.bankLifeSubscriptions.renewalStatus,'active')))
-    for(const candidate of subs) {
-      if(!candidate.nextChargeAt||candidate.nextChargeAt>now)continue
-      try{await db.transaction(async tx=>{
-        const [s]=await tx.select().from(schema.bankLifeSubscriptions).where(eq(schema.bankLifeSubscriptions.id,candidate.id))
-        const [base]=await tx.select().from(schema.subscriptions).where(and(eq(schema.subscriptions.id,s.id),eq(schema.subscriptions.userId,userId)))
-        if(!base||base.status!=='active'||s.renewalStatus!=='active'||!s.nextChargeAt||s.nextChargeAt>now)return
-        if(!s.renewalsLeft||now>s.authorizationExpiresAt||now.getTime()-s.nextChargeAt.getTime()>DAY)throw new Error('续费授权已结束或错过扣费时限，请重新核对订阅')
-        const product=lifeProduct(s.productId,'subscription')
-        if(s.amountCents!==Math.round(product.price*100))throw new Error('服务价格变化，需要重新确认续费授权')
-        const due=s.nextChargeAt,next=lifePeriodEnd(due,base.cycle),left=s.renewalsLeft-1
-        await debit(tx,ctx,s.accountId,s.amountCents,`renew_${s.id}_${due.getTime()}`,product.name,'订阅',now)
-        await tx.update(schema.subscriptions).set({lastChargedAt:due}).where(eq(schema.subscriptions.id,s.id))
-        await tx.update(schema.bankLifeSubscriptions).set({periodEnd:next,nextChargeAt:left?next:null,renewalsLeft:left,renewalStatus:left?'active':'stopped'}).where(eq(schema.bankLifeSubscriptions.id,s.id))
-        await auditInTransaction(tx,ctx,'action_executed',{tool:'life_subscription_renewal',subscriptionId:s.id,amount:s.amountCents/100,due:due.toISOString()})
-      })}catch(e){
-        await db.update(schema.bankLifeSubscriptions).set({renewalStatus:'past_due',nextChargeAt:null}).where(and(eq(schema.bankLifeSubscriptions.id,candidate.id),eq(schema.bankLifeSubscriptions.userId,userId),eq(schema.bankLifeSubscriptions.renewalStatus,'active')))
-        await notify(userId,'subscription','订阅续费已暂停',e instanceof Error?e.message:'扣费失败，请核对订阅',`life-renewal-failed:${candidate.id}:${candidate.nextChargeAt.getTime()}`)
-      }
+    const subs=await db.select({id:schema.bankLifeSubscriptions.id}).from(schema.bankLifeSubscriptions).where(and(eq(schema.bankLifeSubscriptions.userId,userId),eq(schema.bankLifeSubscriptions.renewalStatus,'active'),lte(schema.bankLifeSubscriptions.nextChargeAt,now)))
+    for(const candidate of subs) await db.transaction(async tx=>{
+      const [s]=await tx.select().from(schema.bankLifeSubscriptions).where(and(eq(schema.bankLifeSubscriptions.id,candidate.id),eq(schema.bankLifeSubscriptions.userId,userId)))
+      if(s)await settleLifeRenewal(tx,s,now)
+    })
+  })
+}
+
+/**
+ * Global simulation advance: renewals, notifications, audit and clock commit atomically.
+ * Expected business failures pause only that subscription. Unexpected failures roll back
+ * the entire advance. Every iteration consumes or advances its row; there is no step cap.
+ * The indexed queue processes just the next subscription, not all that user's automation.
+ */
+export async function runLifeRenewalsThrough(from:Date,to:Date) {
+  if(!Number.isFinite(from.getTime())||!Number.isFinite(to.getTime())||to<=from)throw new Error('目标时间必须是晚于当前时间的有效日期')
+  await ensureLifeSchema(); await ensureAutomationSchema()
+  return db.transaction(async tx=>{
+    const [clock]=await tx.select().from(schema.settings).where(eq(schema.settings.key,'clock'))
+    if(clock&&new Date(clock.value).getTime()!==from.getTime())throw new Error('模拟时钟已变化，请刷新后重试')
+    let steps=0
+    for(;;) {
+      const [next]=await tx.select().from(schema.bankLifeSubscriptions)
+        .where(and(eq(schema.bankLifeSubscriptions.renewalStatus,'active'),isNotNull(schema.bankLifeSubscriptions.nextChargeAt),lte(schema.bankLifeSubscriptions.nextChargeAt,to)))
+        .orderBy(asc(schema.bankLifeSubscriptions.nextChargeAt),asc(schema.bankLifeSubscriptions.id)).limit(1)
+      if(!next?.nextChargeAt)break
+      await settleLifeRenewal(tx,next,next.nextChargeAt>from?next.nextChargeAt:from)
+      steps++
     }
+    await tx.insert(schema.settings).values({key:'clock',value:to.toISOString()}).onConflictDoUpdate({target:schema.settings.key,set:{value:to.toISOString()}})
+    await tx.insert(schema.settings).values({key:'clock_mode',value:'manual'}).onConflictDoUpdate({target:schema.settings.key,set:{value:'manual'}})
+    return {steps}
   })
 }

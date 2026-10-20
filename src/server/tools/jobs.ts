@@ -12,6 +12,19 @@ export async function simNow(): Promise<Date> {
   return row ? new Date(row.value) : new Date()
 }
 
+/** Read clock mode and update the automatic clock atomically with manual advances. */
+export async function syncWorkerClock(now = new Date()): Promise<Date> {
+  return db.transaction(async tx => {
+    const [mode] = await tx.select().from(schema.settings).where(eq(schema.settings.key,'clock_mode'))
+    if (mode?.value==='manual') {
+      const [clock] = await tx.select().from(schema.settings).where(eq(schema.settings.key,'clock'))
+      if (clock) return new Date(clock.value)
+    }
+    await tx.insert(schema.settings).values({key:'clock',value:now.toISOString()}).onConflictDoUpdate({target:schema.settings.key,set:{value:now.toISOString()}})
+    return now
+  })
+}
+
 export type RiskRating = 'R1' | 'R2' | 'R3' | 'R4' | 'R5'
 
 /** 风险测评计分：五项答案（1–5），与 ai-banking-agent 口径一致 */

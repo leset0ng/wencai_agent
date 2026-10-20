@@ -1,3 +1,6 @@
+import { normalizeAmount as normalize } from './amount'
+import { derivedAmountAt } from './transactions'
+
 /**
  * 回复文本数字校验（防幻觉）：
  * 模型回复中出现的金额、卡尾号必须能在「本轮工具结果 + 用户输入」中找到出处。
@@ -33,11 +36,8 @@ export function collectEvidence(values: unknown[]): Set<string> {
   return out
 }
 
-function normalize(n: number): string {
-  return (Math.round(n * 100) / 100).toString()
-}
 
-export function verifyNumbers(text: string, evidence: Set<string>): NumberViolation[] {
+export function verifyNumbers(text: string, evidence: Set<string>, sourceValues: unknown[] = []): NumberViolation[] {
   const violations: NumberViolation[] = []
   for (const m of text.matchAll(CARD_TAIL_RE)) {
     if (!evidence.has(m[1])) violations.push({ text: m[0], kind: 'card_tail' })
@@ -47,7 +47,7 @@ export function verifyNumbers(text: string, evidence: Set<string>): NumberViolat
     // 只校验明确是金额的数字（带货币符号或单位），避免误伤日期、序号
     if (!/[¥￥元块]/.test(raw)) continue
     const value = Number(`${m[1].replace(/,/g, '')}.${m[2] ?? '0'}`)
-    if (!evidence.has(normalize(value))) violations.push({ text: raw.trim(), kind: 'amount' })
+    if (!evidence.has(normalize(value)) && !derivedAmountAt(text,m.index!+raw.search(/\S/),value,sourceValues)) violations.push({ text: raw.trim(), kind: 'amount' })
   }
   return violations
 }

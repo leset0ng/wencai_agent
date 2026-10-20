@@ -10,6 +10,8 @@ import { ensureRiskSchema } from '#/server/risk/accounts'
 import { assertRecipientRisk } from '#/server/risk/recipient'
 import { ensureCardNumberSchema, numberFingerprint } from '#/server/cards/numbers'
 import { assertDailyTransferAuthorization } from '#/server/policy/transfer-activity'
+import { consumeAdminTransferGrant, type AdminTransferGrant } from '#/server/admin/access'
+import { auditInTransaction } from '#/server/audit/log'
 
 export const maskAccount = (no: string) => `${no.slice(0, 4)} **** ${no.slice(-4)}`
 export const lookupSchema = z.discriminatedUnion('method', [
@@ -312,8 +314,12 @@ export async function transferSummary(a: TransferInput, ctx: AgentContext) {
 export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurredAt = new Date(), options?: {
   /** 仅银行内部 AA 请求服务可指定收款归属，工具参数不能传入。 */
   targetUserId?: string
+  /** Opaque, one-use capability bound to an authenticated admin request and exact transfer. */
+  adminGrant?: AdminTransferGrant
   onSettled?: (tx: Parameters<Parameters<DB['transaction']>[0]>[0], transactionId: string) => Promise<void>
 }) {
+  const admin = options?.adminGrant !== undefined
+  if (admin) consumeAdminTransferGrant(options!.adminGrant!,ctx,a)
   await ensurePaymentsSchema()
   await ensureRiskSchema()
   await ensureUserCardAccounts(ctx.userId)
@@ -332,7 +338,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
       .where(and(eq(schema.accounts.id, a.fromAccountId), eq(schema.accounts.userId, ctx.userId)))
     const [sender] = await tx.select().from(schema.users).where(eq(schema.users.id, ctx.userId))
     if (!source) throw new Error('付款账户不存在')
-    await assertDailyTransferAuthorization(tx, ctx.userId, a.amountCents, occurredAt, ctx.authorization)
+    if (!admin) await assertDailyTransferAuthorization(tx, ctx.userId, a.amountCents, occurredAt, ctx.authorization)
     await assertDebitAccount(tx, source.id, a.amountCents, occurredAt)
     if (sender?.lockedUntil && sender.lockedUntil > new Date()) throw new Error('账户已临时锁定')
     let targetId = a.toAccountId,
@@ -440,6 +446,7 @@ export async function settleTransfer(a: TransferInput, ctx: AgentContext, occurr
       targetAccountId: target?.id ?? null,
       creditTransactionId: creditId,
     })
+    if (admin) await auditInTransaction(tx,ctx,'admin_command',{command:{type:'transfer',...a},transactionId:id,authorization:'request_bound_admin_grant',ok:true})
     await options?.onSettled?.(tx, id)
     const receipt = {
       transactionId: id,

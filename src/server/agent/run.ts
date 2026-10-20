@@ -72,7 +72,7 @@ export async function runAgent(params: {
         ...(confirmation ? [confirmation] : []),
         ...steps.flatMap((s) => s.toolResults.map((r) => r.output)),
       ]
-      const violations = [...verifyNumbers(text, collectEvidence(rawEvidence)), ...verifyTransactionReferences(text,rawEvidence)]
+      const violations = [...verifyNumbers(text, collectEvidence(rawEvidence), rawEvidence), ...verifyTransactionReferences(text,rawEvidence)]
       if (violations.length) await audit(ctx, 'output_verification', { violations })
       params.onVerified?.(violations)
       console.info(

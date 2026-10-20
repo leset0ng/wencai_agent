@@ -1,17 +1,14 @@
-import { eq } from 'drizzle-orm'
 import { db, schema } from '../src/server/db/client'
 import { detectSubscriptions, notify, runAutomaticTransfers, sendSubscriptionReminders } from '../src/server/automation/service'
 import { runDueMandates } from '../src/server/automation/mandates'
-import { simNow } from '../src/server/tools/jobs'
+import { syncWorkerClock } from '../src/server/tools/jobs'
 import { runRiskAnalysisPass } from '../src/server/risk/accounts'
 import { runLifeAutomation } from '../src/server/life/service'
 
 let stopping = false
 let riskPass: Promise<unknown> | undefined
 async function tick() {
-  const [mode] = await db.select().from(schema.settings).where(eq(schema.settings.key, 'clock_mode'))
-  const now = mode?.value === 'manual' ? await simNow() : new Date()
-  if (mode?.value !== 'manual') await db.insert(schema.settings).values({ key: 'clock', value: now.toISOString() }).onConflictDoUpdate({ target: schema.settings.key, set: { value: now.toISOString() } })
+  const now = await syncWorkerClock()
   const users = await db.select({ id: schema.users.id }).from(schema.users)
   for (const user of users) {
     if (stopping) break

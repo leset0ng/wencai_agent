@@ -905,13 +905,13 @@ export const advanceSimulationClock = defineBankTool({
     const target = new Date(to)
     if (!Number.isFinite(target.getTime())) throw new Error('时间格式无效')
     if (target <= current) throw new Error('目标时间不能早于当前模拟时间')
-    await db.insert(schema.settings).values({ key: 'clock_mode', value: 'manual' }).onConflictDoUpdate({ target: schema.settings.key, set: { value: 'manual' } })
-    await db
-      .insert(schema.settings)
-      .values({ key: 'clock', value: target.toISOString() })
-      .onConflictDoUpdate({ target: schema.settings.key, set: { value: target.toISOString() } })
-    const jobs = await runDueJobs(ctx.userId, target)
-    return { previous: current.toISOString(), now: target.toISOString(), executed: jobs.length, jobs }
+    const renewal = await (await import('#/server/life/service')).runLifeRenewalsThrough(current, target)
+    try {
+      const jobs = await runDueJobs(ctx.userId, target)
+      return { previous: current.toISOString(), now: target.toISOString(), renewal, executed: jobs.length, jobs }
+    } catch (e) {
+      return { previous: current.toISOString(), now: target.toISOString(), renewal, executed: 0, jobs: [], jobsError: e instanceof Error ? e.message : String(e) }
+    }
   },
 })
 

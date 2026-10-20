@@ -22,9 +22,10 @@ import { audit } from '#/server/audit/log'
 import { env } from '#/server/env'
 import { runDueJobs, scoreRisk } from '#/server/tools/jobs'
 import { adminUserExists, listAdminUsers } from '#/server/admin/users'
-import { adminAuthorized } from '#/server/admin/access'
+import { adminAuthorized, authorizeAdminTransfer } from '#/server/admin/access'
 import { recentTraces, restoreAuditLog, runSandboxProbes, securityOverview, tamperAuditLog } from '#/server/security/kernel'
 import { buildTraces } from '#/server/security/trace'
+import { runLifeRenewalsThrough } from '#/server/life/service'
 
 const disabled = () =>
   Response.json({ error: { code: 'ADMIN_DISABLED', message: '管理后台未启用（设置 ADMIN_ENABLED=true）' } }, { status: 403 })
@@ -336,7 +337,7 @@ const CommandSchema = z.discriminatedUnion('type', [
 type Command = z.infer<typeof CommandSchema>
 
 /** 执行管理命令 */
-async function executeCommand(userId: string, command: Command) {
+async function executeCommand(userId: string, command: Command, request: Request) {
   const now = new Date(await simNow())
   switch (command.type) {
     case 'transfer': {
@@ -356,7 +357,7 @@ async function executeCommand(userId: string, command: Command) {
       if (matched.length > 1)
         throw new Error(`收款人"${q}"有多个匹配：${matched.map((p) => p.alias ? `${p.name}（${p.alias}）` : p.name).join('、')}`)
       if (matched.length === 1)
-        return doTransfer(userId, acc.id, matched[0].id, command.amount, command.memo, command.executeAt)
+        return doTransfer(request, userId, acc.id, matched[0].id, command.amount, command.memo, command.executeAt)
 
       // 联系人（后台通讯录）：按 ID/姓名/手机/备注关键词匹配，首次转账时登记为收款人
       const contacts = await db.select().from(schema.contacts).where(eq(schema.contacts.userId, userId))
@@ -380,7 +381,7 @@ async function executeCommand(userId: string, command: Command) {
           createdAt: now,
         })
         .onConflictDoNothing()
-      return doTransfer(userId, acc.id, payeeId, command.amount, command.memo, command.executeAt)
+      return doTransfer(request, userId, acc.id, payeeId, command.amount, command.memo, command.executeAt)
     }
     case 'createSplit': {
       const shares = command.contactIds.map((contactId) => ({
@@ -540,17 +541,13 @@ async function executeCommand(userId: string, command: Command) {
       return cancelBirthday(userId, command.planId)
     }
     case 'advanceClock': {
-      await db.insert(schema.settings).values({ key: 'clock_mode', value: 'manual' }).onConflictDoUpdate({ target: schema.settings.key, set: { value: 'manual' } })
       const current = new Date(await simNow())
       const target = new Date(command.to)
       if (target <= current) throw new Error('目标时间不能早于当前模拟时间')
-      await db
-        .insert(schema.settings)
-        .values({ key: 'clock', value: target.toISOString() })
-        .onConflictDoUpdate({ target: schema.settings.key, set: { value: target.toISOString() } })
-      // 执行到期任务
-      const jobs = await runDueJobs(userId, target)
-      return { now: target.toISOString(), jobs }
+      const renewal = await runLifeRenewalsThrough(current, target)
+      // Clock advance has committed. Report a later job error explicitly, never claim it rolled back.
+      try { return { now: target.toISOString(), renewal, jobs: await runDueJobs(userId, target) } }
+      catch (e) { return { now: target.toISOString(), renewal, jobs: [], jobsError: e instanceof Error ? e.message : String(e) } }
     }
     case 'runJobs': {
       const current = new Date(await simNow())
@@ -570,6 +567,7 @@ async function executeCommand(userId: string, command: Command) {
 }
 
 async function doTransfer(
+  request: Request,
   userId: string,
   accountId: string,
   payeeId: string,
@@ -605,7 +603,9 @@ async function doTransfer(
     return { id: taskId, kind: 'transfer', status: 'pending', dueAt: executeAt, payload: { payeeId, amountCents }, result: null }
   }
 
-  const result = await settleTransfer({ fromAccountId: accountId, payeeId, amountCents, memo }, { userId, sessionId: 'admin', channel: 'web' }, now)
+  const input = { fromAccountId: accountId, payeeId, amountCents, memo }
+  const adminGrant = authorizeAdminTransfer(request,userId,input)
+  const result = await settleTransfer(input, { userId, sessionId: 'admin', channel: 'web' }, now, { adminGrant })
   return { ...result, amount: amountCents }
 }
 
@@ -666,7 +666,7 @@ export const Route = createFileRoute('/api/admin')({
           }
           const ctx = { userId, sessionId: 'admin', channel: 'web' as const }
           try {
-            const result = await executeCommand(userId, parsed.data)
+            const result = await executeCommand(userId, parsed.data, request)
             await audit(ctx, 'admin_command', { command: parsed.data, ok: true })
             return Response.json({ data: result })
           } catch (e) {
