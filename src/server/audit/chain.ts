@@ -50,6 +50,7 @@ export type AuditType =
   | 'risk_flag_reviewed'
   | 'risk_analysis_failed'
   | 'profile_generated'
+  | 'wealth_advice'
 
 export function hashEntry(prevHash: string, entry: AuditEntry): string {
   return createHash('sha256').update(prevHash).update(stableStringify(entry)).digest('hex')

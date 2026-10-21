@@ -22,6 +22,8 @@ import { displayPurpose } from './display-purpose'
 import type { QuestionnaireData } from '#/lib/questionnaire'
 import { formatAmount } from '#/lib/dashboard'
 import type { BatchTransferReady } from '#/lib/batch-transfer'
+import { AdviceCard, FundList, FundPortfolio } from '#/components/banking/FundPanel'
+import { WealthMetricsCard, WealthRankCard } from '#/components/banking/WealthMarket'
 
 export interface ToolUIPart {
   type: `tool-${string}`
@@ -266,6 +268,11 @@ function Accounts({ data }: { data: Record<string, unknown>[] }) {
 function CompletedResult({ label, tool, data }: { label: string; tool: string; data: unknown }) {
   const interaction = useContext(AgentInteractionContext)
   const purpose = displayPurpose(interaction.snapshot), selecting = purpose === 'selection'
+  if (tool === 'rank_funds' && data && typeof data === 'object') return <WealthRankCard data={data as Parameters<typeof WealthRankCard>[0]['data']} onAsk={interaction.enabled ? (text) => { interaction.send(text) } : undefined} />
+  if (tool === 'get_fund_metrics' && data && typeof data === 'object') return <WealthMetricsCard data={data as Parameters<typeof WealthMetricsCard>[0]['data']} />
+  if (tool === 'get_wealth_advice' && data && typeof data === 'object') return <AdviceCard data={data as Parameters<typeof AdviceCard>[0]['data']} onAsk={interaction.enabled ? (text) => { interaction.send(text) } : undefined} />
+  if (tool === 'list_funds' && Array.isArray(data)) return <FundList funds={data as Parameters<typeof FundList>[0]['funds']} onChoose={interaction.enabled ? (code) => { interaction.send(`请查询基金代码${code}的详情、净值和风险。仅查询，不交易。`) } : undefined} />
+  if (tool === 'get_fund_portfolio' && data && typeof data === 'object') return <FundPortfolio data={data as Parameters<typeof FundPortfolio>[0]['data']} />
   if (tool === 'get_risk_questionnaire' && data && typeof data === 'object') return <AgentQuestionnaire data={(data as { questionnaire: QuestionnaireData }).questionnaire} />
   if (tool === 'display_bank_cards' && Array.isArray(data)) return <AgentCardDisplay choices={choicesOf(data, 'card')} />
   if (tool === 'card_password_settings' && data && typeof data === 'object') return <CardPasswordAction {...data as { cardId: string; last4: string }} />

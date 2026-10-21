@@ -7,6 +7,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Bell,
+  ChartNoAxesColumnIncreasing,
   ChevronRight,
   ChevronDown,
   CreditCard,
@@ -51,15 +52,17 @@ import { useDesktopLayout } from '#/lib/use-desktop-layout'
 import { DesktopDashboard } from './DesktopDashboard'
 import { DesktopAccounts } from './DesktopAccounts'
 import { LifeMarket } from './LifeMarket'
+import { WealthMarket } from './WealthMarket'
 import { DashboardConfirmation } from './DashboardConfirmation'
 import './banking.css'
 import './desktop.css'
 
-type Tab = 'home' | 'accounts' | 'life' | 'profile'
+type Tab = 'home' | 'accounts' | 'wealth' | 'life' | 'profile'
 type Detail = 'assets' | 'bill' | 'transactions' | 'receive' | 'notifications' | 'tasks' | 'pending' | null
 const tabs = [
   { id: 'home', label: '首页', icon: House },
   { id: 'accounts', label: '账户', icon: CreditCard },
+  { id: 'wealth', label: '理财', icon: ChartNoAxesColumnIncreasing },
   { id: 'life', label: '生活', icon: ShoppingBag },
   { id: 'profile', label: '我的', icon: UserRound },
 ] as const
@@ -216,7 +219,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
             </div>
           ) : (
             data && (
-              <TabsContent value={tab} key={tab} className={`bank-page-content${tab === 'home' ? ' is-home' : tab === 'accounts' ? ' is-accounts' : tab === 'life' ? ' is-life' : ''}`}
+              <TabsContent value={tab} key={tab} className={`bank-page-content${tab === 'home' ? ' is-home' : tab === 'accounts' ? ' is-accounts' : tab === 'life' ? ' is-life' : tab === 'wealth' ? ' is-wealth' : ''}`}
                 render={<motion.main initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0 : .5 }} />}>
                 {tab === 'home' && desktop && <DesktopDashboard data={data} hidden={hidden} agentOpen={agentOpen}
                   onToggleHidden={() => setHidden(!hidden)} onTransfer={() => openPayment('transfer')} onReceive={() => openPayment('receive')}
@@ -421,6 +424,7 @@ export default function BankingHome({ user }: { user: { id: string; name: string
                   <LifeMarket data={data} userId={user.id} hidden={hidden} active={!agentOpen && !detail && !paymentView && !cardService}
                     portalContainer={shell.current} onModalChange={setLifeDialogOpen} onAgent={openAgent} onTasks={() => setDetail('tasks')} />
                 )}
+                {tab === 'wealth' && <WealthMarket dashboard={data} userId={user.id} onAgent={openAgent} portalContainer={shell.current} onModalChange={setLifeDialogOpen} />}
                 {tab === 'profile' && (
                   <>
                     <div className="bank-profile-card">

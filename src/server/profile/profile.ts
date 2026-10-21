@@ -7,6 +7,8 @@ import { auditInTransaction } from '#/server/audit/log'
 import { agentModel } from '#/server/llm/models'
 import { businessMonth } from '#/lib/dashboard'
 import { collectEvidence, verifyNumbers } from '#/server/verify/numbers'
+import { fundPortfolio } from '#/server/funds/trading'
+import { allowedFund } from '#/server/funds/pool'
 
 /**
  * 后台用户画像（#7）。
@@ -235,6 +237,7 @@ export async function collectProfileInput(userId: string, now: Date): Promise<Pr
   }
   const productRisk = new Map(products.map((p) => [p.id, p.riskRating]))
   const credit = await creditTotals(userId, cards)
+  const funds = await fundPortfolio(userId, now)
   return {
     now,
     // 窗口外的流水不进入计算：既限制规模，也让"最近 6 个月"的口径写在一处
@@ -243,8 +246,10 @@ export async function collectProfileInput(userId: string, now: Date): Promise<Pr
       counterparty: r.counterparty, occurredAt: r.occurredAt, internal: internalIds.has(r.id),
     })),
     balanceCents: accounts.filter((a) => !credit.creditAccountIds.has(a.id)).reduce((n, a) => n + a.balanceCents, 0),
-    investmentPrincipalCents: holdings.reduce((n, h) => n + h.principalCents, 0),
-    holdings: holdings.map((h) => ({ riskRating: productRisk.get(h.productId) ?? 'R1', principalCents: h.principalCents })),
+    investmentPrincipalCents: holdings.reduce((n, h) => n + h.principalCents, 0) + funds.marketValueCents + funds.pendingCents,
+    holdings: [...holdings.map((h) => ({ riskRating: productRisk.get(h.productId) ?? 'R1', principalCents: h.principalCents })),
+      ...funds.positions.map((p) => ({ riskRating: p.riskRating, principalCents: p.marketValueCents })),
+      ...funds.orders.filter((o) => o.status === 'submitted').map((o) => ({ riskRating: allowedFund(o.code).riskRating, principalCents: o.amountCents }))],
     riskRating: user[0]?.riskAssessedAt ? (user[0].riskRating ?? null) : null,
     activeSubscriptions: subscriptions.filter((s) => s.status === 'active').length,
     subscriptionMonthlyCents: subscriptions.filter((s) => s.status === 'active')

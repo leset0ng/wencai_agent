@@ -56,4 +56,4 @@ export type ToolOutcome =
   | { status: 'error'; message: string }
 
 /** 外部可控的自由文本字段：交易对手、备注、商户名 */
-export const UNTRUSTED_FIELDS = new Set(['counterparty', 'memo', 'merchant', 'description', 'remark', 'accountName', 'recipient', 'address', 'refundReason'])
+export const UNTRUSTED_FIELDS = new Set(['counterparty', 'memo', 'merchant', 'description', 'remark', 'accountName', 'recipient', 'address', 'refundReason', 'institution'])

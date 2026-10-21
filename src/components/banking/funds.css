@@ -1,0 +1,5 @@
+.fund-panel,.fund-advice,.fund-portfolio { margin: 16px 0; padding: 18px; border: 1px solid var(--border,#dce5f5); border-radius: 18px; color: inherit; background: var(--card,transparent); min-width: 0; }
+.fund-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 12px; margin: 16px 0; }
+.fund-item { padding: 14px; border: 1px solid var(--border,#dce5f5); border-radius: 14px; margin: 10px 0; overflow-wrap: anywhere; }
+.fund-item h3,.fund-item h4 { margin: 0 0 10px; font-size: 16px; }.fund-item small { display:block; opacity:.7; margin-top:6px; }.fund-item p,.fund-portfolio p,.fund-advice p { font-size: 13px; line-height:1.8; margin:6px 0; }.fund-warning { color:var(--destructive,#dc7b48); }
+.fund-buy { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin-top:16px; }.fund-buy label { display:grid; gap:8px; font-size:13px; }.fund-buy input,.fund-buy select { background:var(--background,transparent);color:inherit;border:1px solid var(--border,#bccded);border-radius:8px;padding:10px;max-width:100%; }.fund-buy button { padding:12px; }.fund-advice button,.fund-item button { margin-top:10px; padding:8px 12px; }

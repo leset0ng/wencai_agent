@@ -34,7 +34,7 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
       description: `${def.description}${def.kind === 'write' ? '（写操作，系统会按风险等级要求用户确认）' : ''}`,
       inputSchema: modelToolSchema(def.inputSchema),
       execute: async (args) => {
-        const outcome = await runBankTool(def, args, ctx)
+        const outcome = await runBankTool(def, args, { ...ctx, requestText: options.requestText })
         if (outcome.status === 'done') {
           putSessionData(ctx.sessionId, def.name, outcome.data)
           currentTools.add(def.name)

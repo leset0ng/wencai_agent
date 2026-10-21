@@ -297,6 +297,7 @@ export const cancelSubscription = defineBankTool({
 
 import { EXTENDED_TOOLS } from './bank-extended'
 import { PLANNING_TOOLS } from './bank-planning'
+import { FUND_TOOLS } from './funds'
 
 export const BANK_TOOLS: BankToolDef[] = [
   getAccounts,
@@ -324,6 +325,7 @@ export const BANK_TOOLS: BankToolDef[] = [
   ...SECURITY_TOOLS,
   ...MANDATE_TOOLS,
   ...LIFE_TOOLS,
+  ...FUND_TOOLS,
 ]
 
 const byName = new Map<string, BankToolDef>(BANK_TOOLS.map((t) => [t.name, t]))

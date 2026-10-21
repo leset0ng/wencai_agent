@@ -3,6 +3,7 @@ export { bankCardNumbers } from './card-schema'
 export { bankInitialEnrollments } from './enrollment-schema'
 export { bankCardPasswords, bankSecureRequests } from './security-operation-schema'
 export { bankLifeOrders, bankLifeSubscriptions } from './life-schema'
+export * from './fund-schema'
 
 // 金额统一以「分」为单位存储，避免浮点误差
 

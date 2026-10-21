@@ -4,11 +4,23 @@ import { runDueMandates } from '../src/server/automation/mandates'
 import { syncWorkerClock } from '../src/server/tools/jobs'
 import { runRiskAnalysisPass } from '../src/server/risk/accounts'
 import { runLifeAutomation } from '../src/server/life/service'
+import { refreshFunds } from '../src/server/funds/store'
+import { confirmFundOrders } from '../src/server/funds/trading'
 
 let stopping = false
 let riskPass: Promise<unknown> | undefined
+let fundPass: Promise<unknown> | undefined
+let fundStarted = false
 async function tick() {
   const now = await syncWorkerClock()
+  await confirmFundOrders(now)
+  const cst = new Date(now.getTime() + 8 * 3600_000)
+  if (!stopping && !fundPass && (!fundStarted || cst.getUTCHours() >= 20 && cst.getUTCHours() <= 23)) {
+    fundStarted = true
+    fundPass = refreshFunds(now).then(() => confirmFundOrders(now))
+      .catch((error) => console.error('[worker:funds]', error instanceof Error ? error.message : '基金刷新暂不可用'))
+      .finally(() => { fundPass = undefined })
+  }
   const users = await db.select({ id: schema.users.id }).from(schema.users)
   for (const user of users) {
     if (stopping) break

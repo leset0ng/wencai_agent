@@ -8,7 +8,8 @@ import { serializeLocalClient } from './serialized-client'
 // better-auth 的表由 drizzleAdapter 按 modelName 解析，需要全部挂在同一个 schema 对象上
 const client = createClient({ url: env.DATABASE_URL })
 const local = env.DATABASE_URL.startsWith('file:')
-const database = drizzle({ client: local ? serializeLocalClient(client) : client, schema: { ...auth, ...schema } })
+const fileBacked = local && !/:memory:|[?&]mode=memory(?:&|$)/i.test(env.DATABASE_URL)
+const database = drizzle({ client: local ? serializeLocalClient(client, { reconnectOnBusy: fileBacked, wal: fileBacked }) : client, schema: { ...auth, ...schema } })
 export const db = local ? new Proxy(database, {
   get(target, key) {
     if (key !== 'transaction') return Reflect.get(target, key, target)

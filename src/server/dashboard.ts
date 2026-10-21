@@ -6,6 +6,7 @@ import { simNow } from '#/server/tools/jobs'
 import { userCards, cardKindName } from '#/server/cards/service'
 import { notifications } from '#/server/automation/service'
 import { reservedFunds } from '#/server/automation/birthdays'
+import { fundPortfolio } from '#/server/funds/trading'
 
 /** 用户首页只接受已认证会话中的身份，所有业务数据按归属过滤。金额返回元。 */
 export async function getDashboard(userId: string): Promise<DashboardData> {
@@ -79,7 +80,8 @@ export async function getDashboard(userId: string): Promise<DashboardData> {
     }
   }
   const availableCents = accounts.reduce((sum, account) => sum + account.balanceCents, 0)
-  const principalCents = holdings.reduce((sum, holding) => sum + holding.principal, 0)
+  const funds = await fundPortfolio(userId, now)
+  const principalCents = holdings.reduce((sum, holding) => sum + holding.principal, 0) + funds.marketValueCents + funds.pendingCents
   const reservedCents = (await reservedFunds(userId)).reduce((sum, fund) => sum + fund.heldCents, 0)
   const [year, month] = period.split('-').map(Number)
   const trend = Array.from({ length: 6 }, (_, i) => {

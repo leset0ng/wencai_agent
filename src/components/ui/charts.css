@@ -46,10 +46,20 @@
   overflow: visible;
 }
 .bank-donut [data-arc] {
-  stroke-dasharray: var(--arc-length) var(--circumference);
+  /* Motion animates the SVG dash attribute; a CSS dash value would override every frame. */
   transition:
     stroke-width 200ms,
     opacity 200ms;
+}
+@media (min-width: 1024px) {
+  .bank-donut {
+    --bank-chart-tone-0: #7c83e8;
+    --bank-chart-tone-1: #6ba7d7;
+    --bank-chart-tone-2: #66b5b3;
+    --bank-chart-tone-3: #a39bd5;
+    --bank-chart-tone-4: #8495b9;
+    --bank-chart-tone-5: #b4b7cd;
+  }
 }
 .bank-chart-legend {
   display: flex;
@@ -114,4 +124,12 @@
 }
 .bank-donut.is-pie svg {
   transform: rotateX(28deg) rotateZ(-12deg);
+}
+@media (min-width: 1024px) {
+  /* Depth belongs to the pie itself, keeping desktop legend text crisp. */
+  .bank-donut.is-pie { filter: none; }
+  .bank-donut.is-pie svg {
+    filter: drop-shadow(0 5px 0 color-mix(in oklab, var(--bank-chart-tone-0) 25%, transparent))
+      drop-shadow(0 8px 10px color-mix(in oklab, var(--bank-chart-tone-0) 12%, transparent));
+  }
 }

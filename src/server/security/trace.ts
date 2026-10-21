@@ -102,6 +102,7 @@ const LABELS: Record<string, string> = {
   mandate_ended: '授权结束',
   mandate_revoked: '撤销授权',
   profile_generated: '生成用户画像',
+  wealth_advice: '生成只读理财建议',
   risk_flag_added: '收款账户风险标记',
   risk_flag_reviewed: '人工复核收款风险',
   risk_analysis_failed: '收款风险分析暂不可用',

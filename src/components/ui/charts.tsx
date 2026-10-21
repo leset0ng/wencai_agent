@@ -9,6 +9,8 @@ export interface ChartDatum {
   value: number
 }
 export const CHART_COLORS = ['#146bff', '#4195ff', '#73baff', '#a5d5ff', '#5d83e7', '#a3b3ec']
+// CSS supplies desktop tones; fallbacks preserve the exact mobile palette and custom palettes.
+const RESPONSIVE_CHART_COLORS = CHART_COLORS.map((color, index) => `var(--bank-chart-tone-${index}, ${color})`)
 
 export function normalizeChartData(
   data: unknown,
@@ -167,7 +169,7 @@ export function AnimatedDonutChart({
   title,
   compact = false,
   pie = false,
-  colors = CHART_COLORS,
+  colors = RESPONSIVE_CHART_COLORS,
   ringRadius = 51,
   ringWidth = 25,
   gapDegrees,
@@ -183,7 +185,7 @@ export function AnimatedDonutChart({
 }) {
   const safe = normalizeChartData(data, 'label', 'value').filter((point) => point.value > 0)
   return (
-    <DonutSeries key={JSON.stringify(safe)} data={safe} title={title} compact={compact} pie={pie} colors={colors.length ? colors : CHART_COLORS} ringRadius={ringRadius} ringWidth={ringWidth} gapDegrees={gapDegrees} />
+    <DonutSeries key={JSON.stringify(safe)} data={safe} title={title} compact={compact} pie={pie} colors={colors.length ? colors : RESPONSIVE_CHART_COLORS} ringRadius={ringRadius} ringWidth={ringWidth} gapDegrees={gapDegrees} />
   )
 }
 
@@ -239,6 +241,7 @@ function DonutSeries({
                     cy="80"
                     r={radius}
                     fill="none"
+                    strokeWidth={pie ? 68 : ringWidth}
                     stroke={colors[i % colors.length]}
                     tabIndex={compact ? undefined : 0}
                     role={compact ? undefined : 'img'}
@@ -247,7 +250,7 @@ function DonutSeries({
                     onMouseLeave={() => setActive(null)}
                     onFocus={() => setActive(i)}
                     onBlur={() => setActive(null)}
-                    initial={{ strokeDasharray: `0 ${circumference}` }}
+                    initial={reduce ? false : { strokeDasharray: `0 ${circumference}` }}
                     animate={{
                       strokeDasharray: `${reveal['data-visible'] ? Math.max(0, point.value / total * circumference - (data.length > 1 ? gapDegrees === undefined ? 2 : circumference * gapDegrees / 360 : 0)) : 0} ${circumference}`,
                       strokeWidth: pie ? 68 : active === i ? ringWidth + 4 : ringWidth,
