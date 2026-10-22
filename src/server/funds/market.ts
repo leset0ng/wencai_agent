@@ -1,15 +1,17 @@
 import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { db, schema } from '#/server/db/client'
-import { listFunds, fundDetails, ensureFundSchema } from './store'
+import { listFunds, fundDetails, fundNavs, ensureFundSchema } from './store'
 import { allowedFund } from './pool'
-import { analyzeFund, chartPoints, METHODOLOGY } from './analytics'
+import { analyzeFund, chartPoints, periodTarget, METHODOLOGY } from './analytics'
 import { RANK_METRICS, WEALTH_PERIODS, type FundMetadata, type WealthMarket, type WealthRow } from '#/lib/wealth'
+import { ASSET_CLASSES, FUND_STYLES } from '#/lib/fund-preferences'
 
 export const MarketQuery = z.object({
   period: z.enum(WEALTH_PERIODS).default('1y'), sortBy: z.enum(RANK_METRICS).default('returnPct'), direction: z.enum(['asc', 'desc']).default('desc'),
   category: z.enum(['all', 'fund', 'bond', 'favorites']).default('all'), institution: z.string().max(80).default(''),
   search: z.string().max(80).default(''), riskMax: z.coerce.number().int().min(1).max(5).default(5),
+  assetClass: z.enum(['', ...ASSET_CLASSES]).default(''), style: z.enum(['', ...FUND_STYLES]).default(''),
 })
 export type MarketRequest = z.infer<typeof MarketQuery>
 export async function fundWatchlist(userId: string) {
@@ -33,17 +35,22 @@ export function sortWealthRows(rows: WealthRow[], query: MarketRequest) {
 export async function getWealthMarket(userId: string, query: MarketRequest, now: Date): Promise<WealthMarket> {
   const funds = await listFunds(now), watchlist = await fundWatchlist(userId)
   const all = await Promise.all(funds.map(async (fund): Promise<WealthRow> => {
-    const details = await fundDetails(fund.code, now), meta = JSON.parse(fund.metadataJson) as FundMetadata
-    const metrics = analyzeFund(details.navs, query.period, meta.inceptionDate)
+    // Fetch only the selected window plus its baseline tolerance. Full histories
+    // remain available for all-period details; ranking doesn't reread decades.
+    const target = fund.navDate ? periodTarget(fund.navDate, query.period) : null
+    const since = target ? new Date(Date.parse(target) - 14 * 86400_000).toISOString().slice(0, 10) : undefined
+    const navs = await fundNavs(fund.code, now, since), meta = JSON.parse(fund.metadataJson) as FundMetadata
+    const metrics = analyzeFund(navs, query.period, meta.inceptionDate)
     return { code: fund.code, name: fund.name, category: fund.category, riskRating: fund.riskRating,
       institution: meta.institution ?? '机构待补充', inceptionDate: meta.inceptionDate ?? null, scaleYiYuan: meta.scaleYiYuan ?? null,
       scaleDate: meta.scaleDate ?? null, source: fund.source, fetchedAt: fund.updatedAt, stale: fund.stale, unitNav: fund.unitNav,
       navDate: fund.navDate, purchaseStatus: fund.purchaseStatus, enabled: fund.enabled, favorite: watchlist.includes(fund.code),
-      metrics: { ...metrics, points: chartPoints(metrics.points) }, rank: null }
+      investmentProfile: fund.investmentProfile, metrics: { ...metrics, points: chartPoints(metrics.points) }, rank: null }
   }))
   const search = query.search.trim().toLowerCase()
   const filtered = all.filter((r) => (query.category !== 'bond' || r.category === 'bond') && (query.category !== 'favorites' || r.favorite)
     && (!query.institution || r.institution === query.institution) && Number(r.riskRating.slice(1)) <= query.riskMax
+    && (!query.assetClass || r.investmentProfile.assetClass === query.assetClass) && (!query.style || r.investmentProfile.style === query.style)
     && (!search || `${r.name} ${r.code} ${r.institution}`.toLowerCase().includes(search)))
   return { period: query.period, sortBy: query.sortBy, direction: query.direction, items: sortWealthRows(filtered, query), universeCount: all.length,
     institutions: [...new Set(all.map((r) => r.institution))].sort(), watchlist, asOf: now.toISOString(), methodology: METHODOLOGY }
@@ -55,5 +62,5 @@ export async function getFundAnalytics(code: string, now: Date) {
     return [period, { ...metric, points: chartPoints(metric.points) }]
   }))
   return { code, name: fund.name, riskRating: fund.riskRating, category: fund.category, ...meta, source: fund.source, fetchedAt: fund.updatedAt,
-    navDate: fund.navDate, unitNav: fund.unitNav, stale: fund.stale, periods, methodology: METHODOLOGY }
+    navDate: fund.navDate, unitNav: fund.unitNav, stale: fund.stale, enabled: fund.enabled, purchaseStatus: fund.purchaseStatus, investmentProfile: fund.investmentProfile, periods, methodology: METHODOLOGY }
 }

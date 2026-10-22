@@ -27,6 +27,19 @@ describe('生成式 UI 校验', () => {
     expect(r.ok).toBe(false)
   })
 
+  it('分金额不能当元展示，风险字符串和空指标不能显示成0', () => {
+    const values = { result: { amountCents: 500000, riskRating: 'R5', sharpe: null } }
+    for (const [field, unit] of [['amountCents', '元'], ['riskRating', null], ['sharpe', null]] as const) {
+      expect(checkSpec(spec({ m: { type: 'Metric', props: { label: '指标', value: { $state: `/result/${field}` }, unit } } }), values).ok).toBe(false)
+    }
+  })
+
+  it('理财专家结果沿用固定建议卡，不允许生成第二张可能错误的摘要', () => {
+    const r = checkSpec(spec({ m: { type: 'Metric', props: { label: '可投', value: { $state: '/get_wealth_advice/budget/amountCents' }, unit: '元' } } }), { get_wealth_advice: { budget: { amountCents: 500000 } } })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.join(' ')).toContain('固定建议卡')
+  })
+
   it('文本中夹带无出处金额被拒绝', () => {
     const r = checkSpec(spec({ n: { type: 'Note', props: { text: '您还有 ¥88,888 的额度可用' } } }), state)
     expect(r.ok).toBe(false)

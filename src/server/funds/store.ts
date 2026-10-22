@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, asc, desc, eq, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, lte, max, sql } from 'drizzle-orm'
 import { db, schema } from '#/server/db/client'
 import { FUND_POOL, allowedFund } from './pool'
 import { cstDate, staleNav, validateSnapshot, type FundDataProvider, type FundSnapshot } from './provider'
@@ -35,7 +35,7 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 async function saveSnapshot(tx: Tx, data: FundSnapshot) {
   const fund = allowedFund(data.code)
   // A name-mismatch quarantine is never silently lifted by a later response.
-  await tx.insert(schema.bankFunds).values({ ...fund, purchaseStatus: data.purchaseStatus, redeemStatus: data.redeemStatus,
+  await tx.insert(schema.bankFunds).values({ code: fund.code, name: fund.name, category: fund.category, riskRating: fund.riskRating, purchaseStatus: data.purchaseStatus, redeemStatus: data.redeemStatus,
     purchaseFeeBp: Math.round(data.purchaseFeeRate * 10000), minPurchaseCents: data.minPurchaseCents, enabled: true, source: data.source, updatedAt: data.fetchedAt, metadataJson: JSON.stringify(data.metadata ?? {}),
   }).onConflictDoUpdate({ target: schema.bankFunds.code, set: {
     purchaseStatus: data.purchaseStatus, redeemStatus: data.redeemStatus, purchaseFeeBp: Math.round(data.purchaseFeeRate * 10000),
@@ -91,9 +91,13 @@ export function ensureFundData() {
         await db.update(schema.bankFundSyncState).set({ nextRunAt: 0 }).where(and(eq(schema.bankFundSyncState.code, fund.code), eq(schema.bankFundSyncState.leaseUntil, 0)))
       } else {
         const fixture = validateSnapshot(await new FixtureProvider().fetch(fund.code, AbortSignal.timeout(1000)), fund.code)
+        const current = await db.select({ date: schema.bankFundNavs.navDate, dailyReturn: schema.bankFundNavs.dailyReturnE8 }).from(schema.bankFundNavs).where(eq(schema.bankFundNavs.code, fund.code))
+        const dates = new Map(current.map((n) => [n.date, n.dailyReturn]))
+        const missing = fixture.navs.filter((n) => !dates.has(n.date) || (dates.get(n.date) === null && n.dailyReturnPct !== undefined))
+        if (!missing.length && existing.metadataJson !== '{}') continue
         // Add missing historical records without reverting current prices, sales status, source or fees.
         await db.transaction(async (tx) => {
-          for (let offset = 0; offset < fixture.navs.length; offset += 80) await tx.insert(schema.bankFundNavs).values(fixture.navs.slice(offset, offset + 80).map((n) => ({ code: fund.code,
+          for (let offset = 0; offset < missing.length; offset += 80) await tx.insert(schema.bankFundNavs).values(missing.slice(offset, offset + 80).map((n) => ({ code: fund.code,
             navDate: n.date, unitNavE4: Math.round(n.unitNav * 10000), accNavE4: Math.round(n.accNav * 10000), fetchedAt: fixture.fetchedAt,
             dailyReturnE8: n.dailyReturnPct === undefined ? null : Math.round(n.dailyReturnPct * 1e6),
           }))).onConflictDoUpdate({ target: [schema.bankFundNavs.code, schema.bankFundNavs.navDate], set: { dailyReturnE8: sql`COALESCE(bank_fund_navs.daily_return_e8, excluded.daily_return_e8)` } })
@@ -106,18 +110,29 @@ export function ensureFundData() {
 export async function listFunds(now = new Date()) {
   await ensureFundData()
   const rows = await db.select().from(schema.bankFunds), sync = await db.select().from(schema.bankFundSyncState)
-  return Promise.all(rows.map(async (fund) => {
-    const [nav] = await db.select().from(schema.bankFundNavs).where(and(eq(schema.bankFundNavs.code, fund.code), lte(schema.bankFundNavs.navDate, cstDate(now)))).orderBy(desc(schema.bankFundNavs.navDate)).limit(1)
+  const latest = db.select({ code: schema.bankFundNavs.code, date: max(schema.bankFundNavs.navDate).as('latest_date') }).from(schema.bankFundNavs)
+    .where(lte(schema.bankFundNavs.navDate, cstDate(now))).groupBy(schema.bankFundNavs.code).as('latest')
+  const latestNavs = await db.select({ code: schema.bankFundNavs.code, navDate: schema.bankFundNavs.navDate, unitNavE4: schema.bankFundNavs.unitNavE4 })
+    .from(schema.bankFundNavs).innerJoin(latest, and(eq(schema.bankFundNavs.code, latest.code), eq(schema.bankFundNavs.navDate, latest.date)))
+  const navMap = new Map(latestNavs.map((n) => [n.code, n]))
+  return rows.filter((f) => FUND_POOL.some((p) => p.code === f.code)).map((fund) => {
+    const nav = navMap.get(fund.code), profile = allowedFund(fund.code)
     return { ...fund, navDate: nav?.navDate ?? null, unitNav: nav ? nav.unitNavE4 / 10000 : null,
       stale: !nav || staleNav(nav.navDate, now), cached: true, syncError: sync.find((s) => s.code === fund.code)?.lastErrorCode ?? null,
+      investmentProfile: { assetClass: profile.assetClass, style: profile.style, suggestedHorizonDays: profile.suggestedHorizonDays },
       riskLabel: '人工维护的演示适当性等级', realTrading: false }
-  }))
+  })
+}
+export async function fundNavs(code: string, now = new Date(), since?: string) {
+  allowedFund(code); await ensureFundData()
+  return db.select({ navDate: schema.bankFundNavs.navDate, unitNavE4: schema.bankFundNavs.unitNavE4, accNavE4: schema.bankFundNavs.accNavE4, dailyReturnE8: schema.bankFundNavs.dailyReturnE8 })
+    .from(schema.bankFundNavs).where(and(eq(schema.bankFundNavs.code, code), lte(schema.bankFundNavs.navDate, cstDate(now)), ...(since ? [gte(schema.bankFundNavs.navDate, since)] : []))).orderBy(asc(schema.bankFundNavs.navDate))
 }
 export async function fundDetails(code: string, now = new Date()) {
   allowedFund(code)
   const fund = (await listFunds(now)).find((f) => f.code === code)
   if (!fund) throw new Error('FUND_DATA_UNAVAILABLE')
-  const navs = await db.select().from(schema.bankFundNavs).where(and(eq(schema.bankFundNavs.code, code), lte(schema.bankFundNavs.navDate, cstDate(now)))).orderBy(asc(schema.bankFundNavs.navDate))
+  const navs = await fundNavs(code, now)
   return { ...fund, navs }
 }
 export async function refreshFunds(now = new Date(), provider?: FundDataProvider) {

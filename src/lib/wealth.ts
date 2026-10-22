@@ -1,3 +1,4 @@
+import type { InvestmentProfile } from './fund-preferences'
 export const WEALTH_PERIODS = ['day', 'week', 'month', '3m', '6m', '1y', '3y', '5y', 'all'] as const
 export type WealthPeriod = typeof WEALTH_PERIODS[number]
 export const PERIOD_LABELS: Record<WealthPeriod, string> = { day: '日', week: '周', month: '月', '3m': '三月', '6m': '六月', '1y': '一年', '3y': '三年', '5y': '五年', all: '成立以来' }
@@ -19,6 +20,7 @@ export interface WealthRow {
   scaleYiYuan: number | null; scaleDate: string | null; source: string; fetchedAt: string; stale: boolean;
   unitNav: number | null; navDate: string | null; purchaseStatus: string; enabled: boolean; favorite: boolean;
   metrics: WealthMetrics; rank: number | null;
+  investmentProfile: InvestmentProfile;
 }
 export interface WealthMarket {
   period: WealthPeriod; sortBy: RankMetric; direction: 'asc' | 'desc'; items: WealthRow[]; universeCount: number;

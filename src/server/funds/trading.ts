@@ -54,7 +54,7 @@ export async function previewFundOrder(ctx: AgentContext, input: FundOrderInput,
     paramHash: JSON.stringify(input), summaryJson: JSON.stringify({ ...input, name: fund.name, purchaseFeeBp: fund.purchaseFeeBp }), tier: 'T2', expiresAt, createdAt: new Date().toISOString() })
   return { ...input, name: fund.name, riskRating: fund.riskRating, confirmationToken: token, expiresAt,
     purchaseFeeBp: fund.purchaseFeeBp, feeCents: subscriptionShares(input.amountCents, fund.purchaseFeeBp, 10000).feeCents,
-    tradeDate: effectiveTradeDate(now), pricing: '未知价申购；扣款后等待交易日首个已公布净值，T+1确认份额', realTrading: false }
+    tradeDate: effectiveTradeDate(now), pricing: '未知价申购；扣款后等待交易日首个已公布净值，净值公布后确认份额，QDII可能更晚', realTrading: false }
 }
 export async function submitFundOrder(ctx: AgentContext, input: FundOrderInput & { confirmationToken: string }, now: Date) {
   await ensureFundSchema()

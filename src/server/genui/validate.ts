@@ -44,7 +44,13 @@ export function checkSpec(input: unknown, state: Record<string, unknown>, reques
     for (const [prop, value] of Object.entries(el.props ?? {})) {
       if (value && typeof value === 'object' && '$state' in value) {
         const path = (value as { $state: string }).$state
-        if (getByPointer(state, path) === undefined) errors.push(`${key}.${prop}: 数据路径 ${path} 不存在`)
+        const resolved = getByPointer(state, path)
+        if (resolved === undefined) errors.push(`${key}.${prop}: 数据路径 ${path} 不存在`)
+        if (path.startsWith('/get_wealth_advice/')) errors.push(`${key}.${prop}: 理财专家结果已由固定建议卡展示，请沿用该卡，不重复生成摘要或转换金额单位`)
+        if (el.type === 'Metric' && prop === 'value') {
+          if (typeof resolved !== 'number' || !Number.isFinite(resolved)) errors.push(`${key}.${prop}: 指标必须引用有限数值，不能把风险等级、空值或文字转换成0`)
+          if (el.props.unit === '元' && /Cents(?:\/|$)/.test(path)) errors.push(`${key}.${prop}: 分金额不能直接按元展示，请使用固定工具卡中的金额`)
+        }
       } else if (containsNumber(value)) {
         // 纵深防御：不依赖库的 props 校验，spec 中任何位置都不允许出现数字字面量
         errors.push(`${key}.${prop}: 不允许数字字面量，请用 $state 引用数据`)

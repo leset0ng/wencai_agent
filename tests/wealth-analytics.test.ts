@@ -5,6 +5,7 @@ import { getFundAnalytics, getWealthMarket, MarketQuery, setFundWatchlist } from
 import { ensureFundData } from '#/server/funds/store'
 import { db, schema } from '#/server/db/client'
 import { WEALTH_PERIODS } from '#/lib/wealth'
+import { FUND_POOL } from '#/server/funds/pool'
 const now = new Date('2026-10-30T04:00:00Z'), user = 'wealth_analytics_customer', other = 'wealth_other'
 const series = (count: number) => Array.from({ length: count }, (_, i) => ({ navDate: new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10), accNavE4: 10000 + i * 3, unitNavE4: 10000 + i * 3, dailyReturnE8: i % 2 ? 200000 : -100000 }))
 describe('calendar window and code-calculated fund metrics', () => {
@@ -55,7 +56,7 @@ describe('calendar window and code-calculated fund metrics', () => {
 describe('wealth market service and persistent personal watchlists', () => {
   beforeAll(ensureFundData)
   afterAll(async () => { await db.delete(schema.bankFundWatchlist).where(eq(schema.bankFundWatchlist.userId, user)); await db.delete(schema.bankFundWatchlist).where(eq(schema.bankFundWatchlist.userId, other)) })
-  it('has complete real 3y/5y/inception history for all four curated funds', async () => {
+  it('has complete real 3y/5y/inception history for the original curated funds', async () => {
     for (const code of ['110007', '000171', '110022', '161725']) {
       const detail = await getFundAnalytics(code, now)
       expect(Object.keys(detail.periods)).toEqual([...WEALTH_PERIODS])
@@ -66,7 +67,7 @@ describe('wealth market service and persistent personal watchlists', () => {
   it('sorts all metrics in either direction and matches individual-detail computations', async () => {
     for (const sortBy of ['returnPct', 'sharpe', 'maxDrawdownPct', 'volatilityPct', 'annualizedReturnPct'] as const) {
       const query = MarketQuery.parse({ period: '1y', sortBy, direction: 'desc' }), response = await getWealthMarket(user, query, now)
-      expect(response.universeCount).toBe(4)
+      expect(response.universeCount).toBe(FUND_POOL.length)
       const values = response.items.map((r) => r.metrics[sortBy]).filter((n): n is number => n !== null)
       expect(values).toEqual([...values].sort((a, b) => b - a))
       const first = response.items[0], detail = await getFundAnalytics(first.code, now)
@@ -80,8 +81,8 @@ describe('wealth market service and persistent personal watchlists', () => {
     const daily = await getWealthMarket(user, MarketQuery.parse({ period: 'day', sortBy: 'sharpe' }), now)
     expect(daily.items.every((r) => r.metrics.sharpe === null && r.rank === null)).toBe(true)
     const bonds = await getWealthMarket(user, MarketQuery.parse({ category: 'bond' }), now)
-    expect(bonds.items).toHaveLength(2); expect(bonds.items.every((r) => r.category === 'bond')).toBe(true)
-    expect((await getWealthMarket(user, MarketQuery.parse({ search: '招商' }), now)).items.map((r) => r.code)).toEqual(['161725'])
+    expect(bonds.items).toHaveLength(FUND_POOL.filter((f) => f.category === 'bond').length); expect(bonds.items.every((r) => r.category === 'bond')).toBe(true)
+    expect((await getWealthMarket(user, MarketQuery.parse({ search: '招商' }), now)).items.map((r) => r.code)).toEqual(expect.arrayContaining(['161725', '161726']))
     expect((await getWealthMarket(user, MarketQuery.parse({ riskMax: 2 }), now)).items.every((r) => r.riskRating === 'R2')).toBe(true)
   })
   it('watchlist writes are idempotent, account-scoped and cannot change balances', async () => {

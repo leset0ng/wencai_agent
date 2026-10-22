@@ -79,6 +79,7 @@ export function catalogPrompt(): string {
     '必需 props：Panel {title, subtitle: string|null}；Metric {label, value: 数据引用, unit: "元"|"%"|"笔"|"天"|null}；BarChart/PieChart {title, data: 数组引用, labelKey, valueKey}；Table {rows: 数组引用, columns: [{key,label}],selectable?:boolean}；CardDisplay {title,data:数组引用,cardIds?:string[]}；CardPicker {title,data: 数组引用,role?: "source"|"target"|"general"}；ChoiceList {title,data: 数组引用,kind: "card"|"account"|"product"|"recipient"|"subscription"|"option"|null}；Note {text}；Confirm {prompt}；旧FollowUp {label,prompt}。选择仅暂存，整套交互的确认才发送。',
     '月度分类图示例（先查询 get_spending_report）：{"root":"p","elements":{"p":{"type":"Panel","props":{"title":"本月支出","subtitle":null},"children":["m","c"]},"m":{"type":"Metric","props":{"label":"总支出","value":{"$state":"/get_spending_report/expense"},"unit":"元"}},"c":{"type":"PieChart","props":{"title":"支出分类","data":{"$state":"/get_spending_report/byCategory"},"labelKey":"category","valueKey":"total"}}}}',
     '数据型 props 必须写成 {"$state": "/工具名/字段路径"}，例如 {"$state": "/analyze_spending/result/byCategory"}；',
+    'Metric仅接受有限数值。以Cents结尾的字段单位是分，不能直接用unit="元"展示；风险等级字符串或null不能当数值。get_wealth_advice已有固定建议卡，不用show_view再次包装其结果。',
     '路径只能指向本会话已调用工具的返回结果。禁止在展示组件 props 中写入任何金额数字，禁止提供 state 字段。interaction只描述当前步骤，另行按模板协议校验，不是自由正文。',
     interactionTemplatePrompt(),
   ].join('\n')
