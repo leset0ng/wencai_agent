@@ -5,17 +5,16 @@ import { createLarkAdapter } from '@larksuite/vercel-chat-adapter'
 import type { ModelMessage } from 'ai'
 import { BLOCKED_REPLY, runAgent, screenInput } from '#/server/agent/run'
 import type { AgentContext } from '#/server/agent/context'
-import { confirmPending } from '#/server/confirm/pending'
+import { confirmFromLark } from './lark-confirm'
 import { cancelActionAndPlan } from '#/server/executor/service'
 import { resolveChannelUser } from '#/server/session'
 import { audit } from '#/server/audit/log'
 import { bindLink, createBindCode } from '#/server/auth/bind'
-import { resolveTool } from '#/server/tools/bank'
 import type { ToolOutcome } from '#/server/tools/define'
 
 /**
- * 飞书渠道。能力上限为 🟡：黄色操作用卡片按钮就地确认；
- * 🔴 操作由策略引擎标记 requiresChannelHandoff，返回 H5 链接完成强验证。
+ * 飞书渠道。红色操作直接转 H5；黄色操作若需要银行卡/资金账户安全凭据，
+ * 或执行前升级为红色，也沿用原确认单转 H5，不能用聊天按钮替代验证。
  */
 
 /** 渠道身份只能来自绑定表：未绑定的飞书账号查不到任何账户数据 */
@@ -81,8 +80,8 @@ export function createLarkBot() {
       return
     }
     // confirmPending 会校验点击者即操作所属用户、完整性、时效与一次性
-    const res = await confirmPending({ ctx, actionId: event.value, resolveTool })
-    await event.thread.post(res.ok ? '✅ 操作已完成。' : `未能完成：${res.message}`)
+    const { result: res, message: reply } = await confirmFromLark(ctx, event.value)
+    await event.thread.post(reply)
     if (res.ok && res.plan) for (const node of Object.values(res.plan.nodes)) await postOutcomeCard(event.thread, node.output as ToolOutcome)
   })
 

@@ -3,7 +3,7 @@
  * 与 bank-extended.ts 共用令牌与校验辅助函数，口径一致。
  */
 import { randomUUID } from 'node:crypto'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, schema } from '#/server/db/client'
 import { defineBankTool } from './define'
@@ -25,7 +25,7 @@ import { ensureAutomationSchema } from '#/server/automation/service'
 import { createSplitRequests } from '#/server/payments/splits'
 import { cancelBirthday } from '#/server/automation/birthdays'
 
-type Share = { contactId: string; amountCents: number; status: 'pending' | 'paid' }
+
 
 async function ownContactOrThrow(ctx: AgentContext, contactId: string) {
   const [c] = await db
@@ -249,55 +249,6 @@ export const setSubscriptionReminder = defineBankTool({
     if (s.status !== 'active') throw new Error('该代扣已取消')
     await db.update(schema.subscriptions).set({ remindDays: days }).where(eq(schema.subscriptions.id, s.id))
     return { subscriptionId: s.id, remindDays: days }
-  },
-})
-
-export const settleSplit = defineBankTool({
-  name: 'settle_split',
-  description: '模拟某位参与人向发起人付款，把对应份额计入账户。仅用于演示收款进度，不会对外发送请求。',
-  baseRisk: 'yellow',
-  kind: 'write',
-  inputSchema: z.object({ splitId: z.string(), contactId: z.string() }),
-  summarize: async ({ splitId, contactId }, ctx) => {
-    const c = await ownContactOrThrow(ctx, contactId)
-    return { title: '登记 AA 收款', fields: [{ label: '收款单', value: splitId }, { label: '付款人', value: c.name }] }
-  },
-  execute: async ({ splitId, contactId }, ctx) => {
-    const [split] = await db
-      .select()
-      .from(schema.splits)
-      .where(and(eq(schema.splits.id, splitId), eq(schema.splits.userId, ctx.userId)))
-    if (!split) throw new Error('AA 账单不存在')
-    const shares = JSON.parse(split.sharesJson) as Share[]
-    const share = shares.find((p) => p.contactId === contactId)
-    if (!share) throw new Error('参与人不在该账单中')
-    if (share.status === 'paid') throw new Error('ALREADY_PAID: 该参与人已经付款')
-    const contact = await ownContactOrThrow(ctx, contactId)
-    const accs = await db.select().from(schema.accounts).where(eq(schema.accounts.userId, ctx.userId))
-    const acc = accs[0]
-    if (!acc) throw new Error('没有可入账的账户')
-    share.status = 'paid'
-    const txId = `tx_${randomUUID()}`
-    const now = await simNow()
-    await db.transaction(async (tx) => {
-      const [claimed] = await tx.update(schema.splits).set({ sharesJson: JSON.stringify(shares) }).where(and(eq(schema.splits.id, split.id), eq(schema.splits.sharesJson, split.sharesJson))).returning()
-      if (!claimed) throw new Error('收款进度已更新，请刷新后核对，未重复入账')
-      await tx
-        .update(schema.accounts)
-        .set({ balanceCents: sql`${schema.accounts.balanceCents} + ${share.amountCents}` })
-        .where(eq(schema.accounts.id, acc.id))
-      await tx.insert(schema.transactions).values({
-        id: txId,
-        accountId: acc.id,
-        amountCents: share.amountCents,
-        counterparty: contact.name,
-        memo: split.title,
-        category: 'AA',
-        occurredAt: now,
-      })
-    })
-    const paid = shares.filter((p) => p.status === 'paid').length
-    return { transactionId: txId, amount: yuan(share.amountCents), paidCount: paid, total: shares.length }
   },
 })
 

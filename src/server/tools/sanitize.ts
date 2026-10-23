@@ -32,7 +32,7 @@ export async function sanitizeToolOutput<T>(ctx: AgentContext, tool: string, val
 /** 给模型看的版本：外部文本加隔离标记，提示其只作数据处理 */
 export function quarantineForModel(value: unknown): unknown {
   const visit = (v: unknown, key?: string): unknown => {
-    if (typeof v === 'string' && key && UNTRUSTED_FIELDS.has(key)) return `⟦外部文本⟧${v}⟦/外部文本⟧`
+    if (typeof v === 'string' && key && UNTRUSTED_FIELDS.has(key)) return `⟦外部文本⟧${v.replaceAll('⟦', '［').replaceAll('⟧', '］')}⟦/外部文本⟧`
     if (Array.isArray(v)) return v.map((x) => visit(x))
     if (v && typeof v === 'object') {
       return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, visit(x, k)]))

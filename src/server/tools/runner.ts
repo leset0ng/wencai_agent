@@ -56,15 +56,17 @@ export async function runBankTool(
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) }
   }
+  // 确认摘要的 value 也可能来自其他用户的 AA 事由/户名，不能绕过输出审核。
+  const summary = await sanitizeToolOutput(ctx, def.name, pending.summary)
   if (decision.requiresChannelHandoff) {
     return {
       status: 'needs_handoff',
       actionId: pending.actionId,
       level: pending.level,
       reasons: decision.reasons,
-      summary: pending.summary,
+      summary,
       url: `${env.PUBLIC_BASE_URL}/confirm/${pending.actionId}`,
     }
   }
-  return { status: 'needs_confirmation', ...pending, reasons: decision.reasons }
+  return { status: 'needs_confirmation', ...pending, summary, reasons: decision.reasons }
 }

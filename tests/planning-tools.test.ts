@@ -12,7 +12,6 @@ import {
   previewScheduledTransfer,
   previewSplit,
   resolveHolding,
-  settleSplit,
   checkScheduleWindow,
 } from '#/server/tools/bank-planning'
 import { scoreRisk } from '#/server/tools/jobs'
@@ -173,7 +172,7 @@ describe('定时转账', () => {
 })
 
 describe('AA 收款', () => {
-  it('余数按分分配；改参与人被拒；创建后可逐一入账且不能重复', async () => {
+  it('余数按分分配；改参与人被拒；创建后所有参与份额仍待本人付款', async () => {
     const args = { title: '团建', totalCents: 1000, contactIds: [C1, C2] }
     const pv = (await previewSplit.execute(args, ctx)) as {
       confirmationToken: string
@@ -191,9 +190,12 @@ describe('AA 收款', () => {
     const { splitId } = (await commitSplit.execute({ ...args, confirmationToken: pv2.confirmationToken }, ctx)) as {
       splitId: string
     }
-    const r = (await settleSplit.execute({ splitId, contactId: C1 }, ctx)) as { paidCount: number }
-    expect(r.paidCount).toBe(1)
-    await expect(settleSplit.execute({ splitId, contactId: C1 }, ctx)).rejects.toThrow('ALREADY_PAID')
+    const [saved] = await db.select().from(schema.splits).where(eq(schema.splits.id, splitId))
+    expect(JSON.parse(saved.sharesJson)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ contactId: C1, status: 'pending' }),
+      expect.objectContaining({ contactId: C2, status: 'pending' }),
+    ]))
+    expect(BANK_TOOLS.some((tool) => tool.name === 'settle_split')).toBe(false)
   })
 
   it('他人的联系人不能被拉进账单', async () => {
