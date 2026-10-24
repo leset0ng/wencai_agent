@@ -16,5 +16,8 @@ export const Route = createFileRoute('/api/auth/$')({
 
 async function authHandler(request: Request): Promise<Response> {
   const { auth } = await import('#/server/auth')
-  return auth.handler(request)
+  const response = await auth.handler(request)
+  const { recordAuthFailure } = await import('#/server/logging/runtime')
+  await recordAuthFailure(response)
+  return response
 }

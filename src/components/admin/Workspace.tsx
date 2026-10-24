@@ -60,6 +60,7 @@ export const navigation = [
   { id: 'risk-review', name: '收款风险复核', icon: ShieldAlert },
   { id: 'profile', name: '用户画像', icon: UserRoundSearch },
   { id: 'audit', name: '操作审计', icon: ScrollText },
+  { id: 'logs', name: '实时日志', icon: ScrollText },
 ] as const
 
 const descriptions: Record<Section, string> = {
@@ -74,6 +75,7 @@ const descriptions: Record<Section, string> = {
   'risk-review': '核对收款账户风险线索，人工确认高危或解除标记。',
   profile: '用数据看清每位用户的收支、资产与风险偏好。',
   audit: '每次业务操作，都有迹可循。',
+  logs: '查看登录认证、接口状态和运行错误。',
 }
 
 async function loadData(userId: string) {

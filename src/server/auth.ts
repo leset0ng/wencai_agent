@@ -10,6 +10,7 @@ import { eq } from 'drizzle-orm'
 import { resolvePhoneNumber } from '#/lib/phone-number'
 import { schema } from '#/server/db/client'
 import { recordPhoneLogin } from '#/server/auth/onboarding'
+import { runtimeLog } from '#/server/logging/runtime'
 
 /**
  * 认证实例。仅负责「你是谁」，不涉及任何银行业务授权。
@@ -82,9 +83,18 @@ export const auth = betterAuth({
       expiresIn: 300,
       // 生产必须配置短信通道；仅本地开发的登录验证码允许演示日志。
       sendOTP: async ({ phoneNumber: phone, code }) => {
-        if (env.SMS_DELIVERY_URL) await sendVerificationSMS(phone, code)
-        else if (env.AUTH_DEMO_MODE && process.env.NODE_ENV !== 'production') console.log(`[auth] 演示登录验证码 ${phone}: ${code}`)
-        else throw new Error('登录短信通道尚未配置')
+        try {
+          if (env.SMS_DELIVERY_URL) {
+            await sendVerificationSMS(phone, code)
+            runtimeLog('info', 'auth', '登录验证码已交付短信通道')
+          } else if (env.AUTH_DEMO_MODE && process.env.NODE_ENV !== 'production') {
+            console.log(`[auth] 演示登录验证码 ${phone}: ${code}`)
+            runtimeLog('info', 'auth', '已生成演示登录验证码（仅服务端终端可见）')
+          } else throw new Error('登录短信通道尚未配置')
+        } catch (error) {
+          runtimeLog('error', 'auth', error instanceof Error ? error.message : '登录验证码发送失败')
+          throw error
+        }
       },
       // 注册页提供户名，服务端 hook 校验；只有手机号 OTP 通过后才能开户。
       signUpOnVerification: {

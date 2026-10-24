@@ -9,6 +9,7 @@ import { interactionReceiptText, resolveInteractionCommand } from '#/server/agen
 import { getConfirmationResult } from '#/server/confirm/result'
 import { audit } from '#/server/audit/log'
 import { requireSession } from '#/server/session'
+import { runtimeLog } from '#/server/logging/runtime'
 
 // 会话标识由认证会话决定，客户端传来的 id 仅用于兼容 ChatSDK 的传输协议
 const BodySchema = z.looseObject({ messages: z.array(z.any()), confirmedActionId: z.string().min(1).max(100).optional(), verificationActionId: z.string().min(1).max(100).optional(), cancelActionId: z.string().min(1).max(100).optional() })
@@ -73,6 +74,7 @@ export const Route = createFileRoute('/api/chat')({
           },
           // 详细错误只记服务端日志，不向客户端泄露
           onError: (error) => {
+            runtimeLog('error', 'agent', `对话处理失败：${error instanceof Error ? error.message : '未知错误'}`)
             console.error('[chat]', error)
             return '服务暂时不可用，请稍后再试'
           },

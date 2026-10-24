@@ -1,4 +1,27 @@
 /* 银行管理后台样式：从 ai-banking-agent 迁移，仅由 /admin 路由引入 */
+.admin-global-links { padding: 0 20px 8px; text-align: right; }
+.runtime-log-page .home-content { max-width: 1600px; }
+.runtime-log-panel { overflow: hidden; }
+.runtime-log-filters { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 18px; }
+.runtime-log-filters label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.runtime-log-filters select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #18243c; }
+.runtime-log-filters > input { flex: 1; min-width: 180px; }
+.runtime-log-status { padding: 0 18px 14px; color: #64748b; font-size: 12px; }
+.runtime-log-entries { height: min(60dvh, 680px); min-height: 280px; overflow: auto; background: #101827; color: #dce6f5; padding: 14px; font: 12px/1.8 Consolas, monospace; }
+.runtime-log-entry { display: grid; grid-template-columns: 170px 34px 62px minmax(0, 1fr); gap: 10px; padding: 7px 2px; border-bottom: 1px solid #ffffff0d; }
+.runtime-log-entry time { color: #94a3b8; }
+.runtime-log-message { overflow-wrap: anywhere; white-space: pre-wrap; }
+.runtime-log-message b { color: #8eacdf; font-weight: normal; }
+.runtime-log-level { color: #93c5fd; }
+.runtime-log-entry.is-warn .runtime-log-level { color: #fcd34d; }
+.runtime-log-entry.is-error .runtime-log-level { color: #fda4af; }
+.runtime-log-empty { color: #94a3b8; padding: 24px; }
+.runtime-log-note { color: #64748b; font-size: 12px; margin-top: 16px; line-height: 1.8; }
+@media (max-width: 700px) {
+  .runtime-log-entry { grid-template-columns: 1fr auto auto; gap: 4px 10px; }
+  .runtime-log-message { grid-column: 1 / -1; }
+  .runtime-log-page .home-header { flex-wrap: wrap; }
+}
 .admin-home {
   min-height: 100dvh;
 }

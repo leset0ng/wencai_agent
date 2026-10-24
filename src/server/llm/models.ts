@@ -2,6 +2,7 @@ import { createDeepSeek } from '@ai-sdk/deepseek'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { LanguageModel } from 'ai'
 import { env } from '#/server/env'
+import { runtimeLog } from '#/server/logging/runtime'
 
 /**
  * 主模型 DeepSeek V4.1 Flash，降级模型为 OpenAI 兼容接口（如 Qwen3）。
@@ -51,7 +52,7 @@ export interface FailoverOptions {
  */
 export function withFailover<T extends CallableModel>(candidates: Candidate<T>[], options: FailoverOptions = {}): T {
   if (candidates.length === 0) throw new Error('至少需要一个候选模型')
-  const { connectTimeoutMs = 15_000, cooldownMs = 60_000, now = Date.now, log = (m) => console.warn(m) } = options
+  const { connectTimeoutMs = 15_000, cooldownMs = 60_000, now = Date.now, log = (m) => { console.warn(m); runtimeLog('warn', 'agent', m) } } = options
   const coolingUntil = new Map<string, number>()
 
   async function attempt(candidate: Candidate<T>, method: 'doGenerate' | 'doStream', callOptions: CallOptions) {

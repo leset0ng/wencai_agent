@@ -26,6 +26,7 @@ import { adminAuthorized, authorizeAdminTransfer } from '#/server/admin/access'
 import { recentTraces, restoreAuditLog, runSandboxProbes, securityOverview, tamperAuditLog } from '#/server/security/kernel'
 import { buildTraces } from '#/server/security/trace'
 import { runLifeRenewalsThrough } from '#/server/life/service'
+import { getRuntimeLogs } from '#/server/admin/runtime-logs'
 
 const disabled = () =>
   Response.json({ error: { code: 'ADMIN_DISABLED', message: '管理后台未启用（设置 ADMIN_ENABLED=true）' } }, { status: 403 })
@@ -612,6 +613,7 @@ export const Route = createFileRoute('/api/admin')({
         const action = url.searchParams.get('action') ?? 'snapshot'
         // 仅返回展示访问入口所需的模式，不返回凭据或任何银行数据。
         if (action === 'access') return Response.json({ data: { demoMode: env.AUTH_DEMO_MODE } }, { headers: { 'cache-control': 'no-store' } })
+        if (action === 'logs') return getRuntimeLogs(request)
         if (!adminAuthorized(request)) return Response.json({ error: { code: 'ADMIN_AUTH_REQUIRED', message: '请输入后台访问凭据' } }, { status: 401 })
         const userId = url.searchParams.get('userId') ?? DEMO_USER_ID
         const period = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7)

@@ -26,6 +26,7 @@ export type Section =
   | 'security'
   | 'risk-review'
   | 'profile'
+  | 'logs'
 
 export type ViewProps = {
   s: AdminSnapshot

@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import '../components/admin/admin.css'
 import { AdminWorkspace, navigation } from '../components/admin/Workspace'
 import { AdminHome } from '../components/admin/Home'
+import { AdminRuntimeLogs } from '../components/admin/views/RuntimeLogs'
 import type { Section } from '../components/admin/shared'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -35,7 +36,8 @@ function Admin() {
   return (
     <>
     <div style={{ padding: '8px 20px', textAlign: 'right' }}>{demoMode ? <span>演示模式 · 免凭据访问</span> : <><Button className="button button-ghost button-sm" onClick={() => setShowAccess(!showAccess)} type="button">后台访问验证</Button>{showAccess && <form style={{ display: 'flex', justifyContent: 'end', gap: 8 }} onSubmit={(e) => { e.preventDefault(); sessionStorage.setItem('wencai_admin_token', token); setToken(''); setShowAccess(false); void qc.invalidateQueries() }}><Input type="password" autoComplete="off" aria-label="后台访问凭据" value={token} onChange={(e) => setToken(e.target.value)} /><Button className="button button-primary" type="submit">验证</Button></form>}</>}</div>
-    {!userId ? <AdminHome onSelect={(id) => navigate({ search: { userId: id, section: 'overview' } })} /> :
+    {section !== 'logs' && <div className="admin-global-links"><Button className="button button-outline button-sm" type="button" onClick={() => navigate({ search: { userId, section: 'logs' } })}>实时日志</Button></div>}
+    {section === 'logs' ? <AdminRuntimeLogs back={() => navigate({ search: { userId, section: 'overview' } })} /> : !userId ? <AdminHome onSelect={(id) => navigate({ search: { userId: id, section: 'overview' } })} /> :
     <AdminWorkspace
       key={userId}
       userId={userId}

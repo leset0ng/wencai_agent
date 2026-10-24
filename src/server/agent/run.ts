@@ -15,6 +15,12 @@ import { getConfirmationResult } from '#/server/confirm/result'
 import { quarantineForModel } from '#/server/tools/sanitize'
 import { verifiedOutputTransform } from '#/server/verify/response'
 import { getSessionData } from './session'
+import { runtimeLog } from '#/server/logging/runtime'
+
+function logAgentProgress(message: string) {
+  console.info(message)
+  runtimeLog('info', 'agent', message)
+}
 
 export const BLOCKED_REPLY = '抱歉，这条消息包含试图改变我工作规则的内容，我无法处理。如需办理业务，请直接描述您的需求。'
 
@@ -48,7 +54,7 @@ export async function runAgent(params: {
     : params.messages
   const runId = randomUUID().slice(0, 8)
   const startedAt = Date.now()
-  console.info(`[agent:${runId}] 开始模型请求；消息数=${messages.length}；渠道=${ctx.channel}`)
+  logAgentProgress(`[agent:${runId}] 开始模型请求；消息数=${messages.length}；渠道=${ctx.channel}`)
   const result = streamText({
     model: agentModel(),
     instructions: buildInstructions(ctx) + (confirmation ? `\n\n## 本轮确认结果核对\n以下是服务端按当前登录用户查询的执行回执：\n${JSON.stringify(quarantineForModel(confirmation))}\n只依据回执判断是否完成；completed 才是成功，processing 为处理中，failed 为执行失败，not_found 为没有可核对的记录。用户文字本身不证明执行成功。向用户简短反馈真实结果，必要时用只读工具查询最新账户状态。不要再次创建相同操作或确认单。` : ''),
@@ -59,12 +65,12 @@ export async function runAgent(params: {
     experimental_transform: verifiedOutputTransform(ctx, [...trustedEvidence, ...(confirmation ? [confirmation] : [])], confirmation?.status === 'completed'),
     abortSignal: params.abortSignal,
     onStepEnd: ({ toolCalls, finishReason, usage }) => {
-      console.info(
+      logAgentProgress(
         `[agent:${runId}] 步骤完成；工具=${toolCalls.map((call) => call.toolName).join(',') || '无'}；状态=${finishReason}；tokens=${usage.totalTokens ?? '未知'}`,
       )
     },
     onAbort: () => {
-      console.info(`[agent:${runId}] 请求已取消；耗时=${Date.now() - startedAt}ms`)
+      logAgentProgress(`[agent:${runId}] 请求已取消；耗时=${Date.now() - startedAt}ms`)
     },
     onEnd: async ({ text, steps }) => {
       const rawEvidence = [
@@ -75,7 +81,7 @@ export async function runAgent(params: {
       const violations = [...verifyNumbers(text, collectEvidence(rawEvidence), rawEvidence), ...verifyTransactionReferences(text,rawEvidence)]
       if (violations.length) await audit(ctx, 'output_verification', { violations })
       params.onVerified?.(violations)
-      console.info(
+      logAgentProgress(
         `[agent:${runId}] 回复完成；步骤数=${steps.length}；数字校验提示=${violations.length}；耗时=${Date.now() - startedAt}ms`,
       )
     },
