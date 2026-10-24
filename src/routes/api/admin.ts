@@ -263,11 +263,6 @@ const CommandSchema = z.discriminatedUnion('type', [
     contactIds: z.array(z.string()),
   }),
   z.object({
-    type: z.literal('settleSplit'),
-    splitId: z.string(),
-    contactId: z.string(),
-  }),
-  z.object({
     type: z.literal('cancelTask'),
     taskId: z.string(),
   }),
@@ -400,9 +395,6 @@ async function executeCommand(userId: string, command: Command, request: Request
       })
       const requests = await createSplitRequests(userId, id)
       return { id, ...requests, title: command.title, total: command.total, shares, selfAmount: Math.floor(command.total / (command.contactIds.length + 1)) }
-    }
-    case 'settleSplit': {
-      throw new Error('AA 必须由参与人登录自己的账户确认付款，后台不能代替参与人生成到账记录')
     }
     case 'cancelTask': {
       return (await import('#/server/confirm/lock')).withUserExecutionLock(userId, async () => (await import('#/server/automation/service')).cancelScheduled(userId, command.taskId))

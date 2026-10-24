@@ -9,15 +9,17 @@ import { previewFundOrder, submitFundOrder, compensateFundOrder, fundPortfolio }
 import { AdviceInput, getWealthAdvice } from '#/server/funds/advice'
 import { MarketQuery, getWealthMarket, getFundAnalytics } from '#/server/funds/market'
 
+/** 基金白名单与理财专家输出的名称来自人工维护的目录，不是外部文本 */
+const CATALOG = ['name', 'title'] as const
 const order = z.object({ code: z.string().regex(/^\d{6}$/), fromAccountId: z.string().min(1), amountCents: z.number().int().positive().max(100_000_000) })
 export const FUND_TOOLS = [
-  defineBankTool({ name: 'rank_funds', description: '只读查询人工白名单内基金/债券基金排行榜，可按day/week/month/3m/6m/1y/3y/5y/all周期和returnPct/sharpe/maxDrawdownPct/volatilityPct/annualizedReturnPct排序，支持机构/名称/风险/自选和assetClass/style风格筛选。非全市场排名，空值不参与排名；与理财页使用同一套统计。', baseRisk: 'green', kind: 'read', inputSchema: MarketQuery,
+  defineBankTool({ name: 'rank_funds', catalogFields: CATALOG, description: '只读查询人工白名单内基金/债券基金排行榜，可按day/week/month/3m/6m/1y/3y/5y/all周期和returnPct/sharpe/maxDrawdownPct/volatilityPct/annualizedReturnPct排序，支持机构/名称/风险/自选和assetClass/style风格筛选。非全市场排名，空值不参与排名；与理财页使用同一套统计。', baseRisk: 'green', kind: 'read', inputSchema: MarketQuery,
     execute: async (a, ctx) => getWealthMarket(ctx.userId, a, await simNow()) }),
-  defineBankTool({ name: 'get_fund_metrics', description: '只读查询指定基金全部九个周期的详细涨跌幅、净值变动额、夏普率、最大回撤、年化波动、年化收益及卡玛率，含样本数、起止日期、数据来源和计算假设；数据不足返回null，禁止当作零或编造。', baseRisk: 'green', kind: 'read', inputSchema: z.object({ code: z.string().regex(/^\d{6}$/) }),
+  defineBankTool({ name: 'get_fund_metrics', catalogFields: CATALOG, description: '只读查询指定基金全部九个周期的详细涨跌幅、净值变动额、夏普率、最大回撤、年化波动、年化收益及卡玛率，含样本数、起止日期、数据来源和计算假设；数据不足返回null，禁止当作零或编造。', baseRisk: 'green', kind: 'read', inputSchema: z.object({ code: z.string().regex(/^\d{6}$/) }),
     execute: async ({ code }) => getFundAnalytics(code, await simNow()) }),
-  defineBankTool({ name: 'list_funds', description: '只读查询基金白名单、公开净值日期、缓存来源、风险和申购状态。净值不是实时成交价；风险等级为人工演示配置。', baseRisk: 'green', kind: 'read', inputSchema: z.object({}),
+  defineBankTool({ name: 'list_funds', catalogFields: CATALOG, description: '只读查询基金白名单、公开净值日期、缓存来源、风险和申购状态。净值不是实时成交价；风险等级为人工演示配置。', baseRisk: 'green', kind: 'read', inputSchema: z.object({}),
     execute: async () => listFunds(await simNow()) }),
-  defineBankTool({ name: 'get_fund_details', description: '只读查询某基金历史净值与代码计算的历史收益、波动和最大回撤。', baseRisk: 'green', kind: 'read', inputSchema: z.object({ code: z.string().regex(/^\d{6}$/) }),
+  defineBankTool({ name: 'get_fund_details', catalogFields: CATALOG, description: '只读查询某基金历史净值与代码计算的历史收益、波动和最大回撤。', baseRisk: 'green', kind: 'read', inputSchema: z.object({ code: z.string().regex(/^\d{6}$/) }),
     execute: async ({ code }) => { const detail = await fundDetails(code, await simNow()); return { ...detail, metrics: fundMetrics(detail.navs) } } }),
   defineBankTool({ name: 'get_fund_portfolio', description: '只读查询本人基金持仓、估值与订单。submitted表示已扣款待净值确认，confirmed才有份额。', baseRisk: 'green', kind: 'read', inputSchema: z.object({}),
     execute: async (_, ctx) => fundPortfolio(ctx.userId, await simNow()) }),
@@ -38,6 +40,6 @@ export const FUND_TOOLS = [
     execute: async (a, ctx) => submitFundOrder(ctx, a, await simNow()),
     compensate: async (_, output, ctx) => compensateFundOrder(ctx, output.id, await simNow()),
   }),
-  defineBankTool({ name: 'get_wealth_advice', description: '只读理财专家：代码复用#7画像月均支出、预留六个月生活费，计算可投金额、适当性过滤、指标、冲突与排序；模型仅看匿名候选并选至多3个写理由，数字/百分比不通过即代码回退。金额和目标收益只能来自当前用户原文；缺少期限或流动性先问选择题，缺少测评调用标准风险问卷。assetClasses和styles/avoidStyles按明确偏好选择；maxDrawdownPct须来自用户百分比。暂停或限额产品只列观察清单，不推荐为可申购。不会因无匹配而放宽条件。不创建确认单、不授权、不交易。', baseRisk: 'green', kind: 'read', inputSchema: AdviceInput,
+  defineBankTool({ name: 'get_wealth_advice', catalogFields: CATALOG, description: '只读理财专家：代码复用#7画像月均支出、预留六个月生活费，计算可投金额、适当性过滤、指标、冲突与排序；模型仅看匿名候选并选至多3个写理由，数字/百分比不通过即代码回退。金额和目标收益只能来自当前用户原文；缺少期限或流动性先问选择题，缺少测评调用标准风险问卷。assetClasses和styles/avoidStyles按明确偏好选择；maxDrawdownPct须来自用户百分比。暂停或限额产品只列观察清单，不推荐为可申购。不会因无匹配而放宽条件。不创建确认单、不授权、不交易。', baseRisk: 'green', kind: 'read', inputSchema: AdviceInput,
     execute: async (a, ctx) => getWealthAdvice(ctx, a, await simNow()) }),
 ]

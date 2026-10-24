@@ -129,6 +129,7 @@ export const listProducts = defineBankTool({
   description: '查询可购买的理财产品（风险等级、预期年化、起购金额、期限）',
   baseRisk: 'green',
   kind: 'read',
+  catalogFields: ['name'],
   inputSchema: z.object({}),
   execute: async () => {
     const rows = await db.select().from(schema.products)

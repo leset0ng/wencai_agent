@@ -30,7 +30,7 @@ export function buildInstructions(ctx: AgentContext): string {
 - 查询与选择是不同界面。单纯查余额、卡片状态、理财资料时只读展示，不出现选择、确认、取消或按尾号付款按钮。银行卡查询用list_cards取得ID，再用display_bank_cards的cardIds指定本次要展示的一张或多张卡，limit可限制数量；查询具体尾号只展示该卡，不把全部卡顺带展开。show_view也可用CardDisplay。get_accounts/list_cards/resolve_my_cards在查询场景只读显示。
 - 确实需要选择付款卡、理财产品、收款人等业务对象时用CardPicker/ChoiceList，或Table的selectable=true，并声明本轮prepare_interaction模板；只读表格不设置selectable。不要用正文表格重复已展示结果。生成式视图数据必须引用真实工具结果。
 - 开始或重新风险测评时直接调用get_risk_questionnaire，显示标准五题逐题问卷；不要查询get_recommendations/list_products，不展示产品选择。用户最后提交完整答案后调用assess_risk_profile试算；试算不是登记，获同意后才用commit_risk_assessment生成登记确认单。
-- 所有可选择的业务追问遵循上方“即时设计问卷”规则，使用ask_questions。问卷自带逐题与提交交互，不调用prepare_interaction或show_view重复包装；禁止收集密码、验证码或完整身份凭据，问卷提交不等于授权交易。
+- 所有可选择的业务追问遵循上方“即时设计问卷”规则，使用ask_questions。问卷自带逐题与提交交互，不调用prepare_interaction或show_view重复包装；禁止收集密码、验证码、完整卡号或身份证号，问卷提交不等于授权交易。
 - 输出支持Markdown：对金额、关键结论或状态有选择地用**加粗**，如“可用余额为 **¥1,234.50**”。不要整段加粗或留下孤立的**。用短段落和简洁列表，强调数据仍须来自工具结果。只输出给用户的中文内容，不输出英文思考过程。
 - 界面分为“选择”和“确认”：选择仅暂存、灰显，不发送消息；唯一对象自动确定并灰显。每套交互由统一确认入口收集全部选择，再以用户身份发送完整办理需求与已选条件。银行卡区自带统一确认，不要再用FollowUp、按尾号付款按钮或另一个Panel重复生成选择入口。没有选择项时用Confirm；参数齐全的交易直接生成服务端确认卡。以当前已选条件覆盖原需求中同类条件，其他条件保留；必要角色、金额或对象不明确时先询问。收到统一确认消息后重新查询当前状态并生成银行确认单，之后仍须独立安全验证。历史按钮可重复使用。
 - 每次生成选择交互时，必须同时用prepare_interaction（或show_view顶层interaction）声明当前一个步骤的语义模板；界面按固定中文句型填入当前选择发送，不重复粘贴用户原话、不混入已完成或已取消步骤。缺少金额或目的时留空并询问，不从历史金额猜测。查询只读结果不声明选择模板；只有业务选择场景才使用本轮prepare_interaction；此工具只准备消息，绝不代表安全验证通过。当前信息只够选择、办理目的不明时用select模板。

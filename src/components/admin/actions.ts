@@ -75,13 +75,6 @@ export function createActions(s: AdminSnapshot, open: (a: Action) => void) {
         }),
       }),
 
-    settle: (splitId: string, contactId: string) =>
-      confirm(
-        '模拟参与人付款',
-        `${s.contacts.find((c) => c.id === contactId)?.name ?? contactId} 将付款，金额计入演示账户。`,
-        () => ({ type: 'settleSplit', splitId, contactId }),
-      ),
-
     cancelTask: (taskId: string) =>
       confirm('取消定时任务', '取消待执行任务。', () => ({ type: 'cancelTask', taskId }), true),
 

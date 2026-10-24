@@ -115,16 +115,8 @@ export function AdminTransfers({ s, actions }: ViewProps) {
                   <div className="split-person" key={p.contactId}>
                     <span>{s.contacts.find((c) => c.id === p.contactId)?.name ?? p.contactId}</span>
                     <b>{money(p.amount)}</b>
-                    {p.status === 'paid' ? (
-                      <Badge status="paid" />
-                    ) : (
-                      <Button
-                        className="button button-outline button-sm"
-                        onClick={() => actions.settle(split.id, p.contactId)} type="button"
-                      >
-                        模拟付款
-                      </Button>
-                    )}
+                    {/* AA 只能由参与人登录自己的账户付款，后台不提供代付入口 */}
+                    <Badge status={p.status === 'paid' ? 'paid' : 'pending'} />
                   </div>
                 ))}
               </div>

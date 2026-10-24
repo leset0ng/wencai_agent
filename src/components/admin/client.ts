@@ -53,7 +53,6 @@ export type AdminAnomaly = {
 export type AdminCommand =
   | { type: 'transfer'; recipient: string; amount: number; memo?: string; executeAt?: string }
   | { type: 'createSplit'; title: string; total: number; contactIds: string[] }
-  | { type: 'settleSplit'; splitId: string; contactId: string }
   | { type: 'cancelTask'; taskId: string }
   | { type: 'assessRisk'; answers: number[] }
   | { type: 'purchase'; productId: string; amount: number }

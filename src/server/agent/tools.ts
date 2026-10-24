@@ -41,13 +41,13 @@ export function buildAgentTools(ctx: AgentContext, options: { readOnly?: boolean
         }
         return outcome
       },
-      toModelOutput: ({ output }) => ({ type: 'json', value: quarantineForModel(output) as never }),
+      toModelOutput: ({ output }) => ({ type: 'json', value: quarantineForModel(output, def.catalogFields) as never }),
     })
   }
 
   if (ctx.channel !== 'mcp') {
     if (!options.readOnly) tools.ask_questions = tool({
-      description: '默认的业务提问入口。需要补充条件、澄清意图、选择下一步，或工具返回无匹配/冲突后让用户调整时，应调用本工具，而非正文罗列选项让用户打字选择。根据当前需求、已知答案和最新工具结果即时设计问卷，只问真正缺失或待调整的事项，已知条件不重复问；不套固定题单、不凑题数。支持1至12道单选题，每题2至6项，分支依赖时先问最少的分支题，收到答案再设计后续题。逐题选择，最后提交才统一发送全部题目和答案。选项清晰互斥且实际可行，允许暂不调整；不猜金额或承诺匹配，精确自由输入不能假装是单选输入框。真实银行卡/收款人等对象使用既有选择组件。只收集业务信息，不收集密码、验证码、完整卡号或身份证号。风险测评改用get_risk_questionnaire标准问卷，不改题或评分。展示后正文仅简短提示填写，不重复题目或追加新问题；答案不执行交易、不代替安全确认。',
+      description: '默认的业务提问入口：需要补充条件、澄清意图、选择下一步，或工具返回无匹配/冲突后让用户调整时调用，按系统说明“即时设计问卷”规则出题。1至12道单选题，每题2至6项，逐题选择，最后提交才统一发送。只收集业务信息，不收集密码、验证码、完整卡号或身份证号。风险测评改用get_risk_questionnaire标准问卷。答案不执行交易、不代替安全确认。',
       inputSchema: z.object({ questionnaire: QuestionnaireSchema }),
       execute: async ({ questionnaire }) => questionnaire.purpose === 'risk_assessment' || /风险.{0,4}(?:测评|评估|评定)/.test(questionnaire.title)
         ? { status: 'invalid_questionnaire' as const, errors: ['风险测评请使用get_risk_questionnaire标准问卷'] }

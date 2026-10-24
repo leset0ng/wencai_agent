@@ -23,7 +23,15 @@ export interface BankToolDef<I = any, O = any> {
   execute: (args: I, ctx: AgentContext) => Promise<O>
   /** 补偿动作（Saga 回滚），DAG 失败时逆序调用 */
   compensate?: (args: I, output: O, ctx: AgentContext) => Promise<void>
+  /**
+   * 输出全部来自服务端维护的目录（基金白名单、理财产品、商城商品）时，
+   * 这些通用键不是外部文本：不过审核、不加隔离标记。只能豁免通用键，备注、户名等外部字段始终审核。
+   */
+  catalogFields?: readonly CatalogField[]
 }
+
+/** UNTRUSTED_FIELDS 中可被目录类工具豁免的通用键 */
+export type CatalogField = 'name' | 'title' | 'value'
 
 export function defineBankTool<I, O>(def: BankToolDef<I, O>): BankToolDef<I, O> {
   if (def.kind === 'write' && !def.summarize) {
@@ -55,5 +63,8 @@ export type ToolOutcome =
     }
   | { status: 'error'; message: string }
 
-/** 外部可控的自由文本字段：交易对手、备注、商户名 */
+/**
+ * 外部可控的自由文本字段：交易对手、备注、商户名。name/title/value 是通用键，
+ * 因为收款人户名、AA 事由和确认摘要会把其他用户填写的文字带进很多工具；目录类工具用 catalogFields 豁免。
+ */
 export const UNTRUSTED_FIELDS = new Set(['counterparty', 'memo', 'merchant', 'description', 'remark', 'accountName', 'recipient', 'address', 'refundReason', 'institution', 'title', 'requesterName', 'alias', 'note', 'payeeName', 'name', 'value'])
