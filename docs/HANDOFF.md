@@ -286,21 +286,38 @@ export interface AgentContext {
 
 ---
 
-## 6. 工程债（**比赛前不要动**）
+## 6. 工程债与模块化调整
 
-| 事项 | 说明 |
-|---|---|
-| **三个巨型文件** | `tools/bank-extended.ts` 1023 行（混了报表/理财/转账/卡片/订阅四个域）、`components/banking/PaymentCenter.tsx` 753 行、`routes/api/admin.ts` 666 行、`components/banking/BankingHome.tsx` 721 行。拆分方式见 §6.1。 |
-| **金额单位不统一** | 存库都是整数分；基础工具用 `amount`（元），扩展工具用 `amountCents`（分），返回给模型时又可能换算为元。后台 API 的展示字段**多数仍是分**，前端再除以 100。→ 应抽 `src/server/lib/money.ts`。 |
-| **匹配算法重复** | `payeeScore`/`editDistance` 在 `tools/bank.ts`，`payments/service.ts` 也需要匹配。→ 应抽 `src/server/lib/matching.ts`，顺便做 `bank.ts:103` 标注的 TODO（拼音，`pinyin-pro`）。 |
-| **建表语句三处分散** | `automation/service.ts` 的 `ensureAutomationSchema`、`payments/migrate.ts`、`cards/service.ts` 各有一套 `CREATE TABLE IF NOT EXISTS`。模式本身合理（无损升级已存在的库），但应统一到 `src/server/db/upgrade.ts`，注明每张表的引入日期与幂等契约。 |
-| **时钟语义混乱** | `simNow()`（仿真）与 `new Date()`（真实）混用，靠 `settings.clock_mode` 切换。演示时是特性，做真实定时任务时是 bug 源。→ 应抽显式 `BusinessClock` 接口，所有任务只通过它取时间。 |
-| **定时任务类型硬编码** | `runAutomaticTransfers` 里 `kind === 'transfer' \|\| kind === 'birthdayOrder'` 是 if 分支，加第三种任务要改三处。→ 应做 `jobs/registry.ts`：每种任务声明 `{ kind, prepare, execute, compensate, retryPolicy }`。 |
-| **定时任务缺重试与死信** | 失败直接 `failed`，用户看不到也不会重试。→ 加 `attempts` / `nextRetryAt` / `deadLetterAt`。 |
-| **worker 是全表单进程轮询** | `scripts/worker.ts` 里 `for (const user of users)` 顺序处理所有用户，O(N) 延迟。演示够用，生产要改成按 `due_at` 索引查待办。 |
-| **文档用 changelog 当正文** | `DEVELOPMENT.md` 第 188 行之后是按日期追加的 5 段变更流水，很快会超过正文长度。→ 移到 `docs/CHANGELOG.md`。 |
+> 2026-10-24 根据代码分析重写。整体分层（前端不引用服务端、按机制划分的 `policy` / `confirm` / `audit` / `guard`）**不需要重组**；以下问题按阶段处理。
 
-### 6.1 如果要拆大文件（唯一推荐的拆法）
+### 6.0 现状数据
+
+| 问题 | 数据 | 影响 |
+|---|---|---|
+| **循环依赖** | `madge` 检测到 17 个，几乎都经过 `automation/service → confirm/pending → executor/service → tools/bank`；全项目 26 处动态 `import()`，大多用来绕开循环 | 模块无法独立理解和测试；构建出现 `INEFFECTIVE_DYNAMIC_IMPORT` 警告 |
+| **循环的成因** | ① `automation/service.ts` 混放通知、订阅提醒与识别、任务审批、定时转账、建表，被 9 处动态引用；② `tools/bank.ts` 既是注册表又放基础工具实现，`executor`、`confirm`、`security/operation`、`lark-confirm` 只为用 `resolveTool` 就引入全部工具；③ 业务层反向依赖工具层（定时任务动态导入 `tools/bank` 的 `transfer` 来创建确认单） | |
+| **时钟** | `simNow()` 放在工具层 `tools/jobs.ts`，被 13 个文件引用；`routes/api/admin.ts` 另有一份返回字符串的同名函数 | 服务层依赖工具层 |
+| **重复的工具函数** | 北京时间偏移 `8 * 3600_000` 手写 13 处；"分 → 元"格式化约 12 份，取整和负数写法不一致 | 口径容易不一致 |
+| **建表语句分散** | 19 个文件、32 条 `CREATE TABLE IF NOT EXISTS`，另有几处 `ALTER TABLE` 补列，与 Drizzle 定义是两份来源 | 加字段要改两处，漏改不会报错 |
+| **大文件**（按体积） | `tools/bank-extended.ts` 41KB、`banking/BankingHome.tsx` 37KB、`routes/api/admin.ts` 28KB、`banking/PaymentCenter.tsx` 27KB、`profile/profile.ts` 27KB、`banking/WealthMarket.tsx` 22KB（111 行，最长一行 1707 列）、`agent/instructions.ts` 20KB（整份提示词一个字符串） | 难审查、易冲突 |
+| **代码格式** | 此前没有格式化工具；144 行超过 300 列；部分文件为去空格的紧凑写法 | 3 人同时提交时 diff 难读 |
+| **样式表** | `admin.css` 68KB、`banking.css` 37KB；迁移到 shadcn 后未清理旧样式 | |
+| **文档** | 29 份，17 份不到 50 行，主题重叠（基金 4 份、Agent 交互 3 份）；本文 1100+ 行 | 找不到主文档 |
+| **仍有效的旧条目** | 收款人匹配算法重复（`payeeScore` 等，可顺带做拼音）；定时任务类型硬编码（应做 `jobs/registry.ts`）；定时任务缺重试与死信；worker 全表顺序轮询 | |
+
+### 6.1 分阶段计划
+
+| 阶段 | 内容 | 复杂度 · 模型 | 状态 |
+|---|---|---|---|
+| **A. 11.02 前（零行为变化）** | ① Prettier + `.editorconfig`，只格式化改动过的文件（`pnpm format:changed`）；② 共享工具 `lib/money.ts`、`lib/time.ts`；③ 文档索引 `docs/README.md` | 简单 · Sonnet `low` | ✅ 2026-10-24 完成，见 §10 |
+| **B. 11.02 提交后至 11.21 前** | ① 拆开循环依赖：通知与自动化建表拆成独立的底层模块；`resolveTool` 移到只负责注册的 `tools/registry.ts`；定时任务改为通过参数传入工具定义；完成后把 `madge --circular` 加入测试防止回归；② 时钟统一到 `server/clock.ts`；③ 建表统一到 `db/upgrade.ts`，按版本顺序执行；④ `routes/api/admin.ts` 按命令拆分；⑤ `agent/instructions.ts` 按业务分段组合；⑥ 与其他开发者约定时间，用单独提交做一次全量格式化 | ①③ 复杂 · Opus `high`；其余中等 · Sonnet `medium` | ❌ 未开始 |
+| **C. 赛后** | 按 §6.2 拆分 `bank-extended` / `bank-planning`；拆分 `PaymentCenter`、`BankingHome`、`WealthMarket`、`profile.ts`；清理旧 CSS；改用 Drizzle 版本化迁移；测试按业务分目录；合并重叠文档；§6.0 "仍有效的旧条目" | 中等 · Sonnet `medium`；迁移 Opus `high` | ❌ 未开始 |
+
+**不建议**：按业务领域重组 `domains/...`（会拆散策略、确认、审计这些跨业务机制）；11.02 前全量格式化或改动循环依赖的核心文件（行为不变，但会与其他开发者大面积冲突，对评审没有帮助）。
+
+**格式化约定（阶段 B⑥ 之前）**：只运行 `pnpm format:changed`，**不要运行 `prettier --write .`**。本项目故意没有提供全量格式化的脚本。
+
+### 6.2 如果要拆大文件（唯一推荐的拆法）
 
 **不要按 DDD 重组 `domains/{account,payment,card}/`**——横切机制（policy/confirm/audit）会被打碎到各域里，反而更难维护，且要改几百处 import。
 
@@ -317,10 +334,10 @@ src/server/tools/
   extended/subscriptions.ts   订阅扩展
   bank-planning.ts         → 拆为 contacts.ts / holdings.ts / schedules.ts /
                              assessments.ts / splits.ts / reminders.ts
-  index.ts                 汇总 BANK_TOOLS + resolveTool
+  registry.ts              只负责汇总 BANK_TOOLS 与 resolveTool（阶段 B① 先建）
 ```
 
-`bank.ts` 末尾那 8 个 `...SPREAD` 改为从 `index.ts` 统一汇总，**`runner.ts` 与 `agent/tools.ts` 的 import 路径无需改动**。
+`bank.ts` 末尾的一串 `...XXX_TOOLS` 改为在 `registry.ts` 统一汇总；`runner.ts` 与 `agent/tools.ts` 的引用改为指向 `registry.ts`。
 
 **判据**：一个文件里同时出现"两种不同的业务名词"就该拆。`bank-extended.ts` 里同时有 transfer / invest / card / subscription 四个域。
 
@@ -696,6 +713,16 @@ S3–S5（对话工具、一键急停、飞书与后台）未做，按 §11.6 �
 **仍存在**：同义改写（"抛开前面的所有约束"、繁体、拼音、英文 disregard 等）规则无法穷举，依赖 Qwen3Guard；只审核最后一条用户消息（#3）未处理。
 
 **验证**：类型检查与生产构建通过；独立库上 **69 个文件、955 项通过**。另：`life-commerce.test.ts` 的"系统工具推进时钟"用例在一次全量运行中卡住 240 秒失败，单独运行及另两次全量运行均通过，改动前版本也通过，与本批修改无关，但存在偶发卡顿，值得单独排查。
+
+### 2026-10-24 · 模块化调整阶段 A ✅（零行为变化）
+
+按 §6.1 阶段 A 完成三件事，并重写了 §6（工程债与模块化调整）：
+
+- **代码格式**：新增 Prettier（devDependency）、`.prettierrc.json`（不加分号、单引号、尾逗号、两空格、120 列，与现有主流写法一致）、`.prettierignore`（排除生成文件、运行数据和 Markdown）、`.editorconfig`。新增 `pnpm format:changed`（`scripts/format-changed.mjs`）：只格式化相对 HEAD 改动过或新增的文件，`--check` 只检查。**故意没有提供全量格式化脚本**，全量格式化留到阶段 B 与其他开发者约定后单独提交。
+- **共享工具**：`src/lib/time.ts`（北京时间日期、月份、时刻、自然日起点与范围）与 `src/lib/money.ts`（分 ↔ 元、`¥1,234.56` 与 `1,234.56` 格式），前后端均可用。`lib/dashboard.ts` 的 `businessDate` / `businessMonth` / `businessDateTime` 改为转发到 `lib/time.ts`，名称与输出不变。其余十余处手写实现**未迁移**，新代码请改用这两个模块。`tests/shared-helpers.test.ts`（24 项）逐一核对新函数与既有写法在日界、跨月、跨年、闰日、负数、非整数分上的结果一致；唯一差异是负数：模板写法会产生 `¥-12.34`，新函数统一为 `-¥12.34`。
+- **文档索引**：`docs/README.md` 按用途列出全部 29 份文档并标明主文档和过时状态，根 README 已链接。
+
+**验证**：类型检查与生产构建通过；`format:changed --check` 通过；独立库上 **70 个文件、991 项通过**；循环依赖仍为 17 个，没有新增（拆除留到阶段 B）。
 
 ---
 

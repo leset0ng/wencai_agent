@@ -115,14 +115,16 @@ describe('用户与 Agent 路径的日累计复查保持不变', () => {
 
   it('后台凭据错误不能签发授权，授权过期也不能使用', async () => {
     const old=env.ADMIN_TOKEN
+    const oldDemo=env.AUTH_DEMO_MODE
     try {
+      env.AUTH_DEMO_MODE=false
       env.ADMIN_TOKEN='private-test-token-at-least-24-chars'
       expect(()=>authorizeAdminTransfer(new Request('http://localhost/api/admin'),uid,input(150_000))).toThrow('后台转账凭据无效')
       const adminGrant=authorizeAdminTransfer(new Request('http://localhost/api/admin',{headers:{authorization:`Bearer ${env.ADMIN_TOKEN}`}}),uid,input(150_000))
       const clock=vi.spyOn(Date,'now').mockReturnValue(Date.now()+61_000)
       try { await expect(settleTransfer(input(150_000),ctx({sessionId:'admin'}),NOW,{adminGrant})).rejects.toThrow('后台转账授权无效') }
       finally { clock.mockRestore() }
-    } finally { env.ADMIN_TOKEN=old }
+    } finally { env.ADMIN_TOKEN=old; env.AUTH_DEMO_MODE=oldDemo }
     expect(await balance()).toBe(5_000_000)
   })
 })

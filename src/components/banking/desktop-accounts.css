@@ -1,4 +1,4 @@
-@media (min-width:1024px) {
+@media (min-width:1024px), (min-width:768px) and (hover:hover) and (pointer:fine) {
   .bank-desktop-accounts { container-type:inline-size; }
   .bank-responsive .bank-workspace .bank-page-content.is-accounts:not(.is-home) { max-width:none; padding:0 0 30px; }
   .bank-accounts-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin:4px 0 18px; }
@@ -77,7 +77,7 @@
     .bank-accounts-ledger .bank-accounts-panel-heading { flex-wrap:wrap; }
   }
 }
-@media (min-width:1024px) and (max-width:1400px) {
+@media (min-width:1024px) and (max-width:1400px), (min-width:768px) and (hover:hover) and (pointer:fine) and (max-width:1400px) {
   .bank-accounts-overview { grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); }
   .bank-accounts-monthly { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; gap:18px; }
   .bank-accounts-monthly .bank-accounts-panel-heading { grid-column:1/-1; }

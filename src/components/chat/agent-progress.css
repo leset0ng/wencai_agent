@@ -10,7 +10,7 @@
 .bank-agent-stage-text strong { display:block; font-size:15px; line-height:1.5; font-weight:650; color:var(--lagoon); }
 .bank-agent-stage-text p { margin:6px 0 0; font-size:12px; line-height:1.6; color:var(--sea-ink-soft); }
 @keyframes bank-stage-spin { to { transform:rotate(360deg); } }
-@media (min-width:1024px) {
+@media (min-width:1024px), (min-width:768px) and (hover:hover) and (pointer:fine) {
   .bank-responsive .bank-workspace .bank-agent-progress { gap:14px; margin-top:20px; }
   .bank-responsive .bank-workspace .bank-agent-progress-caption { font-size:15px; min-height:34px; margin-bottom:12px; color:var(--pc-text); }
   .bank-responsive .bank-workspace .bank-agent-progress-caption i { background:var(--pc-action); }

@@ -608,9 +608,11 @@ export const Route = createFileRoute('/api/admin')({
     handlers: {
       GET: async ({ request }) => {
         if (!env.ADMIN_ENABLED) return disabled()
-        if (!adminAuthorized(request)) return Response.json({ error: { code: 'ADMIN_AUTH_REQUIRED', message: '请输入后台访问凭据' } }, { status: 401 })
         const url = new URL(request.url)
         const action = url.searchParams.get('action') ?? 'snapshot'
+        // 仅返回展示访问入口所需的模式，不返回凭据或任何银行数据。
+        if (action === 'access') return Response.json({ data: { demoMode: env.AUTH_DEMO_MODE } }, { headers: { 'cache-control': 'no-store' } })
+        if (!adminAuthorized(request)) return Response.json({ error: { code: 'ADMIN_AUTH_REQUIRED', message: '请输入后台访问凭据' } }, { status: 401 })
         const userId = url.searchParams.get('userId') ?? DEMO_USER_ID
         const period = url.searchParams.get('period') ?? new Date().toISOString().slice(0, 7)
 

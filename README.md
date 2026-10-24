@@ -4,7 +4,7 @@
 
 用自然语言办理银行业务的 AI Banking Agent。核心原则：**大模型负责理解与提议，确定性代码负责授权与执行。**
 
-架构与安全设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；**安全机制的完整说明、测试覆盖与已知缺陷见 [docs/SECURITY.md](docs/SECURITY.md)（安全自评报告）**；当前源码调用链、开发入口、Windows 启动步骤和待办见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。**接手本项目请先读 [docs/HANDOFF.md](docs/HANDOFF.md)**：四条硬约束、代码地图、两类令牌的区别、已知的坑与当前优先级都在那里。演示或录屏前先看 [docs/DEMO.md](docs/DEMO.md)：分镜、固定话术、录屏方法与现场兜底。
+架构与安全设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；**安全机制的完整说明、测试覆盖与已知缺陷见 [docs/SECURITY.md](docs/SECURITY.md)（安全自评报告）**；当前源码调用链、开发入口、Windows 启动步骤和待办见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。**接手本项目请先读 [docs/HANDOFF.md](docs/HANDOFF.md)**：四条硬约束、代码地图、两类令牌的区别、已知的坑与当前优先级都在那里。演示或录屏前先看 [docs/DEMO.md](docs/DEMO.md)：分镜、固定话术、录屏方法与现场兜底。全部 29 份文档的分类与主次见 [docs/README.md](docs/README.md)。
 
 ## 快速开始
 

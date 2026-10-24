@@ -1,7 +1,7 @@
 .bank-secure-auth-body { display:grid; gap:12px; }
 .bank-secure-actions > div { display:flex; gap:16px; }
 .bank-secure-alternatives > .bank-secure-method { display:flex; margin-inline:auto; }
-@media(min-width:1024px) {
+@media (min-width:1024px), (min-width:768px) and (hover:hover) and (pointer:fine) {
   .bank-secure-frame.bank-secure-desktop-frame { border:1px solid #d8d9eb; border-radius:20px; box-shadow:0 25px 100px #0005; }
   html.dark .bank-secure-frame.bank-secure-desktop-frame { border-color:#373746; background:#111114; }
   .bank-secure-frame.bank-secure-desktop-frame[data-ending-style] { animation:bank-secure-desktop-exit .2s ease-out both; }

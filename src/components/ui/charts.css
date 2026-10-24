@@ -51,7 +51,7 @@
     stroke-width 200ms,
     opacity 200ms;
 }
-@media (min-width: 1024px) {
+@media (min-width:1024px), (min-width:768px) and (hover:hover) and (pointer:fine) {
   .bank-donut {
     --bank-chart-tone-0: #7c83e8;
     --bank-chart-tone-1: #6ba7d7;
@@ -125,7 +125,7 @@
 .bank-donut.is-pie svg {
   transform: rotateX(28deg) rotateZ(-12deg);
 }
-@media (min-width: 1024px) {
+@media (min-width:1024px), (min-width:768px) and (hover:hover) and (pointer:fine) {
   /* Depth belongs to the pie itself, keeping desktop legend text crisp. */
   .bank-donut.is-pie { filter: none; }
   .bank-donut.is-pie svg {

@@ -3,8 +3,10 @@ import { env } from '#/server/env'
 import type { AgentContext } from '#/server/agent/context'
 import type { TransferInput } from '#/server/payments/service'
 
-/** 免认证仅限本地开发；非本地或生产环境必须提供独立后台凭据。 */
+/** 演示模式允许免凭据访问；后台总开关仍生效。非演示模式保留原有凭据/本地开发校验。 */
 export function adminAuthorized(request: Request) {
+  if (!env.ADMIN_ENABLED) return false
+  if (env.AUTH_DEMO_MODE) return true
   if (env.ADMIN_TOKEN) {
     const given = Buffer.from(request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '')
     const expected = Buffer.from(env.ADMIN_TOKEN)

@@ -1,0 +1,15 @@
+# 生成文件与依赖
+node_modules
+dist
+.output
+.tanstack
+pnpm-lock.yaml
+src/routeTree.gen.ts
+
+# 运行数据、测试库、日志与快照
+data
+.scratch
+fixtures
+
+# 文档暂不格式化：Prettier 会重排 Markdown 表格，产生大量无意义 diff
+*.md
